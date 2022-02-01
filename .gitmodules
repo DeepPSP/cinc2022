@@ -1,0 +1,3 @@
+[submodule "official_baseline_classifier"]
+	path = official_baseline_classifier
+	url = https://github.com/physionetchallenges/python-classifier-2022.git
