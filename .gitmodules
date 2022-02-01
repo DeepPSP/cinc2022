@@ -1,3 +1,6 @@
 [submodule "official_baseline_classifier"]
 	path = official_baseline_classifier
 	url = https://github.com/physionetchallenges/python-classifier-2022.git
+[submodule "official_scoring_metric"]
+	path = official_scoring_metric
+	url = https://github.com/physionetchallenges/evaluation-2022.git
