@@ -50,6 +50,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 # RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 # RUN pip install torch==1.8.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install torch==1.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+# compatible with torch
+RUN pip install torchaudio==0.6.0 --no-deps
 # RUN pip install torch
 ## Include the following line if you have a requirements.txt file.
 RUN pip install -r requirements.txt

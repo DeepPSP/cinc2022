@@ -9,7 +9,7 @@ opencv-python
 packaging
 easydict
 # torch==1.6.0  # see Dockerfile
-torchaudio==0.6.0
+# torchaudio==0.6.0  # see Dockerfile
 torchsummary
 tensorboardX
 tqdm
