@@ -8,9 +8,11 @@ wfdb==3.2.0
 opencv-python
 packaging
 easydict
-# torch==1.8.0  # see Dockerfile
+# torch==1.6.0  # see Dockerfile
+torchaudio==0.6.0
 torchsummary
 tensorboardX
 tqdm
 deprecated
 torch_optimizer
+librosa
