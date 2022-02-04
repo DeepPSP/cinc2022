@@ -20,6 +20,7 @@ import wfdb
 import librosa
 import torchaudio
 import scipy.signal as ss
+import scipy.io as sio
 import scipy.io.wavfile as sio_wav
 from easydict import EasyDict as ED
 import IPython
@@ -28,7 +29,13 @@ try:
 except ModuleNotFoundError:
     from tqdm import tqdm
 
-import utils
+
+__all__ = [
+    "PCGDataBase",
+    "CINC2022Reader",
+    "CINC2016Reader",
+    "EPHNOGRAMReader",
+]
 
 
 class PCGDataBase(ABC):
@@ -409,7 +416,8 @@ class CINC2016Reader(PCGDataBase):
         wfdb_rec = wfdb.rdrecord(str(self.get_path(rec)), channel_names=["ECG"], physical=True)
         ecg = wfdb_rec.p_signal.T
         if fs is not None and fs != wfdb_rec.fs:
-            ecg = ss.resample_poly(ecg, fs, wfdb_rec.fs, axis=-1)
+            # ecg = ss.resample_poly(ecg, fs, wfdb_rec.fs, axis=-1)
+            ecg = librosa.resample(ecg, wfdb_rec.fs, fs, res_type="kaiser_best")
         if fmt.lower() == "channel_last":
             ecg = ecg.T
         return ecg
@@ -436,3 +444,97 @@ class EPHNOGRAMReader(PCGDataBase):
     """
     """
     __name__ = "EPHNOGRAMReader"
+
+    def __init__(self,
+                 db_dir:str,
+                 fs:int=8000,
+                 working_dir:Optional[str]=None,
+                 verbose:int=2,
+                 **kwargs:Any) -> NoReturn:
+        """
+        """
+        super().__init__(
+            db_name="ephnogram",
+            db_dir=db_dir, fs=fs, working_dir=working_dir, verbose=verbose, **kwargs
+        )
+        self.data_ext = "mat"
+        self.aux_ext = "dat"
+
+        self._df_stats = pd.read_csv(self.db_dir / "ECGPCGSpreadsheet.csv")
+        self._df_stats = self._df_stats[[
+            "Record Name", "Subject ID", "Record Duration (min)", "Age (years)",
+            "Gender", "Recording Scenario", "Num Channels", "ECG Notes",
+            "PCG Notes", "PCG2 Notes", "AUX1 Notes", "AUX2 Notes",
+            "Database Housekeeping",]]
+
+        self._ls_rec()
+        self.data_dir = self.db_dir / "MAT"
+        self.aux_dir = self.db_dir / "WFDB"
+        self._channels = ["ECG", "PCG", "PCG2", "AUX1", "AUX2",]
+
+    def _ls_rec(self) -> NoReturn:
+        """
+        """
+        try:
+            self._all_records = wfdb.get_record_list(self.db_name)
+        except:
+            records_file = self.db_dir / "RECORDS"
+            if records_file.exists():
+                self._all_records = records_file.read_text().splitlines()
+            else:
+                self._all_records = sorted(
+                    self.db_dir.rglob(f"*.{self.header_ext}")
+                )
+                self._all_records = [
+                    item.replace(str(self.db_dir), "").replace(f".{self.header_ext}", "").strip(self.db_dir.anchor) \
+                        for item in self._all_records
+                ]
+                records_file.write_text("\n".join(self._all_records))
+        self._all_records = [os.path.basename(item) for item in self._all_records]
+
+    def load_data(self,
+                  rec:str,
+                  fs:Optional[int]=None,
+                  fmt:str="channel_first",
+                  channels:Optional[Union[str, Sequence[str]]]=None,) -> Dict[str, np.ndarray]:
+        """
+        load data from the record `rec`
+        """
+        fs = fs or self.fs
+        if fs == -1:
+            fs = None
+        data = sio.loadmat(self.data_dir / f"{rec}.{self.data_ext}")
+        data_fs = data["fs"][0][0]
+        channels = channels or self._channels
+        if isinstance(channels, str):
+            channels = [channels]
+        data = {
+            k: v.astype(np.float32) if fmt.lower()=="channel_first" else v.astype(np.float32).T \
+                for k,v in data.items() if k in channels
+        }
+        if fs is not None and fs != data_fs:
+            for k in data:
+                data[k] = librosa.resample(data[k], data_fs, fs, res_type="kaiser_best")
+        return data
+
+    def load_pcg(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first",) -> np.ndarray:
+        """
+        """
+        return self.load_data(rec, fs, fmt, "PCG")["PCG"]
+
+    def load_ann(self, rec:str) -> str:
+        """
+        load annotations of the record `rec`
+        """
+        raise NotImplementedError("No annotation for this database")
+
+    def play(self, rec:str, channel:str="PCG") -> IPython.display.Audio:
+        """
+        """
+        data = self.load_data(rec, channels=channel)[0]
+        return IPython.display.Audio(data=data, rate=8000)
+
+    def plot(self, rec:str, **kwargs) -> NoReturn:
+        """
+        """
+        raise NotImplementedError
