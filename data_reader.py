@@ -466,6 +466,7 @@ class EPHNOGRAMReader(PCGDataBase):
             "Gender", "Recording Scenario", "Num Channels", "ECG Notes",
             "PCG Notes", "PCG2 Notes", "AUX1 Notes", "AUX2 Notes",
             "Database Housekeeping",]]
+        self._df_stats = self._df_stats[~self._df_stats["Record Name"].isna()].reset_index(drop=True)
 
         self._ls_rec()
         self.data_dir = self.db_dir / "MAT"
