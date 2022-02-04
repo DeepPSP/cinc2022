@@ -19,6 +19,7 @@ import pandas as pd
 import wfdb
 import librosa
 import torchaudio
+import scipy.signal as ss
 import scipy.io.wavfile as sio_wav
 from easydict import EasyDict as ED
 import IPython
@@ -94,11 +95,11 @@ class PCGDataBase(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def play(self, rec:str, **kwargs) -> IPython.display.Audio:
         """
         """
-        audio_file = self.db_dir / f"{rec}.{self.data_ext}"
-        return IPython.display.Audio(filename=str(audio_file))
+        raise NotImplementedError
 
     @property
     def all_records(self):
@@ -134,7 +135,7 @@ class CINC2022Reader(PCGDataBase):
 
     def __init__(self,
                  db_dir:str,
-                 fs:int=1000,
+                 fs:int=4000,
                  working_dir:Optional[str]=None,
                  verbose:int=2,
                  **kwargs:Any) -> NoReturn:
@@ -144,6 +145,7 @@ class CINC2022Reader(PCGDataBase):
             db_name="circor-heart-sound",
             db_dir=db_dir, fs=fs, working_dir=working_dir, verbose=verbose, **kwargs
         )
+        self.data_dir = self.db_dir / "training_data"
         self.data_ext = "wav"
         self.ann_ext = "hea"
         self.segmentation_ext = "tsv"
@@ -185,17 +187,18 @@ class CINC2022Reader(PCGDataBase):
         except:
             records_file = self.db_dir / "RECORDS"
             if records_file.exists():
-                with open(records_file) as f:
-                    self._all_records = f.read().splitlines()
+                self._all_records = records_file.read_text().splitlines()
             else:
                 self._all_records = sorted([
                     f"training_data/{item.name}".replace(".hea", "") \
-                        for item in (self.db_dir / "training_data").glob("*.hea")
+                        for item in (self.data_dir).glob("*.hea")
                 ])
-                with open(records_file, "w") as f:
-                    f.write("\n".join(self._all_records))
+                records_file.write_text("\n".join(self._all_records))
+        self._all_records = [
+            item.replace("training_data/", "") for item in self._all_records
+        ]
         self._all_subjects = sorted(set([
-            item.replace("training_data/", "").split("_")[0] for item in self._all_records
+            item.split("_")[0] for item in self._all_records
         ]))
 
     def _load_stats(self) -> NoReturn:
@@ -208,9 +211,8 @@ class CINC2022Reader(PCGDataBase):
             self._df_stats = pd.DataFrame()
             with tqdm(self.all_subjects, total=len(self.all_subjects), desc="loading stats") as pbar:
                 for s in pbar:
-                    f = self.db_dir / "training_data" / f"{s}.txt"
-                    with open(f) as f:
-                        content = f.read().splitlines()
+                    f = self.data_dir / f"{s}.txt"
+                    content = f.read_text().splitlines()
                     new_row = {"Patient ID": s}
                     localtions = set()
                     for l in content:
@@ -227,6 +229,7 @@ class CINC2022Reader(PCGDataBase):
                     self._df_stats = self._df_stats.append(
                         new_row, ignore_index=True,
                     )
+            self._df_stats.to_csv(stats_file, index=False)
         self._df_stats = self._df_stats.fillna("")
         self._df_stats.Locations = self._df_stats.Locations.apply(lambda s:s.split("+"))
         self._df_stats["Murmur locations"] = self._df_stats["Murmur locations"].apply(lambda s:s.split("+"))
@@ -242,21 +245,21 @@ class CINC2022Reader(PCGDataBase):
         """
         return list(re.finditer(self._rec_pattern, rec))[0].groupdict()
 
-    def load_data(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> Any:
+    def load_data(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> np.ndarray:
         """
         load data from the record `rec`
         """
         fs = fs or self.fs
         if fs == -1:
             fs = None
-        data_file = self.db_dir / f"{rec}.{self.data_ext}"
+        data_file = self.data_dir / f"{rec}.{self.data_ext}"
         data, _ = librosa.load(data_file, sr=fs, mono=False)
         data = np.atleast_2d(data)
         if fmt.lower() == "channel_last":
             data = data.T
         return data
 
-    def load_ann(self, rec_or_pid:str) -> Any:
+    def load_ann(self, rec_or_pid:str) -> str:
         """
         load annotations of the record `rec`
         """
@@ -275,13 +278,13 @@ class CINC2022Reader(PCGDataBase):
         else:
             raise ValueError(f"{rec_or_pid} is not a valid record or patient ID")
 
-    def load_segmentation(self, rec:str, fmt:str="df", fs:Optional[int]=None) -> Any:
+    def load_segmentation(self, rec:str, fmt:str="df", fs:Optional[int]=None) -> Union[pd.DataFrame, np.ndarray, dict]:
         """
         """
         fs = fs or self.fs
         if fs == -1:
             fs = self.get_fs(rec)
-        segmentation_file = self.db_dir / f"{rec}.{self.segmentation_ext}"
+        segmentation_file = self.data_dir / f"{rec}.{self.segmentation_ext}"
         df_seg = pd.read_csv(segmentation_file, sep="\t", header=None)
         df_seg.columns = ["start_t", "end_t", "label"]
         df_seg["wave"] = df_seg["label"].apply(lambda s:self.segmentation_map[s])
@@ -298,7 +301,7 @@ class CINC2022Reader(PCGDataBase):
     def get_fs(self, rec:str) -> int:
         """
         """
-        return wfdb.rdheader(self.db_dir / rec).fs
+        return wfdb.rdheader(self.data_dir / rec).fs
     
     @property
     def all_subjects(self) -> List[str]:
@@ -312,6 +315,12 @@ class CINC2022Reader(PCGDataBase):
         """
         return self._df_stats
 
+    def play(self, rec:str, **kwargs) -> IPython.display.Audio:
+        """
+        """
+        audio_file = self.data_dir / f"{rec}.{self.data_ext}"
+        return IPython.display.Audio(filename=str(audio_file))
+
     def plot(self, rec:str, **kwargs) -> NoReturn:
         """
         """
@@ -323,6 +332,104 @@ class CINC2016Reader(PCGDataBase):
     """
     __name__ = "CINC2016Reader"
 
+    def __init__(self,
+                 db_dir:str,
+                 fs:int=2000,
+                 working_dir:Optional[str]=None,
+                 verbose:int=2,
+                 **kwargs:Any) -> NoReturn:
+        """
+        """
+        super().__init__(
+            db_name="challenge-2016",
+            db_dir=db_dir, fs=fs, working_dir=working_dir, verbose=verbose, **kwargs
+        )
+        self.data_ext = "wav"
+        self.ecg_ext = "dat"
+        self.ann_ext = "hea"
+
+        self._subsets = [f"training-{s}" for s in "abcde"]
+
+        self._all_records = None
+        self._ls_rec()
+
+    def _ls_rec(self) -> NoReturn:
+        """
+        """
+        records_file = self.db_dir / "RECORDS"
+        if records_file.exists():
+            self._all_records = records_file.read_text().splitlines()
+        else:
+            self._all_records = sorted(
+                self.db_dir.rglob(f"*.{self.header_ext}")
+            )
+            self._all_records = [
+                str(item).replace(str(self.db_dir), "").replace(f".{self.header_ext}", "").strip(self.db_dir.anchor) \
+                    for item in self._all_records
+            ]
+            records_file.write_text("\n".join(self._all_records))
+        self._all_records = [
+            os.path.basename(item) for item in self._all_records
+        ]
+
+    def get_path(self, rec:str, extension:Optional[str]=None) -> pathlib.Path:
+        """
+        """
+        filename = f"{rec}.{extension}" if extension else rec
+        return self.db_dir / f"training-{rec[0]}" / filename
+
+    def load_data(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> Dict[str, np.ndarray]:
+        """
+        load data from the record `rec`
+        """
+        data = {
+            "PCG": self.load_pcg(rec, fs, fmt),
+            "ECG": self.load_ecg(rec, fs, fmt),
+        }
+        return data
+
+    def load_pcg(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> np.ndarray:
+        """
+        """
+        fs = fs or self.fs
+        if fs == -1:
+            fs = None
+        pcg, _ = librosa.load(self.get_path(rec, self.data_ext), sr=fs, mono=False)
+        pcg = np.atleast_2d(pcg)
+        if fmt.lower() == "channel_last":
+            pcg = pcg.T
+        return pcg
+
+    def load_ecg(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> np.ndarray:
+        """
+        """
+        fs = fs or self.fs
+        if fs == -1:
+            fs = None
+        wfdb_rec = wfdb.rdrecord(str(self.get_path(rec)), channel_names=["ECG"], physical=True)
+        ecg = wfdb_rec.p_signal.T
+        if fs is not None and fs != wfdb_rec.fs:
+            ecg = ss.resample_poly(ecg, fs, wfdb_rec.fs, axis=-1)
+        if fmt.lower() == "channel_last":
+            ecg = ecg.T
+        return ecg
+
+    def load_ann(self, rec:str) -> str:
+        """
+        load annotations of the record `rec`
+        """
+        return wfdb.rdheader(self.get_path(rec)).comments[0]
+
+    def play(self, rec:str, **kwargs) -> IPython.display.Audio:
+        """
+        """
+        audio_file = self.get_path(rec, self.data_ext)
+        return IPython.display.Audio(filename=str(audio_file))
+
+    def plot(self, rec:str, **kwargs) -> NoReturn:
+        """
+        """
+        raise NotImplementedError
 
 
 class EPHNOGRAMReader(PCGDataBase):

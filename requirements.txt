@@ -16,5 +16,4 @@ tqdm
 deprecated
 torch_optimizer
 librosa
-kaldi-io
 IPython
