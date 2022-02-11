@@ -274,20 +274,20 @@ def compute_f_measure(labels, outputs):
 
 # Compute Challenge score.
 def compute_challenge_score(labels, outputs, classes):
-    # Define costs. Load these costs from an external file instead of defining them here.
-    c_algorithm =     1
-    c_expert_1  =   250
-    c_expert_2  =   500
-    c_treatment =  1000
-    c_error     = 10000
-    alpha       =   0.5
+    # Define costs. Better to load these costs from an external file instead of defining them here.
+    c_algorithm  =     1 # Cost for algorithmic prescreening.
+    c_gp         =   250 # Cost for screening from a general practitioner (GP).
+    c_specialist =   500 # Cost for screening from a specialist.
+    c_treatment  =  1000 # Cost for treatment.
+    c_error      = 10000 # Cost for diagnostic error.
+    alpha        =   0.5 # Fraction of murmur unknown cases that are positive.
 
     num_patients, num_classes = np.shape(labels)
 
     A = compute_confusion_matrix(labels, outputs)
 
     idx_positive = classes.index('Present')
-    idx_unknown = classes.index('Unknown')
+    idx_unknown  = classes.index('Unknown')
     idx_negative = classes.index('Absent')
 
     n_pp = A[idx_positive, idx_positive]
@@ -300,15 +300,13 @@ def compute_challenge_score(labels, outputs, classes):
     n_nu = A[idx_negative, idx_unknown ]
     n_nn = A[idx_negative, idx_negative]
 
-    n_positive = n_pp + n_up + n_np
-    n_unknown  = n_pu + n_uu + n_nu
-    n_negative = n_pn + n_un + n_nn
-
-    n_total = n_positive + n_unknown + n_negative
+    n_total = n_pp + n_pu + n_pn \
+        + n_up + n_uu + n_un \
+        + n_np + n_nu + n_nn
 
     total_score = c_algorithm * n_total \
-        + c_expert_1 * (n_pp + n_pu + n_pn + n_up + n_uu + n_un) \
-        + c_expert_2 * (n_pu + n_uu) \
+        + c_gp * (n_pp + n_pu + n_pn) \
+        + c_specialist * (n_pu + n_up + n_uu + n_un) \
         + c_treatment * (n_pp + alpha * n_pu + n_up + alpha * n_uu) \
         + c_error * (n_np + alpha * n_nu)
     if n_total > 0:
