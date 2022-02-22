@@ -1,7 +1,7 @@
 """
 """
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 from easydict import EasyDict as ED
@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-def get_schmidt_heart_rate(signal:np.ndarray, fs:int, config:Optional[dict]=None) -> float:
+def get_schmidt_heart_rate(signal:np.ndarray, fs:int, config:Optional[dict]=None) -> Tuple[float, float]:
     """
     """
     cfg = ED(
@@ -41,5 +41,11 @@ def get_schmidt_heart_rate(signal:np.ndarray, fs:int, config:Optional[dict]=None
     max_index = round(2 * fs)  # hr 30
 
     index = np.argmax(auto_corr[min_index:max_index]) + min_index
-    hr = 60 / (index / fs)
-    return hr
+    mean_hr = 60 / (index / fs)
+
+    max_sys_duration = round(index / 2)
+    min_sys_duration = min(round(0.2 * fs), max_sys_duration)
+    systolic_time_interval = \
+        (np.argmax(auto_corr[min_sys_duration:max_sys_duration+1]) + min_sys_duration) / fs
+
+    return mean_hr, systolic_time_interval
