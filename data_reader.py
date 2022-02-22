@@ -305,6 +305,23 @@ class CINC2022Reader(PCGDataBase):
         elif fmt.lower() in ["mask",]:
             raise NotImplementedError
 
+    def load_meta_data(self,
+                       subject:str,
+                       keys:Optional[Union[Sequence[str], str]]=None,) -> Union[dict, str, float, int]:
+        """
+        """
+        row = self._df_stats[self._df_stats["Patient ID"] == subject].iloc[0]
+        meta_data = row.to_dict()
+        if keys:
+            if isinstance(keys, str):
+                for k, v in meta_data.items():
+                    if k.lower() == keys.lower():
+                        return v
+            else:
+                _keys = [k.lower() for k in keys]
+                return {k: v for k, v in meta_data.items() if k.lower() in _keys}
+        return meta_data
+
     def get_fs(self, rec:str) -> int:
         """
         """
