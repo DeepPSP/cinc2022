@@ -29,6 +29,10 @@ try:
 except ModuleNotFoundError:
     from tqdm import tqdm
 
+from cfg import BaseCfg
+from utils.utils_signal import butter_bandpass_filter
+from utils.schmidt_spike_removal import schmidt_spike_removal
+
 
 __all__ = [
     "PCGDataBase",
@@ -75,6 +79,7 @@ class PCGDataBase(ABC):
         self.header_ext = "hea"
         self.verbose = verbose
         self._all_records = None
+        self.dtype = kwargs.get("dtype", np.float32)
 
     @abstractmethod
     def _ls_rec(self) -> NoReturn:
@@ -261,6 +266,8 @@ class CINC2022Reader(PCGDataBase):
             fs = None
         data_file = self.data_dir / f"{rec}.{self.data_ext}"
         data, _ = librosa.load(data_file, sr=fs, mono=False)
+        if fmt.lower() == "flat":
+            return data
         data = np.atleast_2d(data)
         if fmt.lower() == "channel_last":
             data = data.T
@@ -322,6 +329,31 @@ class CINC2022Reader(PCGDataBase):
                 return {k: v for k, v in meta_data.items() if k.lower() in _keys}
         return meta_data
 
+    def _load_preprocessed_data(self,
+                                rec:str,
+                                fs:Optional[int]=None,
+                                fmt:str="channel_first",
+                                passband:Optional[Sequence[int]]=BaseCfg.passband,
+                                spike_removal:bool=True) -> np.ndarray:
+        """
+        """
+        fs = fs or self.fs
+        data = butter_bandpass_filter(
+            self.load_data(rec, fs=fs, fmt="flat"),
+            lowcut=passband[0],
+            highcut=passband[1],
+            fs=fs,
+            order=3,
+        ).astype(self.dtype)
+        if spike_removal:
+            data = schmidt_spike_removal(data, fs=fs)
+        if fmt.lower() == "flat":
+            return data
+        data = np.atleast_2d(data)
+        if fmt.lower() == "channel_last":
+            data = data.T
+        return data
+
     def get_fs(self, rec:str) -> int:
         """
         """
@@ -342,6 +374,8 @@ class CINC2022Reader(PCGDataBase):
     def play(self, rec:str, **kwargs) -> IPython.display.Audio:
         """
         """
+        if "data" in kwargs:
+            return IPython.display.Audio(kwargs["data"], rate=self.get_fs(rec))
         audio_file = self.data_dir / f"{rec}.{self.data_ext}"
         return IPython.display.Audio(filename=str(audio_file))
 
