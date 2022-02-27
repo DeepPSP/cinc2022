@@ -40,6 +40,13 @@ class CinC2022Dataset(Dataset):
         self.reader = CINC2022Reader(self.config.db_dir, self.config.fs)
 
         self.subjects = self._train_test_split()
+        df = self.reader.df_stats[self.reader.df_stats["Patient ID"].isin(self.subjects)]
+        self.records = [
+            f"{row['Patient ID']}_{pos}" \
+                for _, row in df.iterrows() for pos in row["Locations"]
+        ]
+        shuffle(self.records)
+        self.siglen = int(self.config.fs * self.config.siglen)
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -54,17 +61,19 @@ class CinC2022Dataset(Dataset):
     def __len__(self) -> int:
         """
         """
-        raise NotImplementedError
+        return self._signals.shape[0]
 
     def __getitem__(self, index:int) -> Tuple[np.ndarray, np.ndarray]:
         """
         """
-        raise NotImplementedError
+        return self._signals[index], self._labels[index]
 
     def _load_all_data(self) -> NoReturn:
         """
         """
-        raise NotImplementedError
+        with tqdm(self.records, total=len(self.records)) as pbar:
+            for record in pbar:
+                raise NotImplementedError
     
     def _train_test_split(self,
                           train_ratio:float=0.8,

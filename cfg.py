@@ -45,6 +45,8 @@ TrainCfg.log_dir = BaseCfg.log_dir
 TrainCfg.model_dir = BaseCfg.model_dir
 
 # TODO: add more fields for TrainCfg
+TrainCfg.fs = BaseCfg.fs
+TrainCfg.siglen = 15  # seconds, to adjust
 
 
 
