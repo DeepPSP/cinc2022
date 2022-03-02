@@ -333,7 +333,8 @@ class CINC2022Reader(PCGDataBase):
                                 rec:str,
                                 fs:Optional[int]=None,
                                 fmt:str="channel_first",
-                                passband:Optional[Sequence[int]]=BaseCfg.passband,
+                                passband:Sequence[int]=BaseCfg.passband,
+                                order:int=BaseCfg.order,
                                 spike_removal:bool=True) -> np.ndarray:
         """
         """
@@ -343,7 +344,7 @@ class CINC2022Reader(PCGDataBase):
             lowcut=passband[0],
             highcut=passband[1],
             fs=fs,
-            order=3,
+            order=order,
         ).astype(self.dtype)
         if spike_removal:
             data = schmidt_spike_removal(data, fs=fs)
@@ -375,7 +376,7 @@ class CINC2022Reader(PCGDataBase):
         """
         """
         if "data" in kwargs:
-            return IPython.display.Audio(kwargs["data"], rate=self.get_fs(rec))
+            return IPython.display.Audio(kwargs["data"], rate=kwargs.get("fs", self.get_fs(rec)))
         audio_file = self.data_dir / f"{rec}.{self.data_ext}"
         return IPython.display.Audio(filename=str(audio_file))
 
