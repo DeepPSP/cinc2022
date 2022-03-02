@@ -161,12 +161,9 @@ class CINC2022Reader(PCGDataBase):
         self.data_ext = "wav"
         self.ann_ext = "hea"
         self.segmentation_ext = "tsv"
+        self.segmentation_states = [s for s in BaseCfg.states if s != "unannotated"]
         self.segmentation_map = {
-            0: "unannotated",
-            1: "S1",
-            2: "systolic",
-            3: "S2",
-            4: "diastolic",
+            n: s for n, s in enumerate(BaseCfg.states)
         }
         self.auscultation_locations = {
             "PV", "AV", "MV", "TV", "Phc",
@@ -308,9 +305,23 @@ class CINC2022Reader(PCGDataBase):
             return df_seg
         elif fmt.lower() in ["dict", "dicts",]:
             # dict of intervals
-            raise NotImplementedError
+            return {
+                k: [[row["start"],row["end"]] for _,row in df_seg[df_seg["wave"]==k].iterrows()] \
+                    for _, k in self.segmentation_map.items()
+            }
         elif fmt.lower() in ["mask",]:
-            raise NotImplementedError
+            mask = np.zeros(df_seg.end.values[-1], dtype=int)
+            for _, row in df_seg.iterrows():
+                mask[row["start"]:row["end"]] = int(row["label"])
+            return mask
+        elif fmt.lower() in ["binary",]:
+            bin_mask = np.zeros((len(self.segmentation_states), df_seg.end.values[-1]), dtype=self.dtype)
+            for _, row in df_seg.iterrows():
+                if row["wave"] in self.segmentation_states:
+                    bin_mask[self.segmentation_states.index(row["wave"]), row["start"]:row["end"]] = 1
+            return bin_mask
+        else:
+            raise ValueError(f"{fmt} is not a valid format")
 
     def load_meta_data(self,
                        subject:str,
