@@ -4,3 +4,6 @@
 [submodule "official_scoring_metric"]
 	path = official_scoring_metric
 	url = https://github.com/physionetchallenges/evaluation-2022.git
+[submodule "torch_ecg"]
+	path = torch_ecg
+	url = https://github.com/DeepPSP/torch_ecg.git
