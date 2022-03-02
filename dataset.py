@@ -29,15 +29,16 @@ class CinC2022Dataset(Dataset):
     """
     __name__ = "CinC2022Dataset"
 
-    def __init__(self, config:ED, training:bool=True, lazy:bool=True) -> NoReturn:
+    def __init__(self, config:ED, task:str, training:bool=True, lazy:bool=True) -> NoReturn:
         """
         """
         super().__init__()
         self.config = ED(deepcopy(config))
+        self.task = task.lower()
         self.training = training
         self.lazy = lazy
 
-        self.reader = CINC2022Reader(self.config.db_dir, self.config.fs)
+        self.reader = CINC2022Reader(self.config.db_dir)
 
         self.subjects = self._train_test_split()
         df = self.reader.df_stats[self.reader.df_stats["Patient ID"].isin(self.subjects)]
@@ -46,7 +47,7 @@ class CinC2022Dataset(Dataset):
                 for _, row in df.iterrows() for pos in row["Locations"]
         ]
         shuffle(self.records)
-        self.siglen = int(self.config.fs * self.config.siglen)
+        self.siglen = int(self.config[self.task].fs * self.config[self.task].siglen)
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -55,8 +56,8 @@ class CinC2022Dataset(Dataset):
 
         self._signals = np.array([], dtype=self.dtype)
         self._labels = np.array([], dtype=self.dtype)
-        if not self.lazy:
-            self._load_all_data()
+        self._masks = np.array([], dtype=self.dtype)
+        self.__set_task(task, lazy)
 
     def __len__(self) -> int:
         """
@@ -67,6 +68,12 @@ class CinC2022Dataset(Dataset):
         """
         """
         return self._signals[index], self._labels[index]
+
+    def __set_task(self, task:str, lazy:bool) -> NoReturn:
+        """
+        """
+        assert task.lower() in self.config.tasks
+        raise NotImplementedError
 
     def _load_all_data(self) -> NoReturn:
         """
