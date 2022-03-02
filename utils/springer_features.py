@@ -36,6 +36,7 @@ def get_springer_features(signal:np.ndarray, fs:int, feature_fs:int, config:Opti
         signal, fs=fs,
         lowcut=cfg.lowcut, highcut=cfg.highcut,
         order=cfg.order,
+        btype="lohi",
     )
     filtered_signal = schmidt_spike_removal(filtered_signal, fs)
 
@@ -99,7 +100,7 @@ def get_PSD_feature(signal:np.ndarray,
         nperseg = int(Decimal(fs*window_size).to_integral_value())
         noverlap = int(Decimal(fs*overlap_size).to_integral_value())
     f, t, Sxx = SS.spectrogram(
-        signal, fs,
+        signal, fs, "hamming",
         nperseg=nperseg, noverlap=noverlap, nfft=fs,
         return_onesided=True, scaling="density", mode="psd",
     )
