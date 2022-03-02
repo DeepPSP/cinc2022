@@ -602,7 +602,7 @@ def butter_bandpass(lowcut:Real, highcut:Real, fs:Real, order:int, verbose:int=0
     return b, a
 
 
-def butter_bandpass_filter(data:np.ndarray, lowcut:Real, highcut:Real, fs:Real, order:int, verbose:int=0) -> np.ndarray:
+def butter_bandpass_filter(data:np.ndarray, lowcut:Real, highcut:Real, fs:Real, order:int, btype:Optional[str]=None, verbose:int=0) -> np.ndarray:
     """
     Butterworth Bandpass
 
@@ -618,6 +618,9 @@ def butter_bandpass_filter(data:np.ndarray, lowcut:Real, highcut:Real, fs:Real, 
         frequency of `data`
     order: int,
         order of the filter
+    btype: str, optional,
+        (special) type of the filter, can be "lohi", "hilo",
+        ignored for lowpass and highpass filters
     verbose: int, default 0
 
     Returns
@@ -630,8 +633,22 @@ def butter_bandpass_filter(data:np.ndarray, lowcut:Real, highcut:Real, fs:Real, 
     [1] https://scipy-cookbook.readthedocs.io/items/ButterworthBandpass.html
     [2] https://dsp.stackexchange.com/questions/19084/applying-filter-in-scipy-signal-use-lfilter-or-filtfilt
     """
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = filtfilt(b, a, data)
+    if btype is None:
+        b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+        y = filtfilt(b, a, data)
+        return y
+    if btype.lower() == "lohi":
+        b, a = butter_bandpass(0, highcut, fs, order=order)
+        y = filtfilt(b, a, data)
+        b, a = butter_bandpass(lowcut, fs, fs, order=order)
+        y = filtfilt(b, a, y)
+    elif btype.lower() == "hilo":
+        b, a = butter_bandpass(lowcut, fs, fs, order=order)
+        y = filtfilt(b, a, data)
+        b, a = butter_bandpass(0, highcut, fs, order=order)
+        y = filtfilt(b, a, y)
+    else:
+        raise ValueError(f"special btype {btype} is not supported")
     return y
 
 
