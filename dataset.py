@@ -81,7 +81,7 @@ class CinC2022Dataset(Dataset):
         with tqdm(self.records, total=len(self.records)) as pbar:
             for record in pbar:
                 raise NotImplementedError
-    
+
     def _train_test_split(self,
                           train_ratio:float=0.8,
                           force_recompute:bool=False) -> List[str]:
