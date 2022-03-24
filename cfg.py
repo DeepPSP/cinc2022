@@ -8,7 +8,11 @@ from typing import List, NoReturn
 
 import numpy as np
 import torch
-from easydict import EasyDict as ED
+from torch_ecg.cfg import CFG
+from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
+
+from cfg_models import ModelArchCfg
+
 
 __all__ = [
     "BaseCfg",
@@ -20,8 +24,8 @@ __all__ = [
 _BASE_DIR = pathlib.Path(__file__).absolute().parent
 
 
-BaseCfg = ED()
-BaseCfg.db_dir = pathlib.Path("/home/wenhao/Jupyter/wenhao/data/CinC2021/")
+BaseCfg = CFG()
+BaseCfg.db_dir = None
 BaseCfg.project_dir = _BASE_DIR
 BaseCfg.log_dir = _BASE_DIR / "log"
 BaseCfg.model_dir = _BASE_DIR / "saved_models"
@@ -40,16 +44,51 @@ BaseCfg.order = 5
 
 
 # training configurations for machine learning and deep learning
-TrainCfg = ED()
-TrainCfg.torch_dtype = BaseCfg.torch_dtype
+TrainCfg = deepcopy(BaseCfg)
 
-# configs of files
-TrainCfg.db_dir = BaseCfg.db_dir
-TrainCfg.project_dir = BaseCfg.project_dir
-TrainCfg.log_dir = BaseCfg.log_dir
-TrainCfg.model_dir = BaseCfg.model_dir
+TrainCfg.train_ratio = 0.8
 
-# TODO: add more fields for TrainCfg
+# configs of signal preprocessing
+TrainCfg.normalize = ED(
+    method="z-score",
+    mean=0.0,
+    std=1.0,
+)
+
+# configs of training epochs, batch, etc.
+TrainCfg.n_epochs = 50
+# TODO: automatic adjust batch size according to GPU capacity
+# https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
+TrainCfg.batch_size = 64
+# TrainCfg.max_batches = 500500
+
+# configs of optimizers and lr_schedulers
+TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"
+TrainCfg.momentum = 0.949  # default values for corresponding PyTorch optimizers
+TrainCfg.betas = (0.9, 0.999)  # default values for corresponding PyTorch optimizers
+TrainCfg.decay = 1e-2  # default values for corresponding PyTorch optimizers
+
+TrainCfg.learning_rate = 5e-4  # 1e-3
+TrainCfg.lr = TrainCfg.learning_rate
+
+TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
+TrainCfg.lr_step_size = 50
+TrainCfg.lr_gamma = 0.1
+TrainCfg.max_lr = 2e-3  # for "one_cycle" scheduler, to adjust via expriments
+
+TrainCfg.early_stopping = ED()  # early stopping according to challenge metric
+TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
+TrainCfg.early_stopping.patience = 10
+
+# configs of loss function
+# TrainCfg.loss = "BCEWithLogitsLoss"
+# TrainCfg.loss = "BCEWithLogitsWithClassWeightLoss"
+TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.loss_kw = ED(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+TrainCfg.flooding_level = 0.0  # flooding performed if positive,
+
+TrainCfg.log_step = 20
+TrainCfg.eval_every = 20
 
 # tasks of training
 TrainCfg.tasks = [
@@ -61,26 +100,76 @@ TrainCfg.tasks = [
 # "resnet_leadwise", "multi_scopic_leadwise", "vgg16", "resnet", "vgg16_leadwise", "cpsc", "cpsc_leadwise", etc.
 
 for t in TrainCfg.tasks:
-    TrainCfg[t] = ED()
+    TrainCfg[t] = CFG()
 
-TrainCfg.classification = ED()
+TrainCfg.classification = CFG()
 TrainCfg.classification.fs = BaseCfg.fs
-TrainCfg.classification.passband = BaseCfg.passband
-TrainCfg.classification.order = BaseCfg.order
-TrainCfg.classification.siglen = 15  # seconds, to adjust
+# TrainCfg.classification.passband = BaseCfg.passband
+# TrainCfg.classification.order = BaseCfg.order
+TrainCfg.classification.input_len = int(15 * TrainCfg.classification.fs)  # 15 seconds, to adjust
+TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
+TrainCfg.classification.class_map = {c:i for i,c in enumerate(TrainCfg.classification.classes)}
+TrainCfg.classification.final_model_name = None
+TrainCfg.classification.model_name = "crnn"
+TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
+TrainCfg.classification.rnn_name = "lstm"  # "none", "lstm"
+TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
+TrainCfg.classification.monitor = "challenge_metric"  # accuracy (not recommended)
+TrainCfg.classification.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.classification.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
 
-TrainCfg.segmentation = ED()
+
+TrainCfg.segmentation = CFG()
 TrainCfg.segmentation.fs = 500
-TrainCfg.segmentation.passband = [15, 250]
-TrainCfg.segmentation.order = BaseCfg.order
-TrainCfg.segmentation.siglen = 30  # seconds, to adjust
+# TrainCfg.segmentation.passband = [15, 250]
+# TrainCfg.segmentation.order = BaseCfg.order
+TrainCfg.segmentation.input_len = int(30 * TrainCfg.segmentation.fs)  # seconds, to adjust
+TrainCfg.segmentation.classes = BaseCfg.states
+TrainCfg.segmentation.class_map = {c:i for i,c in enumerate(TrainCfg.segmentation.classes)}
+TrainCfg.segmentation.final_model_name = None
+TrainCfg.segmentation.model_name = "seq_lab"  # unet
+TrainCfg.segmentation.cnn_name = "resnet_nature_comm_bottle_neck_se"
+TrainCfg.segmentation.rnn_name = "lstm"  # "none", "lstm"
+TrainCfg.segmentation.attn_name = "se"  # "none", "se", "gc", "nl"
+TrainCfg.segmentation.monitor = "jaccard"
+TrainCfg.segmentation.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.segmentation.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
 
 
 
 # configurations for building deep learning models
 # terminologies of stanford ecg repo. will be adopted
-ModelCfg = ED()
-ModelCfg.torch_dtype = BaseCfg.torch_dtype
-ModelCfg.fs = BaseCfg.fs
 
-# TODO: add more fields for ModelCfg
+_BASE_MODEL_CONFIG = CFG()
+_BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
+
+
+ModelCfg = deepcopy(_BASE_MODEL_CONFIG)
+
+for t in TrainCfg.tasks:
+    ModelCfg[t] = deepcopy(_BASE_MODEL_CONFIG)
+    ModelCfg[t].task = t
+    ModelCfg[t].fs = TrainCfg[t].fs
+
+
+ModelCfg.classification.update(ModelArchCfg.classification)
+
+
+ModelCfg.classification.input_len = TrainCfg.classification.input_len
+ModelCfg.classification.classes = TrainCfg.classification.classes
+ModelCfg.classification.model_name = TrainCfg.classification.model_name
+ModelCfg.classification.cnn_name = TrainCfg.classification.cnn_name
+ModelCfg.classification.rnn_name = TrainCfg.classification.rnn_name
+ModelCfg.classification.attn_name = TrainCfg.classification.attn_name
+
+
+
+
+ModelCfg.segmentation.update(ModelArchCfg.segmentation)
+
+ModelCfg.classification.input_len = TrainCfg.classification.input_len
+ModelCfg.classification.classes = TrainCfg.classification.classes
+ModelCfg.classification.model_name = TrainCfg.classification.model_name
+ModelCfg.classification.cnn_name = TrainCfg.classification.cnn_name
+ModelCfg.classification.rnn_name = TrainCfg.classification.rnn_name
+ModelCfg.classification.attn_name = TrainCfg.classification.attn_name
