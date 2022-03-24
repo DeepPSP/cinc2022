@@ -28,6 +28,7 @@ try:
     from tqdm.auto import tqdm
 except ModuleNotFoundError:
     from tqdm import tqdm
+from torch_ecg.databases.base import PhysioNetDataBase
 
 from cfg import BaseCfg
 from utils.utils_signal import butter_bandpass_filter
@@ -42,7 +43,7 @@ __all__ = [
 ]
 
 
-class PCGDataBase(ABC):
+class PCGDataBase(PhysioNetDataBase):
     """
     """
     __name__ = "PCGDataBase"
@@ -69,43 +70,18 @@ class PCGDataBase(ABC):
             log verbosity
         kwargs: auxilliary key word arguments
         """
-        self.db_name = db_name
-        self.db_dir = pathlib.Path(db_dir)
-        self._fs = fs
-        self.working_dir = pathlib.Path(working_dir or os.getcwd())
-        self.working_dir.mkdir(exist_ok=True)
+        super().__init__(db_name, db_dir, working_dir, verbose, **kwargs)
         self.data_ext = None
         self.ann_ext = None
         self.header_ext = "hea"
-        self.verbose = verbose
         self._all_records = None
         self.dtype = kwargs.get("dtype", np.float32)
 
-    @abstractmethod
-    def _ls_rec(self) -> NoReturn:
+    def _auto_infer_units(self,) -> NoReturn:
         """
+        disable this function implemented in the base class
         """
-        raise NotImplementedError
-
-    @abstractmethod
-    def load_data(self, rec:str, fs:Optional[int]=None, **kwargs) -> Any:
-        """
-        load data from the record `rec`
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def load_ann(self, rec:str, **kwargs) -> Any:
-        """
-        load annotations of the record `rec`
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def plot(self, rec:str, **kwargs) -> NoReturn:
-        """
-        """
-        raise NotImplementedError
+        print("DO NOT USE THIS FUNCTION for a PCG database!")
 
     @abstractmethod
     def play(self, rec:str, **kwargs) -> IPython.display.Audio:
@@ -113,31 +89,10 @@ class PCGDataBase(ABC):
         """
         raise NotImplementedError
 
-    @property
-    def all_records(self):
+    def _reset_fs(new_fs:int) -> NoReturn:
         """
         """
-        if self._all_records is None:
-            self._ls_rec()
-        return self._all_records
-    
-    @property
-    def fs(self):
-        """
-        """
-        return self._fs
-
-    def _reset_fs(fs:int) -> NoReturn:
-        """
-        """
-        self._fs = fs
-
-    @property
-    def database_info(self) -> NoReturn:
-        """
-        """
-        info = "\n".join(self.__doc__.split("\n")[1:])
-        print(info)
+        self.fs = new_fs
 
 
 class CINC2022Reader(PCGDataBase):
@@ -204,7 +159,8 @@ class CINC2022Reader(PCGDataBase):
                 ])
                 records_file.write_text("\n".join(self._all_records))
         self._all_records = [
-            item.replace("training_data/", "") for item in self._all_records
+            item.replace("training_data/", "") for item in self._all_records \
+                if (self.db_dir / item).with_suffix(".hea").exists()
         ]
         self._all_subjects = sorted(set([
             item.split("_")[0] for item in self._all_records
@@ -216,7 +172,7 @@ class CINC2022Reader(PCGDataBase):
         stats_file = self.db_dir / "training_data.csv"
         if stats_file.exists():
             self._df_stats = pd.read_csv(stats_file)
-        else:
+        elif self._all_records is not None and len(self._all_records) > 0:
             self._df_stats = pd.DataFrame()
             with tqdm(self.all_subjects, total=len(self.all_subjects), desc="loading stats") as pbar:
                 for s in pbar:
@@ -239,6 +195,9 @@ class CINC2022Reader(PCGDataBase):
                         new_row, ignore_index=True,
                     )
             self._df_stats.to_csv(stats_file, index=False)
+        else:
+            print("No data found locally!")
+            return
         self._df_stats = self._df_stats.fillna("")
         self._df_stats.Locations = self._df_stats.Locations.apply(lambda s:s.split("+"))
         self._df_stats["Murmur locations"] = self._df_stats["Murmur locations"].apply(lambda s:s.split("+"))
@@ -381,6 +340,8 @@ class CINC2022Reader(PCGDataBase):
     def df_stats(self) -> pd.DataFrame:
         """
         """
+        if self._df_stats is None or self._df_stats.empty:
+            self._df_stats = self._load_stats()
         return self._df_stats
 
     def play(self, rec:str, **kwargs) -> IPython.display.Audio:
