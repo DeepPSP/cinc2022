@@ -49,7 +49,7 @@ TrainCfg = deepcopy(BaseCfg)
 TrainCfg.train_ratio = 0.8
 
 # configs of signal preprocessing
-TrainCfg.normalize = ED(
+TrainCfg.normalize = CFG(
     method="z-score",
     mean=0.0,
     std=1.0,
@@ -76,7 +76,7 @@ TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = 2e-3  # for "one_cycle" scheduler, to adjust via expriments
 
-TrainCfg.early_stopping = ED()  # early stopping according to challenge metric
+TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
 TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
 TrainCfg.early_stopping.patience = 10
 
@@ -84,7 +84,7 @@ TrainCfg.early_stopping.patience = 10
 # TrainCfg.loss = "BCEWithLogitsLoss"
 # TrainCfg.loss = "BCEWithLogitsWithClassWeightLoss"
 TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss"
-TrainCfg.loss_kw = ED(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+TrainCfg.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
 TrainCfg.flooding_level = 0.0  # flooding performed if positive,
 
 TrainCfg.log_step = 20
@@ -112,7 +112,7 @@ TrainCfg.classification.class_map = {c:i for i,c in enumerate(TrainCfg.classific
 TrainCfg.classification.final_model_name = None
 TrainCfg.classification.model_name = "crnn"
 TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
-TrainCfg.classification.rnn_name = "lstm"  # "none", "lstm"
+TrainCfg.classification.rnn_name = "none"  # "none", "lstm"
 TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
 TrainCfg.classification.monitor = "challenge_metric"  # accuracy (not recommended)
 TrainCfg.classification.loss = "AsymmetricLoss"  # "FocalLoss"
@@ -153,6 +153,7 @@ for t in TrainCfg.tasks:
 
 
 ModelCfg.classification.update(ModelArchCfg.classification)
+adjust_cnn_filter_lengths(ModelCfg.classification, ModelCfg.classification.fs)
 
 
 ModelCfg.classification.input_len = TrainCfg.classification.input_len
@@ -166,6 +167,7 @@ ModelCfg.classification.attn_name = TrainCfg.classification.attn_name
 
 
 ModelCfg.segmentation.update(ModelArchCfg.segmentation)
+adjust_cnn_filter_lengths(ModelCfg.segmentation, ModelCfg.segmentation.fs)
 
 ModelCfg.classification.input_len = TrainCfg.classification.input_len
 ModelCfg.classification.classes = TrainCfg.classification.classes

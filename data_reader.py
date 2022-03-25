@@ -147,8 +147,7 @@ class CINC2022Reader(PCGDataBase):
         """
         """
         try:
-            self._all_records = wfdb.get_record_list(self.db_name)
-        except:
+            print("Reading the list of records from local file...")
             records_file = self.db_dir / "RECORDS"
             if records_file.exists():
                 self._all_records = records_file.read_text().splitlines()
@@ -158,6 +157,9 @@ class CINC2022Reader(PCGDataBase):
                         for item in (self.data_dir).glob("*.hea")
                 ])
                 records_file.write_text("\n".join(self._all_records))
+        except:
+            print("Reading the list of records from PhysioNet...")
+            self._all_records = wfdb.get_record_list(self.db_name)
         self._all_records = [
             item.replace("training_data/", "") for item in self._all_records \
                 if (self.db_dir / item).with_suffix(".hea").exists()
@@ -169,10 +171,12 @@ class CINC2022Reader(PCGDataBase):
     def _load_stats(self) -> NoReturn:
         """
         """
+        print("Reading the statistics from local file...")
         stats_file = self.db_dir / "training_data.csv"
         if stats_file.exists():
             self._df_stats = pd.read_csv(stats_file)
         elif self._all_records is not None and len(self._all_records) > 0:
+            print("No cached statistics found, gathering from scratch...")
             self._df_stats = pd.DataFrame()
             with tqdm(self.all_subjects, total=len(self.all_subjects), desc="loading stats") as pbar:
                 for s in pbar:
