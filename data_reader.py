@@ -141,6 +141,10 @@ class CINC2022Reader(PCGDataBase):
             "Diastolic murmur grading", "Diastolic murmur pitch",
             "Diastolic murmur quality", "Campaign", "Additional ID",
         ]
+        self._df_stats_records = None
+        self._stats_records_cols = [
+            "Patient ID", "Location", "rec", "siglen", "siglen_sec", "Murmur",
+        ]
         self._load_stats()
 
     def _ls_rec(self) -> NoReturn:
@@ -211,6 +215,41 @@ class CINC2022Reader(PCGDataBase):
             for c in ["Height", "Weight"]:
                 if row[c] == "":
                     self._df_stats.at[idx, c] = np.nan
+        
+        # load stats of the records
+        print("Reading the statistics of the records from local file...")
+        stats_file = self.db_dir / "stats_records.csv"
+        if stats_file.exists():
+            self._df_stats_records = pd.read_csv(stats_file)
+        else:
+            self._df_stats_records = pd.DataFrame(columns=self._stats_records_cols)
+            with tqdm(self._df_stats.iterrows(), total=len(self._df_stats), desc="loading record stats") as pbar:
+                for _, row in pbar:
+                    pid = row["Patient ID"]
+                    for loc in row["Locations"]:
+                        rec = f"{pid}_{loc}"
+                        if rec not in self._all_records:
+                            continue
+                        header = wfdb.rdheader(str(self.data_dir / f"{rec}"))
+                        if row["Murmur"] == "Unknown":
+                            murmur = "Unknown"
+                        if loc in row["Murmur locations"]:
+                            murmur = "Present"
+                        else:
+                            murmur = "Absent"
+                        new_row = {
+                            "Patient ID": pid,
+                            "Location": loc,
+                            "rec": rec,
+                            "siglen": header.sig_len,
+                            "siglen_sec": header.sig_len / header.fs,
+                            "Murmur": murmur,
+                        }
+                        self._df_stats_records = self._df_stats_records.append(
+                            new_row, ignore_index=True,
+                        )
+            self._df_stats_records.to_csv(stats_file, index=False)
+        self._df_stats_records = self._df_stats_records.fillna("")
 
     def _decompose_rec(self, rec:str) -> Dict[str, str]:
         """
@@ -345,8 +384,16 @@ class CINC2022Reader(PCGDataBase):
         """
         """
         if self._df_stats is None or self._df_stats.empty:
-            self._df_stats = self._load_stats()
+            self._load_stats()
         return self._df_stats
+
+    @property
+    def df_stats_records(self) -> pd.DataFrame:
+        """
+        """
+        if self._df_stats_records is None or self._df_stats_records.empty:
+            self._load_stats()
+        return self._df_stats_records
 
     def play(self, rec:str, **kwargs) -> IPython.display.Audio:
         """
