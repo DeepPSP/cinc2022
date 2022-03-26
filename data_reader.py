@@ -1,17 +1,11 @@
 """
 """
-import os, io, sys, pathlib
+
 import re
-import json
-import time
-import logging
-import warnings
+from pathlib import Path
 from abc import ABC, abstractmethod
-from copy import deepcopy
-from datetime import datetime
 from typing import Union, Optional, Any, List, Dict, Tuple, Set, Sequence, NoReturn
 from numbers import Real, Number
-from collections.abc import Iterable
 
 import numpy as np
 np.set_printoptions(precision=5, suppress=True)
@@ -29,9 +23,9 @@ try:
 except ModuleNotFoundError:
     from tqdm import tqdm
 from torch_ecg.databases.base import PhysioNetDataBase
+from torch_ecg.utils.utils_signal import butter_bandpass_filter
 
 from cfg import BaseCfg
-from utils.utils_signal import butter_bandpass_filter
 from utils.schmidt_spike_removal import schmidt_spike_removal
 
 
@@ -71,6 +65,7 @@ class PCGDataBase(PhysioNetDataBase):
         kwargs: auxilliary key word arguments
         """
         super().__init__(db_name, db_dir, working_dir, verbose, **kwargs)
+        self.fs = fs
         self.data_ext = None
         self.ann_ext = None
         self.header_ext = "hea"
@@ -190,7 +185,7 @@ class CINC2022Reader(PCGDataBase):
                     localtions = set()
                     for l in content:
                         if not l.startswith("#"):
-                            if re. l.split()[0] in self.auscultation_locations:
+                            if l.split()[0] in self.auscultation_locations:
                                 localtions.add(l.split()[0])
                             continue
                         k, v = l.replace("#", "").split(":")
@@ -272,24 +267,27 @@ class CINC2022Reader(PCGDataBase):
             data = data.T
         return data
 
-    def load_ann(self, rec_or_pid:str) -> str:
+    def load_ann(self, rec_or_pid:str, class_map:Optional[Dict[str,int]]=None) -> Union[str, int]:
         """
         load annotations of the record `rec`
         """
+        _class_map = class_map or {}
         if rec_or_pid in self.all_subjects:
-            return self.df_stats[self.df_stats["Patient ID"] == rec_or_pid].iloc[0]["Murmur"]
+            ann = self.df_stats[self.df_stats["Patient ID"] == rec_or_pid].iloc[0]["Murmur"]
         elif rec_or_pid in self.all_records:
             decom = self._decompose_rec(rec_or_pid)
             pid, loc = decom["pid"], decom["loc"]
             row = self.df_stats[self.df_stats["Patient ID"] == pid].iloc[0]
             if row["Murmur"] == "Unknown":
-                return "Unknown"
+                ann = "Unknown"
             if loc in row["Murmur locations"]:
-                return "Present"
+                ann = "Present"
             else:
-                return "Absent"
+                ann = "Absent"
         else:
             raise ValueError(f"{rec_or_pid} is not a valid record or patient ID")
+        ann = _class_map.get(ann, ann)
+        return ann
 
     def load_segmentation(self, rec:str, seg_format:str="df", fs:Optional[int]=None) -> Union[pd.DataFrame, np.ndarray, dict]:
         """
@@ -451,10 +449,10 @@ class CINC2016Reader(PCGDataBase):
             ]
             records_file.write_text("\n".join(self._all_records))
         self._all_records = [
-            os.path.basename(item) for item in self._all_records
+            Path(item).name for item in self._all_records
         ]
 
-    def get_path(self, rec:str, extension:Optional[str]=None) -> pathlib.Path:
+    def get_path(self, rec:str, extension:Optional[str]=None) -> Path:
         """
         """
         filename = f"{rec}.{extension}" if extension else rec
@@ -566,7 +564,7 @@ class EPHNOGRAMReader(PCGDataBase):
                         for item in self._all_records
                 ]
                 records_file.write_text("\n".join(self._all_records))
-        self._all_records = [os.path.basename(item) for item in self._all_records]
+        self._all_records = [Path(item).name for item in self._all_records]
 
     def load_data(self,
                   rec:str,
