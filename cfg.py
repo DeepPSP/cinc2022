@@ -46,6 +46,8 @@ BaseCfg.order = 5
 # training configurations for machine learning and deep learning
 TrainCfg = deepcopy(BaseCfg)
 
+TrainCfg.input_type = "raw"  # "raw", "springer"
+
 TrainCfg.train_ratio = 0.8
 
 # configs of signal preprocessing
@@ -104,11 +106,21 @@ for t in TrainCfg.tasks:
 
 TrainCfg.classification = CFG()
 TrainCfg.classification.fs = BaseCfg.fs
-# TrainCfg.classification.passband = BaseCfg.passband
-# TrainCfg.classification.order = BaseCfg.order
-TrainCfg.classification.input_len = int(15 * TrainCfg.classification.fs)  # 15 seconds, to adjust
+TrainCfg.classification.data_format = "channel_first"
+TrainCfg.classification.num_channels = 1
+TrainCfg.classification.input_len = int(30 * TrainCfg.classification.fs)  # 30 seconds, to adjust
+TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
+TrainCfg.classification.sig_slice_tol = 0.4  # None, do no slicing
 TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
 TrainCfg.classification.class_map = {c:i for i,c in enumerate(TrainCfg.classification.classes)}
+TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
+TrainCfg.classification.bandpass = CFG(
+    lowcut=BaseCfg.passband[0],
+    highcut=BaseCfg.passband[1],
+    filter_type="butter",
+    order=BaseCfg.order,
+)
+TrainCfg.classification.normalize = TrainCfg.normalize
 TrainCfg.classification.final_model_name = None
 TrainCfg.classification.model_name = "crnn"
 TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
@@ -121,11 +133,21 @@ TrainCfg.classification.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation
 
 TrainCfg.segmentation = CFG()
 TrainCfg.segmentation.fs = 500
-# TrainCfg.segmentation.passband = [15, 250]
-# TrainCfg.segmentation.order = BaseCfg.order
-TrainCfg.segmentation.input_len = int(30 * TrainCfg.segmentation.fs)  # seconds, to adjust
+TrainCfg.segmentation.data_format = "channel_first"
+TrainCfg.segmentation.num_channels = 1
+TrainCfg.segmentation.input_len = int(30 * TrainCfg.segmentation.fs)  # 30seconds, to adjust
+TrainCfg.segmentation.siglen = TrainCfg.segmentation.input_len  # alias
+TrainCfg.segmentation.sig_slice_tol = 0.4  # None, do no slicing
 TrainCfg.segmentation.classes = BaseCfg.states
 TrainCfg.segmentation.class_map = {c:i for i,c in enumerate(TrainCfg.segmentation.classes)}
+TrainCfg.segmentation.resample = CFG(fs=TrainCfg.segmentation.fs)
+TrainCfg.segmentation.bandpass = CFG(
+    lowcut=BaseCfg.passband[0],
+    highcut=BaseCfg.passband[1],
+    filter_type="butter",
+    order=BaseCfg.order,
+)
+TrainCfg.segmentation.normalize = TrainCfg.normalize
 TrainCfg.segmentation.final_model_name = None
 TrainCfg.segmentation.model_name = "seq_lab"  # unet
 TrainCfg.segmentation.cnn_name = "resnet_nature_comm_bottle_neck_se"
