@@ -3,6 +3,7 @@
 
 import re
 from pathlib import Path
+from collections import defaultdict
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Any, List, Dict, Tuple, Set, Sequence, NoReturn
 from numbers import Real, Number
@@ -123,6 +124,7 @@ class CINC2022Reader(PCGDataBase):
 
         self._all_records = None
         self._all_subjects = None
+        self._subject_records = None
         self._ls_rec()
         
         self._df_stats = None
@@ -166,6 +168,10 @@ class CINC2022Reader(PCGDataBase):
         self._all_subjects = sorted(set([
             item.split("_")[0] for item in self._all_records
         ]))
+        self._subject_records = defaultdict(list)
+        for rec in self._all_records:
+            self._subject_records[self.get_subject(rec)].append(rec)
+        self._subject_records = dict(self._subject_records)
 
     def _load_stats(self) -> NoReturn:
         """
@@ -370,12 +376,19 @@ class CINC2022Reader(PCGDataBase):
         """
         """
         return wfdb.rdheader(self.data_dir / rec).fs
+
+    def get_subject(self, rec:str) -> int:
+        """
+        """
+        return self._decompose_rec(rec)["pid"]
     
     @property
     def all_subjects(self) -> List[str]:
-        """
-        """
         return self._all_subjects
+
+    @property
+    def subject_records(self) -> Dict[str, List[str]]:
+        return self._subject_records
 
     @property
     def df_stats(self) -> pd.DataFrame:
