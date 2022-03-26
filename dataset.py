@@ -1,40 +1,47 @@
 """
 """
 
-import os, sys, json, time, textwrap
-import multiprocessing as mp
-from random import shuffle, randint, sample
+import json
+from random import shuffle
 from copy import deepcopy
 from typing import Union, Optional, List, Tuple, Dict, Sequence, Set, NoReturn
 
 import numpy as np
 np.set_printoptions(precision=5, suppress=True)
-from easydict import EasyDict as ED
+import pandas as pd
 try:
     from tqdm.auto import tqdm
 except ModuleNotFoundError:
     from tqdm import tqdm
 import torch
 from torch.utils.data.dataset import Dataset
+from torch_ecg.cfg import CFG
+from torch_ecg.utils.misc import (
+    ensure_siglen, ReprMixin,
+    strafified_train_test_split,
+    list_sum,
+)
+from torch_ecg._preprocessors import PreprocManager
 
 from cfg import BaseCfg, TrainCfg, ModelCfg
-from data_reader import CINC2022Reader, CINC2016Reader
+from data_reader import PCGDataBase, CINC2022Reader, CINC2016Reader
+from utils.springer_features import get_springer_features
 
 
 __all__ = ["CinC2022Dataset",]
 
 
-class CinC2022Dataset(Dataset):
+class CinC2022Dataset(ReprMixin, Dataset):
     """
     """
     __name__ = "CinC2022Dataset"
 
-    def __init__(self, config:ED, task:str, training:bool=True, lazy:bool=True) -> NoReturn:
+    def __init__(self, config:CFG, task:str, training:bool=True, lazy:bool=True) -> NoReturn:
         """
         """
         super().__init__()
-        self.config = ED(deepcopy(config))
-        self.task = task.lower()
+        self.config = CFG(deepcopy(config))
+        # self.task = task.lower()  # task will be set in self.__set_task
         self.training = training
         self.lazy = lazy
 
@@ -42,45 +49,81 @@ class CinC2022Dataset(Dataset):
 
         self.subjects = self._train_test_split()
         df = self.reader.df_stats[self.reader.df_stats["Patient ID"].isin(self.subjects)]
-        self.records = [
-            f"{row['Patient ID']}_{pos}" \
+        self.records = list_sum([
+            self.reader.subject_records[row["Patient ID"]] \
                 for _, row in df.iterrows() for pos in row["Locations"]
-        ]
-        shuffle(self.records)
-        self.siglen = int(self.config[self.task].fs * self.config[self.task].siglen)
+        ])
+        if self.training:
+            shuffle(self.records)
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
         else:
             self.dtype = np.float32
 
-        self._signals = np.array([], dtype=self.dtype)
-        self._labels = np.array([], dtype=self.dtype)
-        self._masks = np.array([], dtype=self.dtype)
+        ppm_config = CFG(random=False)
+        ppm_config.update(deepcopy(self.config.classification))
+        seg_ppm_config = CFG(random=False)
+        seg_ppm_config.update(deepcopy(self.config.segmentation))
+        self.ppm = PreprocManager.from_config(ppm_config)
+        self.seg_ppm = PreprocManager.from_config(seg_ppm_config)
+
+        self._signals = None
+        self._labels = None
+        # self._masks = None
         self.__set_task(task, lazy)
 
     def __len__(self) -> int:
         """
         """
+        if self.lazy:
+            return len(self.fdr)
         return self._signals.shape[0]
 
     def __getitem__(self, index:int) -> Tuple[np.ndarray, np.ndarray]:
         """
         """
+        if self.lazy:
+            return self.fdr[index]
         return self._signals[index], self._labels[index]
 
     def __set_task(self, task:str, lazy:bool) -> NoReturn:
         """
         """
-        assert task.lower() in self.config.tasks
-        raise NotImplementedError
+        assert task.lower() in TrainCfg.tasks, f"illegal task \042{task}\042"
+        if hasattr(self, "task") and self.task == task.lower() and self._signals is not None and len(self._signals)>0:
+            return
+        self.task = task.lower()
+        self.siglen = int(self.config[self.task].fs * self.config[self.task].siglen)
+        self.classes = self.config[task].classes
+        self.n_classes = len(self.config[task].classes)
+        self.lazy = lazy
+
+        if self.task in ["classification",]:
+            self.fdr = FastDataReader(self.reader, self.records, self.config, self.task, self.ppm)
+        elif self.task in ["segmentation",]:
+            self.fdr = FastDataReader(self.reader, self.records, self.config, self.task, self.seg_ppm)
+
+        if self.lazy:
+            return
+
+        self._signals, self._labels = [], []
+        with tqdm(range(len(self.fdr)), desc="Loading data", unit="records") as pbar:
+            for idx in pbar:
+                values, labels = self.fdr[idx]
+                self._signals.append(values)
+                self._labels.append(labels)
+
+        self._signals = np.concatenate(self._signals, axis=0)
+        if self.config[self.task].loss != "CrossEntropyLoss":
+            self._labels = np.concatenate(self._labels, axis=0)
+        else:
+            self._labels = np.array(sum(self._labels)).astype(int)
 
     def _load_all_data(self) -> NoReturn:
         """
         """
-        with tqdm(self.records, total=len(self.records)) as pbar:
-            for record in pbar:
-                raise NotImplementedError
+        self.__set_task(self.task, lazy=False)
 
     def _train_test_split(self,
                           train_ratio:float=0.8,
@@ -108,7 +151,7 @@ class CinC2022Dataset(Dataset):
             else:
                 return json.load(open(test_file, "r"))
 
-        df_train, df_test = _strafified_train_test_split(
+        df_train, df_test = strafified_train_test_split(
             self.reader.df_stats,
             ["Murmur", "Age", "Sex", "Pregnancy status",],
             test_ratio=1-train_ratio,
@@ -130,34 +173,68 @@ class CinC2022Dataset(Dataset):
         else:
             return test_set
 
+    @property
+    def signals(self) -> np.ndarray:
+        return self._signals
 
-def _strafified_train_test_split(df:pd.DataFrame,
-                                 strafified_cols:Sequence[str],
-                                 test_ratio:float=0.2) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    @property
+    def labels(self) -> np.ndarray:
+        return self._labels
+
+
+class FastDataReader(ReprMixin, Dataset):
     """
     """
-    df_inspection = df[strafified_cols].copy()
-    for item in strafified_cols:
-        all_entities = df_inspection[item].unique().tolist()
-        entities_dict = {e: str(i) for i, e in enumerate(all_entities)}
-        df_inspection[item] = df_inspection[item].apply(lambda e:entities_dict[e])
 
-    inspection_col_name = "Inspection" * (max([len(c) for c in strafified_cols])//10+1)
-    df_inspection[inspection_col_name] = ''
-    for idx, row in df_inspection.iterrows():
-        cn = "-".join([row[sc] for sc in strafified_cols])
-        df_inspection.loc[idx, inspection_col_name] = cn
-    item_names = df_inspection[inspection_col_name].unique().tolist()
-    item_indices = {
-        n: df_inspection.index[df_inspection[inspection_col_name]==n].tolist() for n in item_names
-    }
-    for n in item_names:
-        shuffle(item_indices[n])
+    def __init__(self, reader:PCGDataBase, records:Sequence[str], config:CFG, task:str, ppm:Optional[PreprocManager]=None) -> NoReturn:
+        """
+        """
+        self.reader = reader
+        self.records = records
+        self.config = config
+        self.task = task
+        self.ppm = ppm
+        if self.config.torch_dtype == torch.float64:
+            self.dtype = np.float64
+        else:
+            self.dtype = np.float32
 
-    test_indices = []
-    for n in item_names:
-        item_test_indices = item_indices[n][:round(test_ratio*len(item_indices[n]))]
-        test_indices += item_test_indices
-    df_test = df.loc[df.index.isin(test_indices)].reset_index(drop=True)
-    df_train = df.loc[~df.index.isin(test_indices)].reset_index(drop=True)
-    return df_train, df_test
+    def __len__(self) -> int:
+        """
+        """
+        return len(self.records)
+
+    def __getitem__(self, index:int) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        """
+        rec = self.records[index]
+        values = self.reader.load_data(
+            rec,
+            data_format=self.config[self.task].data_format,
+        )
+        if self.ppm:
+            values, _ = self.ppm(values, self.reader.fs)
+        values = ensure_siglen(
+            values,
+            siglen=self.config[self.task].input_len,
+            fmt=self.config[self.task].data_format,
+            tolerance=self.config[self.task].sig_slice_tol,
+        ).astype(self.dtype)
+        if values.ndim == 2:
+            values = values[np.newaxis, ...]
+        
+        labels = self.reader.load_ann(rec)
+        if self.config[self.task].loss != "CrossEntropyLoss":
+            labels = np.isin(
+                self.config[self.task].classes, labels
+            ).astype(self.dtype)[np.newaxis, ...].repeat(values.shape[0], axis=0)
+        else:
+            labels = np.array(
+                [self.config[self.task].class_map[labels] for _ in range(values.shape[0])],
+                dtype=int
+            )
+
+        return values, labels
+
+    def extra_repr_keys(self) -> List[str]:
+        return ["reader", "ppm",]
