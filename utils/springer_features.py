@@ -7,8 +7,8 @@ from typing import Optional, Sequence
 import numpy as np
 import scipy.signal as SS
 from easydict import EasyDict as ED
+from torch_ecg.utils.utils_signal import butter_bandpass_filter, normalize
 
-from .utils_signal import butter_bandpass_filter, normalize
 from .schmidt_spike_removal import schmidt_spike_removal
 from .springer_dwt import get_dwt_features
 
@@ -18,9 +18,46 @@ __all__ = [
 ]
 
 
-def get_springer_features(signal:np.ndarray, fs:int, feature_fs:int, config:Optional[dict]=None) -> np.ndarray:
+def get_springer_features(signal:np.ndarray,
+                          fs:int,
+                          feature_fs:int,
+                          feature_format:str="flat",
+                          config:Optional[dict]=None,) -> np.ndarray:
     """
+
+    This function **almost** re-implements the original matlab
+    implementation of the Springer features.
+
+    Parameters
+    ----------
+    signal: np.ndarray,
+        The signal (1D) to extract features from.
+    fs: int,
+        The sampling frequency of the signal.
+    feature_fs: int,
+        The sampling frequency of the features.
+    feature_format: str, default "flat",
+        The format of the features, can be one of
+        "flat", "channel_first", "channel_last",
+        case insensitive.
+    config: dict, optional,
+        The configuration for extraction methods of the features.
+
+    Returns
+    -------
+    springer_features: np.ndarray,
+        The extracted features, of shape
+        (4 * feature_len,) if `feature_format` is "flat",
+        (4, feature_len) if `feature_format` is "channel_first",
+        (feature_len, 4) if `feature_format` is "channel_last".
+        The features are in the following order:
+        - homomorphic_envelope
+        - hilbert envelope
+        - PSD
+        - DWT
     """
+    assert feature_format.lower() in ["flat", "channel_first", "channel_last"], \
+        f"`feature_format` must be one of 'flat', 'channel_first', 'channel_last', but got {feature_format}"
     cfg = ED(
         order=2,
         lowcut=25,
@@ -62,7 +99,13 @@ def get_springer_features(signal:np.ndarray, fs:int, feature_fs:int, config:Opti
     wavelet_feature = SS.resample_poly(wavelet_feature, feature_fs, fs)
     wavelet_feature = normalize(wavelet_feature, method="z-score", mean=0.0, std=1.0)
 
-    springer_features = np.concatenate([
+    func = dict(
+        flat=np.concatenate,
+        channel_first=np.row_stack,
+        channel_last=np.column_stack,
+    )
+
+    springer_features = func[feature_format.lower()]([
         downsampled_homomorphic_envelope,
         downsampled_hilbert_envelope,
         psd,
@@ -73,12 +116,43 @@ def get_springer_features(signal:np.ndarray, fs:int, feature_fs:int, config:Opti
 
 def hilbert_envelope(signal:np.ndarray, fs:int) -> np.ndarray:
     """
+    Compute the envelope of the signal using the Hilbert transform.
+
+    Parameters
+    ----------
+    signal: np.ndarray,
+        The signal (1D) to extract features from.
+    fs: int,
+        The sampling frequency of the signal.
+
+    Returns
+    -------
+    ndarray:
+        The envelope of the signal.
     """
     return np.abs(SS.hilbert(signal))
 
 
 def homomorphic_envelope_with_hilbert(signal:np.ndarray, fs:int, lpf_freq:int=8, order:int=1) -> np.ndarray:
     """
+    Compute the homomorphic envelope of the signal using the Hilbert transform.
+
+    Parameters
+    ----------
+    signal: np.ndarray,
+        The signal (1D) to extract features from.
+    fs: int,
+        The sampling frequency of the signal.
+    lpf_freq: int, default 8,
+        The low-pass filter frequency (high cut frequency).
+        The filter will be applied to log of the Hilbert envelope.
+    order: int, default 1,
+        The order of the butterworth low-pass filter.
+
+    Returns
+    -------
+    homomorphic_envelope: ndarray,
+        The homomorphic envelope of the signal.
     """
     amplitude_envelope = hilbert_envelope(signal, fs)
     homomorphic_envelope = np.exp(
@@ -94,6 +168,33 @@ def get_PSD_feature(signal:np.ndarray,
                     window_size:float=1/40,
                     overlap_size:float=1/80,) -> np.ndarray:
     """
+    Compute the PSD (power spectral density) of the signal.
+
+    Parameters
+    ----------
+    signal: np.ndarray,
+        The signal (1D) to extract features from.
+    fs: int,
+        The sampling frequency of the signal.
+    freq_lim: sequence of int, default (40,60),
+        The frequency range to compute the PSD.
+    window_size: float, default 1/40,
+        The size of the window to compute the PSD,
+        with units in seconds.
+    overlap_size: float, default 1/80,
+        The size of the overlap between windows to compute the PSD,
+        with units in seconds.
+
+    Returns
+    -------
+    psd: ndarray,
+        The PSD of the signal.
+
+    NOTE:
+    The `round` function in matlab is different from python's `round` function,
+    ref. https://en.wikipedia.org/wiki/IEEE_754#Rounding_rules.
+    The rounding rule for matlab is `to nearest, ties away from zero`,
+    while the rounding rule for python is `to nearest, ties to even`.
     """
     with localcontext() as ctx:
         ctx.rounding = ROUND_HALF_UP

@@ -5,8 +5,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 from easydict import EasyDict as ED
+from torch_ecg.utils.utils_signal import butter_bandpass_filter
 
-from .utils_signal import butter_bandpass_filter
 from .schmidt_spike_removal import schmidt_spike_removal
 from .springer_features import homomorphic_envelope_with_hilbert
 
