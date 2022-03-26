@@ -256,7 +256,7 @@ class CINC2022Reader(PCGDataBase):
         """
         return list(re.finditer(self._rec_pattern, rec))[0].groupdict()
 
-    def load_data(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> np.ndarray:
+    def load_data(self, rec:str, fs:Optional[int]=None, data_format:str="channel_first") -> np.ndarray:
         """
         load data from the record `rec`
         """
@@ -265,10 +265,10 @@ class CINC2022Reader(PCGDataBase):
             fs = None
         data_file = self.data_dir / f"{rec}.{self.data_ext}"
         data, _ = librosa.load(data_file, sr=fs, mono=False)
-        if fmt.lower() == "flat":
+        if data_format.lower() == "flat":
             return data
         data = np.atleast_2d(data)
-        if fmt.lower() == "channel_last":
+        if data_format.lower() == "channel_last":
             data = data.T
         return data
 
@@ -291,7 +291,7 @@ class CINC2022Reader(PCGDataBase):
         else:
             raise ValueError(f"{rec_or_pid} is not a valid record or patient ID")
 
-    def load_segmentation(self, rec:str, fmt:str="df", fs:Optional[int]=None) -> Union[pd.DataFrame, np.ndarray, dict]:
+    def load_segmentation(self, rec:str, seg_format:str="df", fs:Optional[int]=None) -> Union[pd.DataFrame, np.ndarray, dict]:
         """
         """
         fs = fs or self.fs
@@ -303,27 +303,27 @@ class CINC2022Reader(PCGDataBase):
         df_seg["wave"] = df_seg["label"].apply(lambda s:self.segmentation_map[s])
         df_seg["start"] = (fs * df_seg["start_t"]).apply(round)
         df_seg["end"] = (fs * df_seg["end_t"]).apply(round)
-        if fmt.lower() in ["dataframe", "df",]:
+        if seg_format.lower() in ["dataframe", "df",]:
             return df_seg
-        elif fmt.lower() in ["dict", "dicts",]:
+        elif seg_format.lower() in ["dict", "dicts",]:
             # dict of intervals
             return {
                 k: [[row["start"],row["end"]] for _,row in df_seg[df_seg["wave"]==k].iterrows()] \
                     for _, k in self.segmentation_map.items()
             }
-        elif fmt.lower() in ["mask",]:
+        elif seg_format.lower() in ["mask",]:
             mask = np.zeros(df_seg.end.values[-1], dtype=int)
             for _, row in df_seg.iterrows():
                 mask[row["start"]:row["end"]] = int(row["label"])
             return mask
-        elif fmt.lower() in ["binary",]:
+        elif seg_format.lower() in ["binary",]:
             bin_mask = np.zeros((len(self.segmentation_states), df_seg.end.values[-1]), dtype=self.dtype)
             for _, row in df_seg.iterrows():
                 if row["wave"] in self.segmentation_states:
                     bin_mask[self.segmentation_states.index(row["wave"]), row["start"]:row["end"]] = 1
             return bin_mask
         else:
-            raise ValueError(f"{fmt} is not a valid format")
+            raise ValueError(f"{seg_format} is not a valid format")
 
     def load_meta_data(self,
                        subject:str,
@@ -345,7 +345,7 @@ class CINC2022Reader(PCGDataBase):
     def _load_preprocessed_data(self,
                                 rec:str,
                                 fs:Optional[int]=None,
-                                fmt:str="channel_first",
+                                data_format:str="channel_first",
                                 passband:Sequence[int]=BaseCfg.passband,
                                 order:int=BaseCfg.order,
                                 spike_removal:bool=True) -> np.ndarray:
@@ -353,7 +353,7 @@ class CINC2022Reader(PCGDataBase):
         """
         fs = fs or self.fs
         data = butter_bandpass_filter(
-            self.load_data(rec, fs=fs, fmt="flat"),
+            self.load_data(rec, fs=fs, data_format="flat"),
             lowcut=passband[0],
             highcut=passband[1],
             fs=fs,
@@ -361,10 +361,10 @@ class CINC2022Reader(PCGDataBase):
         ).astype(self.dtype)
         if spike_removal:
             data = schmidt_spike_removal(data, fs=fs)
-        if fmt.lower() == "flat":
+        if data_format.lower() == "flat":
             return data
         data = np.atleast_2d(data)
-        if fmt.lower() == "channel_last":
+        if data_format.lower() == "channel_last":
             data = data.T
         return data
 
@@ -460,17 +460,17 @@ class CINC2016Reader(PCGDataBase):
         filename = f"{rec}.{extension}" if extension else rec
         return self.db_dir / f"training-{rec[0]}" / filename
 
-    def load_data(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> Dict[str, np.ndarray]:
+    def load_data(self, rec:str, fs:Optional[int]=None, data_format:str="channel_first") -> Dict[str, np.ndarray]:
         """
         load data from the record `rec`
         """
         data = {
-            "PCG": self.load_pcg(rec, fs, fmt),
-            "ECG": self.load_ecg(rec, fs, fmt),
+            "PCG": self.load_pcg(rec, fs, data_format),
+            "ECG": self.load_ecg(rec, fs, data_format),
         }
         return data
 
-    def load_pcg(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> np.ndarray:
+    def load_pcg(self, rec:str, fs:Optional[int]=None, data_format:str="channel_first") -> np.ndarray:
         """
         """
         fs = fs or self.fs
@@ -478,11 +478,11 @@ class CINC2016Reader(PCGDataBase):
             fs = None
         pcg, _ = librosa.load(self.get_path(rec, self.data_ext), sr=fs, mono=False)
         pcg = np.atleast_2d(pcg)
-        if fmt.lower() == "channel_last":
+        if data_format.lower() == "channel_last":
             pcg = pcg.T
         return pcg
 
-    def load_ecg(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first") -> np.ndarray:
+    def load_ecg(self, rec:str, fs:Optional[int]=None, data_format:str="channel_first") -> np.ndarray:
         """
         """
         fs = fs or self.fs
@@ -493,7 +493,7 @@ class CINC2016Reader(PCGDataBase):
         if fs is not None and fs != wfdb_rec.fs:
             # ecg = ss.resample_poly(ecg, fs, wfdb_rec.fs, axis=-1)
             ecg = librosa.resample(ecg, wfdb_rec.fs, fs, res_type="kaiser_best")
-        if fmt.lower() == "channel_last":
+        if data_format.lower() == "channel_last":
             ecg = ecg.T
         return ecg
 
@@ -571,7 +571,7 @@ class EPHNOGRAMReader(PCGDataBase):
     def load_data(self,
                   rec:str,
                   fs:Optional[int]=None,
-                  fmt:str="channel_first",
+                  data_format:str="channel_first",
                   channels:Optional[Union[str, Sequence[str]]]=None,) -> Dict[str, np.ndarray]:
         """
         load data from the record `rec`
@@ -585,7 +585,7 @@ class EPHNOGRAMReader(PCGDataBase):
         if isinstance(channels, str):
             channels = [channels]
         data = {
-            k: v.astype(np.float32) if fmt.lower()=="channel_first" else v.astype(np.float32).T \
+            k: v.astype(np.float32) if data_format.lower()=="channel_first" else v.astype(np.float32).T \
                 for k,v in data.items() if k in channels
         }
         if fs is not None and fs != data_fs:
@@ -593,10 +593,10 @@ class EPHNOGRAMReader(PCGDataBase):
                 data[k] = librosa.resample(data[k], data_fs, fs, res_type="kaiser_best")
         return data
 
-    def load_pcg(self, rec:str, fs:Optional[int]=None, fmt:str="channel_first",) -> np.ndarray:
+    def load_pcg(self, rec:str, fs:Optional[int]=None, data_format:str="channel_first",) -> np.ndarray:
         """
         """
-        return self.load_data(rec, fs, fmt, "PCG")["PCG"]
+        return self.load_data(rec, fs, data_format, "PCG")["PCG"]
 
     def load_ann(self, rec:str) -> str:
         """
