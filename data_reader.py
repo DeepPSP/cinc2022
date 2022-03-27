@@ -77,9 +77,7 @@ class PCGDataBase(PhysioNetDataBase):
         self._all_records = None
         self.dtype = kwargs.get("dtype", np.float32)
 
-    def _auto_infer_units(
-        self,
-    ) -> NoReturn:
+    def _auto_infer_units(self) -> NoReturn:
         """
         disable this function implemented in the base class
         """
@@ -108,7 +106,19 @@ class CINC2022Reader(PCGDataBase):
         verbose: int = 2,
         **kwargs: Any,
     ) -> NoReturn:
-        """ """
+        """
+        Parameters
+        ----------
+        db_dir: str,
+            storage path of the database
+        fs: int, default 4000,
+            (re-)sampling frequency of the audio
+        working_dir: str, optional,
+            working directory, to store intermediate files and log file
+        verbose: int, default 2,
+            log verbosity
+        kwargs: auxilliary key word arguments
+        """
         super().__init__(
             db_name="circor-heart-sound",
             db_dir=db_dir,
@@ -131,7 +141,7 @@ class CINC2022Reader(PCGDataBase):
             "Phc",
         }
 
-        self._rec_pattern = f"(?P<pid>[\d]+)\_(?P<loc>{'|'.join(self.auscultation_locations)})((?:\_)(?P<num>\d))?"
+        self._rec_pattern = f"(?P<sid>[\d]+)\_(?P<loc>{'|'.join(self.auscultation_locations)})((?:\_)(?P<num>\d))?"
 
         self._all_records = None
         self._all_subjects = None
@@ -175,7 +185,9 @@ class CINC2022Reader(PCGDataBase):
         self._load_stats()
 
     def _ls_rec(self) -> NoReturn:
-        """ """
+        """
+        list all records in the database
+        """
         try:
             print("Reading the list of records from local file...")
             records_file = self.db_dir / "RECORDS"
@@ -206,7 +218,9 @@ class CINC2022Reader(PCGDataBase):
         self._subject_records = dict(self._subject_records)
 
     def _load_stats(self) -> NoReturn:
-        """ """
+        """
+        collect statistics of the database
+        """
         print("Reading the statistics from local file...")
         stats_file = self.db_dir / "training_data.csv"
         if stats_file.exists():
@@ -268,9 +282,9 @@ class CINC2022Reader(PCGDataBase):
                 desc="loading record stats",
             ) as pbar:
                 for _, row in pbar:
-                    pid = row["Patient ID"]
+                    sid = row["Patient ID"]
                     for loc in row["Locations"]:
-                        rec = f"{pid}_{loc}"
+                        rec = f"{sid}_{loc}"
                         if rec not in self._all_records:
                             continue
                         header = wfdb.rdheader(str(self.data_dir / f"{rec}"))
@@ -281,7 +295,7 @@ class CINC2022Reader(PCGDataBase):
                         else:
                             murmur = "Absent"
                         new_row = {
-                            "Patient ID": pid,
+                            "Patient ID": sid,
                             "Location": loc,
                             "rec": rec,
                             "siglen": header.sig_len,
@@ -296,7 +310,9 @@ class CINC2022Reader(PCGDataBase):
         self._df_stats_records = self._df_stats_records.fillna("")
 
     def _decompose_rec(self, rec: str) -> Dict[str, str]:
-        """ """
+        """
+        decompose a record name into its components (subject, location, and number)
+        """
         return list(re.finditer(self._rec_pattern, rec))[0].groupdict()
 
     def load_data(
@@ -304,6 +320,23 @@ class CINC2022Reader(PCGDataBase):
     ) -> np.ndarray:
         """
         load data from the record `rec`
+
+        Parameters
+        ----------
+        rec : str,
+            the record name
+        fs : int, optional,
+            the sampling frequency of the record, defaults to `self.fs`
+        data_format : str, optional,
+            the format of the returned data, defaults to `channel_first`
+            can be `channel_last`, `channel_first`, `flat`,
+            case insensitive
+        
+        Returns
+        -------
+        data : np.ndarray,
+            the data of the record
+
         """
         fs = fs or self.fs
         if fs == -1:
@@ -318,20 +351,34 @@ class CINC2022Reader(PCGDataBase):
         return data
 
     def load_ann(
-        self, rec_or_pid: str, class_map: Optional[Dict[str, int]] = None
+        self, rec_or_sid: str, class_map: Optional[Dict[str, int]] = None
     ) -> Union[str, int]:
         """
-        load annotations of the record `rec`
+        load classification annotation of the record `rec` or the subject `sid`
+
+        Parameters
+        ----------
+        rec_or_sid : str,
+            the record name or the subject id
+        class_map : dict, optional,
+            the mapping of the annotation classes
+        
+        Returns
+        -------
+        ann : str or int,
+            the class of the record,
+            or the number of the class if `class_map` is provided
+
         """
         _class_map = class_map or {}
-        if rec_or_pid in self.all_subjects:
-            ann = self.df_stats[self.df_stats["Patient ID"] == rec_or_pid].iloc[0][
+        if rec_or_sid in self.all_subjects:
+            ann = self.df_stats[self.df_stats["Patient ID"] == rec_or_sid].iloc[0][
                 "Murmur"
             ]
-        elif rec_or_pid in self.all_records:
-            decom = self._decompose_rec(rec_or_pid)
-            pid, loc = decom["pid"], decom["loc"]
-            row = self.df_stats[self.df_stats["Patient ID"] == pid].iloc[0]
+        elif rec_or_sid in self.all_records:
+            decom = self._decompose_rec(rec_or_sid)
+            sid, loc = decom["sid"], decom["loc"]
+            row = self.df_stats[self.df_stats["Patient ID"] == sid].iloc[0]
             if row["Murmur"] == "Unknown":
                 ann = "Unknown"
             if loc in row["Murmur locations"]:
@@ -339,14 +386,30 @@ class CINC2022Reader(PCGDataBase):
             else:
                 ann = "Absent"
         else:
-            raise ValueError(f"{rec_or_pid} is not a valid record or patient ID")
+            raise ValueError(f"{rec_or_sid} is not a valid record or patient ID")
         ann = _class_map.get(ann, ann)
         return ann
 
     def load_segmentation(
         self, rec: str, seg_format: str = "df", fs: Optional[int] = None
     ) -> Union[pd.DataFrame, np.ndarray, dict]:
-        """ """
+        """
+        load the segmentation of the record `rec`
+
+        Parameters
+        ----------
+        rec : str,
+            the record name
+        seg_format : str, default `df`,
+            the format of the returned segmentation,
+            can be `df`, `dict`, `mask`, `binary`,
+            case insensitive
+
+        Returns
+        -------
+        pd.DataFrame or np.ndarray or dict,
+            the segmentation of the record
+        """
         fs = fs or self.fs
         if fs == -1:
             fs = self.get_fs(rec)
@@ -401,7 +464,22 @@ class CINC2022Reader(PCGDataBase):
         subject: str,
         keys: Optional[Union[Sequence[str], str]] = None,
     ) -> Union[dict, str, float, int]:
-        """ """
+        """
+        load meta data of the subject `subject`
+
+        Parameters
+        ----------
+        subject : str,
+            the subject id
+        keys : str or sequence of str, optional,
+            the keys of the meta data to be returned,
+            if None, return all meta data
+
+        Returns
+        -------
+        meta_data : dict or str or float or int,
+            the meta data of the subject
+        """
         row = self._df_stats[self._df_stats["Patient ID"] == subject].iloc[0]
         meta_data = row.to_dict()
         if keys:
@@ -423,7 +501,36 @@ class CINC2022Reader(PCGDataBase):
         order: int = BaseCfg.order,
         spike_removal: bool = True,
     ) -> np.ndarray:
-        """ """
+        """
+        load preprocessed data of the record `rec`,
+        with preprocessing procedure:
+            - resample to `fs` (if `fs` is not None)
+            - bandpass filter
+            - spike removal
+        
+        Parameters
+        ----------
+        rec : str,
+            the record name
+        fs : int, optional,
+            the sampling frequency of the returned data
+        data_format : str, default `channel_first`,
+            the format of the returned data,
+            can be `channel_first`, `channel_last` or `flat`,
+            case insensitive
+        passband : sequence of int, default `BaseCfg.passband`,
+            the passband of the bandpass filter
+        order : int, default `BaseCfg.order`,
+            the order of the bandpass filter
+        spike_removal : bool, default True,
+            whether to remove spikes using the Schmmidt algorithm
+
+        Returns
+        -------
+        data : np.ndarray,
+            the preprocessed data of the record
+
+        """
         fs = fs or self.fs
         data = butter_bandpass_filter(
             self.load_data(rec, fs=fs, data_format="flat"),
@@ -442,12 +549,36 @@ class CINC2022Reader(PCGDataBase):
         return data
 
     def get_fs(self, rec: str) -> int:
-        """ """
+        """
+        get the original sampling frequency of the record `rec`
+
+        Parameters
+        ----------
+        rec : str,
+            the record name
+
+        Returns
+        -------
+        int,
+            the original sampling frequency of the record
+        """
         return wfdb.rdheader(self.data_dir / rec).fs
 
     def get_subject(self, rec: str) -> int:
-        """ """
-        return self._decompose_rec(rec)["pid"]
+        """
+        get the subject id (Patient ID) of the record `rec`
+
+        Parameters
+        ----------
+        rec : str,
+            the record name
+
+        Returns
+        -------
+        int,
+            the subject id (Patient ID) of the record
+        """
+        return self._decompose_rec(rec)["sid"]
 
     @property
     def all_subjects(self) -> List[str]:
@@ -459,20 +590,33 @@ class CINC2022Reader(PCGDataBase):
 
     @property
     def df_stats(self) -> pd.DataFrame:
-        """ """
         if self._df_stats is None or self._df_stats.empty:
             self._load_stats()
         return self._df_stats
 
     @property
     def df_stats_records(self) -> pd.DataFrame:
-        """ """
         if self._df_stats_records is None or self._df_stats_records.empty:
             self._load_stats()
         return self._df_stats_records
 
     def play(self, rec: str, **kwargs) -> IPython.display.Audio:
-        """ """
+        """
+        play the record `rec` in a Juptyer Notebook
+
+        Parameters
+        ----------
+        rec : str,
+            the record name
+        kwargs : dict,
+            optional keyword arguments including `data`, `fs`,
+            if specified, the data will be played instead of the record
+        
+        Returns
+        -------
+        IPython.display.Audio,
+            the audio object of the record
+        """
         if "data" in kwargs:
             return IPython.display.Audio(
                 kwargs["data"], rate=kwargs.get("fs", self.get_fs(rec))

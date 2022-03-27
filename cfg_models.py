@@ -60,7 +60,6 @@ __all__ = [
 ]
 
 
-# detailed configs for 12-lead, 6-lead, 4-lead, 3-lead, 2-lead models
 # mostly follow from torch_ecg.torch_ecg.model_configs.ecg_crnn
 ModelArchCfg = CFG()
 
