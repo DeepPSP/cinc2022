@@ -7,8 +7,10 @@ from copy import deepcopy
 from typing import Union, Optional, List, Tuple, Dict, Sequence, Set, NoReturn
 
 import numpy as np
+
 np.set_printoptions(precision=5, suppress=True)
 import pandas as pd
+
 try:
     from tqdm.auto import tqdm
 except ModuleNotFoundError:
@@ -17,7 +19,8 @@ import torch
 from torch.utils.data.dataset import Dataset
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import (
-    ensure_siglen, ReprMixin,
+    ensure_siglen,
+    ReprMixin,
     strafified_train_test_split,
     list_sum,
 )
@@ -28,17 +31,20 @@ from data_reader import PCGDataBase, CINC2022Reader, CINC2016Reader
 from utils.springer_features import get_springer_features
 
 
-__all__ = ["CinC2022Dataset",]
+__all__ = [
+    "CinC2022Dataset",
+]
 
 
 class CinC2022Dataset(ReprMixin, Dataset):
-    """
-    """
+    """ """
+
     __name__ = "CinC2022Dataset"
 
-    def __init__(self, config:CFG, task:str, training:bool=True, lazy:bool=True) -> NoReturn:
-        """
-        """
+    def __init__(
+        self, config: CFG, task: str, training: bool = True, lazy: bool = True
+    ) -> NoReturn:
+        """ """
         super().__init__()
         self.config = CFG(deepcopy(config))
         # self.task = task.lower()  # task will be set in self.__set_task
@@ -48,11 +54,12 @@ class CinC2022Dataset(ReprMixin, Dataset):
         self.reader = CINC2022Reader(self.config.db_dir)
 
         self.subjects = self._train_test_split()
-        df = self.reader.df_stats[self.reader.df_stats["Patient ID"].isin(self.subjects)]
-        self.records = list_sum([
-            self.reader.subject_records[row["Patient ID"]] \
-                for _, row in df.iterrows()
-        ])
+        df = self.reader.df_stats[
+            self.reader.df_stats["Patient ID"].isin(self.subjects)
+        ]
+        self.records = list_sum(
+            [self.reader.subject_records[row["Patient ID"]] for _, row in df.iterrows()]
+        )
         if self.training:
             shuffle(self.records)
 
@@ -74,24 +81,26 @@ class CinC2022Dataset(ReprMixin, Dataset):
         self.__set_task(task, lazy)
 
     def __len__(self) -> int:
-        """
-        """
+        """ """
         if self.lazy:
             return len(self.fdr)
         return self._signals.shape[0]
 
-    def __getitem__(self, index:int) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        """
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+        """ """
         if self.lazy:
             return self.fdr[index]
         return self._signals[index], self._labels[index]
 
-    def __set_task(self, task:str, lazy:bool) -> NoReturn:
-        """
-        """
+    def __set_task(self, task: str, lazy: bool) -> NoReturn:
+        """ """
         assert task.lower() in TrainCfg.tasks, f"illegal task \042{task}\042"
-        if hasattr(self, "task") and self.task == task.lower() and self._signals is not None and len(self._signals)>0:
+        if (
+            hasattr(self, "task")
+            and self.task == task.lower()
+            and self._signals is not None
+            and len(self._signals) > 0
+        ):
             return
         self.task = task.lower()
         self.siglen = int(self.config[self.task].fs * self.config[self.task].siglen)
@@ -99,10 +108,18 @@ class CinC2022Dataset(ReprMixin, Dataset):
         self.n_classes = len(self.config[task].classes)
         self.lazy = lazy
 
-        if self.task in ["classification",]:
-            self.fdr = FastDataReader(self.reader, self.records, self.config, self.task, self.ppm)
-        elif self.task in ["segmentation",]:
-            self.fdr = FastDataReader(self.reader, self.records, self.config, self.task, self.seg_ppm)
+        if self.task in [
+            "classification",
+        ]:
+            self.fdr = FastDataReader(
+                self.reader, self.records, self.config, self.task, self.ppm
+            )
+        elif self.task in [
+            "segmentation",
+        ]:
+            self.fdr = FastDataReader(
+                self.reader, self.records, self.config, self.task, self.seg_ppm
+            )
 
         if self.lazy:
             return
@@ -121,22 +138,22 @@ class CinC2022Dataset(ReprMixin, Dataset):
             self._labels = np.array(sum(self._labels)).astype(int)
 
     def _load_all_data(self) -> NoReturn:
-        """
-        """
+        """ """
         self.__set_task(self.task, lazy=False)
 
-    def _train_test_split(self,
-                          train_ratio:float=0.8,
-                          force_recompute:bool=False) -> List[str]:
-        """
-        """
-        _train_ratio = int(train_ratio*100)
+    def _train_test_split(
+        self, train_ratio: float = 0.8, force_recompute: bool = False
+    ) -> List[str]:
+        """ """
+        _train_ratio = int(train_ratio * 100)
         _test_ratio = 100 - _train_ratio
         assert _train_ratio * _test_ratio > 0
 
         train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
         test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
-        aux_train_file = BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
+        aux_train_file = (
+            BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
+        )
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
         if not force_recompute and train_file.exists() and test_file.exists():
@@ -153,8 +170,13 @@ class CinC2022Dataset(ReprMixin, Dataset):
 
         df_train, df_test = strafified_train_test_split(
             self.reader.df_stats,
-            ["Murmur", "Age", "Sex", "Pregnancy status",],
-            test_ratio=1-train_ratio,
+            [
+                "Murmur",
+                "Age",
+                "Sex",
+                "Pregnancy status",
+            ],
+            test_ratio=1 - train_ratio,
         )
 
         train_set = df_train["Patient ID"].tolist()
@@ -183,12 +205,17 @@ class CinC2022Dataset(ReprMixin, Dataset):
 
 
 class FastDataReader(ReprMixin, Dataset):
-    """
-    """
+    """ """
 
-    def __init__(self, reader:PCGDataBase, records:Sequence[str], config:CFG, task:str, ppm:Optional[PreprocManager]=None) -> NoReturn:
-        """
-        """
+    def __init__(
+        self,
+        reader: PCGDataBase,
+        records: Sequence[str],
+        config: CFG,
+        task: str,
+        ppm: Optional[PreprocManager] = None,
+    ) -> NoReturn:
+        """ """
         self.reader = reader
         self.records = records
         self.config = config
@@ -200,13 +227,11 @@ class FastDataReader(ReprMixin, Dataset):
             self.dtype = np.float32
 
     def __len__(self) -> int:
-        """
-        """
+        """ """
         return len(self.records)
 
-    def __getitem__(self, index:int) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        """
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+        """ """
         rec = self.records[index]
         values = self.reader.load_data(
             rec,
@@ -222,19 +247,27 @@ class FastDataReader(ReprMixin, Dataset):
         ).astype(self.dtype)
         if values.ndim == 2:
             values = values[np.newaxis, ...]
-        
+
         labels = self.reader.load_ann(rec)
         if self.config[self.task].loss != "CrossEntropyLoss":
-            labels = np.isin(
-                self.config[self.task].classes, labels
-            ).astype(self.dtype)[np.newaxis, ...].repeat(values.shape[0], axis=0)
+            labels = (
+                np.isin(self.config[self.task].classes, labels)
+                .astype(self.dtype)[np.newaxis, ...]
+                .repeat(values.shape[0], axis=0)
+            )
         else:
             labels = np.array(
-                [self.config[self.task].class_map[labels] for _ in range(values.shape[0])],
-                dtype=int
+                [
+                    self.config[self.task].class_map[labels]
+                    for _ in range(values.shape[0])
+                ],
+                dtype=int,
             )
 
         return values, labels
 
     def extra_repr_keys(self) -> List[str]:
-        return ["reader", "ppm",]
+        return [
+            "reader",
+            "ppm",
+        ]

@@ -14,7 +14,8 @@ from torch_ecg.models.ecg_crnn import ECG_CRNN
 from torch_ecg.models.ecg_seq_lab_net import ECG_SEQ_LAB_NET
 from torch_ecg.models.unets.ecg_unet import ECG_UNET
 from torch_ecg.utils.outputs import (
-    ClassificationOutput, SequenceLabelingOutput,
+    ClassificationOutput,
+    SequenceLabelingOutput,
 )
 
 from cfg import ModelCfg
@@ -28,11 +29,11 @@ __all__ = [
 
 
 class ECG_CRNN_CINC2022(ECG_CRNN):
-    """
-    """
+    """ """
+
     __name__ = "ECG_CRNN_CINC2022"
 
-    def __init__(self, config:Optional[CFG]=None, **kwargs:Any) -> NoReturn:
+    def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> NoReturn:
         """
 
         Parameters
@@ -53,14 +54,18 @@ class ECG_CRNN_CINC2022(ECG_CRNN):
         config = CFG(deepcopy(ModelCfg.classification))
         config.update(deepcopy(config) or {})
         super().__init__(
-            config.classes, config.num_channels, config[config.model_name],
+            config.classes,
+            config.num_channels,
+            config[config.model_name],
         )
 
     @torch.no_grad()
-    def inference(self,
-                  input:Union[np.ndarray,Tensor],
-                  class_names:bool=False,) -> ClassificationOutput:
-        """ finished, checked,
+    def inference(
+        self,
+        input: Union[np.ndarray, Tensor],
+        class_names: bool = False,
+    ) -> ClassificationOutput:
+        """finished, checked,
 
         auxiliary function to `forward`, for CINC2022,
 
@@ -101,13 +106,17 @@ class ECG_CRNN_CINC2022(ECG_CRNN):
             pred = prob["pred"].values
 
         return ClassificationOutput(
-            classes=self.classes, prob=prob, pred=pred,
+            classes=self.classes,
+            prob=prob,
+            pred=pred,
         )
 
     @torch.no_grad()
-    def inference_CINC2021(self,
-                           input:Union[np.ndarray,Tensor],
-                           class_names:bool=False,) -> ClassificationOutput:
+    def inference_CINC2021(
+        self,
+        input: Union[np.ndarray, Tensor],
+        class_names: bool = False,
+    ) -> ClassificationOutput:
         """
         alias for `self.inference`
         """
@@ -115,11 +124,11 @@ class ECG_CRNN_CINC2022(ECG_CRNN):
 
 
 class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
-    """
-    """
+    """ """
+
     __name__ = "ECG_SEQ_LAB_NET_CINC2022"
 
-    def __init__(self, config:Optional[CFG]=None, **kwargs:Any) -> NoReturn:
+    def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> NoReturn:
         """
 
         Parameters
@@ -142,13 +151,17 @@ class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         if config[config.model_name].reduction == 1:
             config[config.model_name].recover_length = True
         super().__init__(
-            config.classes, config.num_channels, config[config.model_name],
+            config.classes,
+            config.num_channels,
+            config[config.model_name],
         )
 
     @torch.no_grad()
-    def inference(self,
-                  input:Union[np.ndarray,Tensor],) -> SequenceLabelingOutput:
-        """ finished, checked,
+    def inference(
+        self,
+        input: Union[np.ndarray, Tensor],
+    ) -> SequenceLabelingOutput:
+        """finished, checked,
 
         auxiliary function to `forward`, for CINC2022,
 
@@ -179,12 +192,16 @@ class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         pred = pred.cpu().detach().numpy()
 
         return SequenceLabelingOutput(
-            classes=self.classes, prob=prob, pred=pred,
+            classes=self.classes,
+            prob=prob,
+            pred=pred,
         )
 
     @torch.no_grad()
-    def inference_CINC2021(self,
-                           input:Union[np.ndarray,Tensor],) -> SequenceLabelingOutput:
+    def inference_CINC2021(
+        self,
+        input: Union[np.ndarray, Tensor],
+    ) -> SequenceLabelingOutput:
         """
         alias for `self.inference`
         """
@@ -192,12 +209,12 @@ class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
 
 
 class ECG_UNET_CINC2022(ECG_UNET):
-    """
-    """
+    """ """
+
     __DEBUG__ = True
     __name__ = "ECG_UNET_CINC2022"
-    
-    def __init__(self, config:Optional[CFG]=None, **kwargs:Any) -> NoReturn:
+
+    def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> NoReturn:
         """
 
         Parameters
@@ -218,13 +235,17 @@ class ECG_UNET_CINC2022(ECG_UNET):
         config = CFG(deepcopy(ModelCfg.segmentation))
         config.update(deepcopy(config) or {})
         super().__init__(
-            config.classes, config.num_channels, config[config.model_name],
+            config.classes,
+            config.num_channels,
+            config[config.model_name],
         )
 
     @torch.no_grad()
-    def inference(self,
-                  input:Union[np.ndarray,Tensor],) -> SequenceLabelingOutput:
-        """ finished, checked,
+    def inference(
+        self,
+        input: Union[np.ndarray, Tensor],
+    ) -> SequenceLabelingOutput:
+        """finished, checked,
 
         auxiliary function to `forward`, for CINC2022,
 
@@ -255,12 +276,16 @@ class ECG_UNET_CINC2022(ECG_UNET):
         pred = pred.cpu().detach().numpy()
 
         return SequenceLabelingOutput(
-            classes=self.classes, prob=prob, pred=pred,
+            classes=self.classes,
+            prob=prob,
+            pred=pred,
         )
 
     @torch.no_grad()
-    def inference_CINC2021(self,
-                           input:Union[np.ndarray,Tensor],) -> SequenceLabelingOutput:
+    def inference_CINC2021(
+        self,
+        input: Union[np.ndarray, Tensor],
+    ) -> SequenceLabelingOutput:
         """
         alias for `self.inference`
         """

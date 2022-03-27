@@ -34,13 +34,22 @@ BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 800
 BaseCfg.torch_dtype = torch.float32  # "double"
 
-BaseCfg.classes = ["Present", "Absent", "Unknown",]
-BaseCfg.states = ["unannotated", "S1", "systolic", "S2", "diastolic",]
+BaseCfg.classes = [
+    "Present",
+    "Absent",
+    "Unknown",
+]
+BaseCfg.states = [
+    "unannotated",
+    "S1",
+    "systolic",
+    "S2",
+    "diastolic",
+]
 
 # for example, can use scipy.signal.buttord(wp=[15, 250], ws=[5, 400], gpass=1, gstop=40, fs=1000)
 BaseCfg.passband = [25, 400]  # Hz, candidates: [20, 500], [15, 250]
 BaseCfg.order = 5
-
 
 
 # training configurations for machine learning and deep learning
@@ -108,11 +117,15 @@ TrainCfg.classification = CFG()
 TrainCfg.classification.fs = BaseCfg.fs
 TrainCfg.classification.data_format = "channel_first"
 TrainCfg.classification.num_channels = 1
-TrainCfg.classification.input_len = int(30 * TrainCfg.classification.fs)  # 30 seconds, to adjust
+TrainCfg.classification.input_len = int(
+    30 * TrainCfg.classification.fs
+)  # 30 seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = 0.4  # None, do no slicing
 TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
-TrainCfg.classification.class_map = {c:i for i,c in enumerate(TrainCfg.classification.classes)}
+TrainCfg.classification.class_map = {
+    c: i for i, c in enumerate(TrainCfg.classification.classes)
+}
 TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
 TrainCfg.classification.bandpass = CFG(
     lowcut=BaseCfg.passband[0],
@@ -128,18 +141,24 @@ TrainCfg.classification.rnn_name = "none"  # "none", "lstm"
 TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
 TrainCfg.classification.monitor = "challenge_metric"  # accuracy (not recommended)
 TrainCfg.classification.loss = "AsymmetricLoss"  # "FocalLoss"
-TrainCfg.classification.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+TrainCfg.classification.loss_kw = CFG(
+    gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
+)
 
 
 TrainCfg.segmentation = CFG()
 TrainCfg.segmentation.fs = 500
 TrainCfg.segmentation.data_format = "channel_first"
 TrainCfg.segmentation.num_channels = 1
-TrainCfg.segmentation.input_len = int(30 * TrainCfg.segmentation.fs)  # 30seconds, to adjust
+TrainCfg.segmentation.input_len = int(
+    30 * TrainCfg.segmentation.fs
+)  # 30seconds, to adjust
 TrainCfg.segmentation.siglen = TrainCfg.segmentation.input_len  # alias
 TrainCfg.segmentation.sig_slice_tol = 0.4  # None, do no slicing
 TrainCfg.segmentation.classes = BaseCfg.states
-TrainCfg.segmentation.class_map = {c:i for i,c in enumerate(TrainCfg.segmentation.classes)}
+TrainCfg.segmentation.class_map = {
+    c: i for i, c in enumerate(TrainCfg.segmentation.classes)
+}
 TrainCfg.segmentation.resample = CFG(fs=TrainCfg.segmentation.fs)
 TrainCfg.segmentation.bandpass = CFG(
     lowcut=BaseCfg.passband[0],
@@ -155,8 +174,9 @@ TrainCfg.segmentation.rnn_name = "lstm"  # "none", "lstm"
 TrainCfg.segmentation.attn_name = "se"  # "none", "se", "gc", "nl"
 TrainCfg.segmentation.monitor = "jaccard"
 TrainCfg.segmentation.loss = "AsymmetricLoss"  # "FocalLoss"
-TrainCfg.segmentation.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
-
+TrainCfg.segmentation.loss_kw = CFG(
+    gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
+)
 
 
 # configurations for building deep learning models
@@ -184,7 +204,11 @@ for t in TrainCfg.tasks:
     ModelCfg[t].attn_name = TrainCfg[t].attn_name
 
     # adjust filter length; cnn, rnn, attn choices in model configs
-    for mn in ["crnn", "seq_lab", "unet",]:
+    for mn in [
+        "crnn",
+        "seq_lab",
+        "unet",
+    ]:
         if mn not in ModelCfg[t]:
             continue
         adjust_cnn_filter_lengths(ModelCfg[t][mn], ModelCfg[t].fs)
