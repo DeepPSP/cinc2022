@@ -331,7 +331,7 @@ class CINC2022Reader(PCGDataBase):
             the format of the returned data, defaults to `channel_first`
             can be `channel_last`, `channel_first`, `flat`,
             case insensitive
-        
+
         Returns
         -------
         data : np.ndarray,
@@ -362,7 +362,7 @@ class CINC2022Reader(PCGDataBase):
             the record name or the subject id
         class_map : dict, optional,
             the mapping of the annotation classes
-        
+
         Returns
         -------
         ann : str or int,
@@ -507,7 +507,7 @@ class CINC2022Reader(PCGDataBase):
             - resample to `fs` (if `fs` is not None)
             - bandpass filter
             - spike removal
-        
+
         Parameters
         ----------
         rec : str,
@@ -611,7 +611,7 @@ class CINC2022Reader(PCGDataBase):
         kwargs : dict,
             optional keyword arguments including `data`, `fs`,
             if specified, the data will be played instead of the record
-        
+
         Returns
         -------
         IPython.display.Audio,
