@@ -173,27 +173,21 @@ for t in TrainCfg.tasks:
     ModelCfg[t].task = t
     ModelCfg[t].fs = TrainCfg[t].fs
 
+    ModelCfg[t].update(ModelArchCfg[t])
 
-ModelCfg.classification.update(ModelArchCfg.classification)
-adjust_cnn_filter_lengths(ModelCfg.classification, ModelCfg.classification.fs)
+    ModelCfg[t].classes = TrainCfg[t].classes
+    ModelCfg[t].num_channels = TrainCfg[t].num_channels
+    ModelCfg[t].input_len = TrainCfg[t].input_len
+    ModelCfg[t].model_name = TrainCfg[t].model_name
+    ModelCfg[t].cnn_name = TrainCfg[t].cnn_name
+    ModelCfg[t].rnn_name = TrainCfg[t].rnn_name
+    ModelCfg[t].attn_name = TrainCfg[t].attn_name
 
-
-ModelCfg.classification.input_len = TrainCfg.classification.input_len
-ModelCfg.classification.classes = TrainCfg.classification.classes
-ModelCfg.classification.model_name = TrainCfg.classification.model_name
-ModelCfg.classification.cnn_name = TrainCfg.classification.cnn_name
-ModelCfg.classification.rnn_name = TrainCfg.classification.rnn_name
-ModelCfg.classification.attn_name = TrainCfg.classification.attn_name
-
-
-
-
-ModelCfg.segmentation.update(ModelArchCfg.segmentation)
-adjust_cnn_filter_lengths(ModelCfg.segmentation, ModelCfg.segmentation.fs)
-
-ModelCfg.classification.input_len = TrainCfg.classification.input_len
-ModelCfg.classification.classes = TrainCfg.classification.classes
-ModelCfg.classification.model_name = TrainCfg.classification.model_name
-ModelCfg.classification.cnn_name = TrainCfg.classification.cnn_name
-ModelCfg.classification.rnn_name = TrainCfg.classification.rnn_name
-ModelCfg.classification.attn_name = TrainCfg.classification.attn_name
+    # adjust filter length; cnn, rnn, attn choices in model configs
+    for mn in ["crnn", "seq_lab", "unet",]:
+        if mn not in ModelCfg[t]:
+            continue
+        adjust_cnn_filter_lengths(ModelCfg[t][mn], ModelCfg[t].fs)
+        ModelCfg[t][mn].cnn_name = ModelCfg[t].cnn_name
+        ModelCfg[t][mn].rnn_name = ModelCfg[t].rnn_name
+        ModelCfg[t][mn].attn_name = ModelCfg[t].attn_name

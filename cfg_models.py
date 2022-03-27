@@ -47,6 +47,9 @@ __all__ = [
 ModelArchCfg = CFG()
 
 
-ModelArchCfg.classification = deepcopy(ECG_CRNN_CONFIG)
+ModelArchCfg.classification = CFG()
+ModelArchCfg.classification.crnn = deepcopy(ECG_CRNN_CONFIG)
 
-ModelArchCfg.segmentation = deepcopy(ECG_SEQ_LAB_NET_CONFIG)
+ModelArchCfg.segmentation = CFG()
+ModelArchCfg.segmentation.seq_lab = deepcopy(ECG_SEQ_LAB_NET_CONFIG)
+ModelArchCfg.segmentation.unet = deepcopy(ECG_UNET_VANILLA_CONFIG)
