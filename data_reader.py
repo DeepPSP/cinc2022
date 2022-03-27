@@ -1,10 +1,11 @@
 """
 """
 
-import re
+import re, warnings
 from pathlib import Path
 from collections import defaultdict
 from abc import ABC, abstractmethod
+from functools import partial
 from typing import Union, Optional, Any, List, Dict, Tuple, Set, Sequence, NoReturn
 from numbers import Real, Number
 
@@ -14,6 +15,7 @@ np.set_printoptions(precision=5, suppress=True)
 import pandas as pd
 import wfdb
 import librosa
+import torch
 import torchaudio
 import scipy.signal as ss
 import scipy.io as sio
@@ -50,6 +52,7 @@ class PCGDataBase(PhysioNetDataBase):
         db_name: str,
         db_dir: str,
         fs: int = 1000,
+        audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
         verbose: int = 2,
         **kwargs: Any,
@@ -63,6 +66,11 @@ class PCGDataBase(PhysioNetDataBase):
             storage path of the database
         fs: int, default 1000,
             (re-)sampling frequency of the audio
+        audio_backend: str, default "torchaudio",
+            audio backend to use, can be one of
+            "librosa", "torchaudio", "scipy",  "wfdb",
+            case insensitive.
+            "librosa" or "torchaudio" is recommended.
         working_dir: str, optional,
             working directory, to store intermediate files and log file
         verbose: int, default 2,
@@ -71,11 +79,45 @@ class PCGDataBase(PhysioNetDataBase):
         """
         super().__init__(db_name, db_dir, working_dir, verbose, **kwargs)
         self.fs = fs
+        self.dtype = kwargs.get("dtype", np.float32)
+        self.audio_backend = audio_backend.lower()
+        if self.audio_backend == "torchaudio":
+
+            def torchaudio_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
+                data, new_fs = torchaudio.load(file, normalize=True)
+                return data, new_fs
+
+            self._audio_load_func = torchaudio_load
+        elif self.audio_backend == "librosa":
+
+            def librosa_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
+                data, _ = librosa.load(file, sr=fs, mono=False)
+                return torch.from_numpy(data.reshape((-1, data.shape[-1]))), fs
+
+            self._audio_load_func = librosa_load
+        elif self.audio_backend == "scipy":
+
+            def scipy_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
+                new_fs, data = sio_wav.read(file)
+                data = (data / (2 ** 15)).astype(self.dtype)[np.newaxis, :]
+                return torch.from_numpy(data), new_fs
+
+            self._audio_load_func = scipy_load
+        elif self.audio_backend == "wfdb":
+            warnings.warn(
+                "loading result using wfdb is inconsistent with other backends"
+            )
+
+            def wfdb_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
+                record = wfdb.rdrecord(file, physical=True)  # channel last
+                sig = record.p_signal.T.astype(self.dtype)
+                return torch.from_numpy(sig), record.fs[0]
+
+            self._audio_load_func = wfdb_load
         self.data_ext = None
         self.ann_ext = None
         self.header_ext = "hea"
         self._all_records = None
-        self.dtype = kwargs.get("dtype", np.float32)
 
     def _auto_infer_units(self) -> NoReturn:
         """
@@ -102,6 +144,7 @@ class CINC2022Reader(PCGDataBase):
         self,
         db_dir: str,
         fs: int = 4000,
+        audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
         verbose: int = 2,
         **kwargs: Any,
@@ -113,6 +156,11 @@ class CINC2022Reader(PCGDataBase):
             storage path of the database
         fs: int, default 4000,
             (re-)sampling frequency of the audio
+        audio_backend: str, default "torchaudio",
+            audio backend to use, can be one of
+            "librosa", "torchaudio", "scipy",  "wfdb",
+            case insensitive.
+            "librosa" or "torchaudio" is recommended.
         working_dir: str, optional,
             working directory, to store intermediate files and log file
         verbose: int, default 2,
@@ -123,6 +171,7 @@ class CINC2022Reader(PCGDataBase):
             db_name="circor-heart-sound",
             db_dir=db_dir,
             fs=fs,
+            audio_backend=audio_backend,
             working_dir=working_dir,
             verbose=verbose,
             **kwargs,
@@ -316,7 +365,11 @@ class CINC2022Reader(PCGDataBase):
         return list(re.finditer(self._rec_pattern, rec))[0].groupdict()
 
     def load_data(
-        self, rec: str, fs: Optional[int] = None, data_format: str = "channel_first"
+        self,
+        rec: str,
+        fs: Optional[int] = None,
+        data_format: str = "channel_first",
+        data_type: str = "np",
     ) -> np.ndarray:
         """
         load data from the record `rec`
@@ -331,6 +384,9 @@ class CINC2022Reader(PCGDataBase):
             the format of the returned data, defaults to `channel_first`
             can be `channel_last`, `channel_first`, `flat`,
             case insensitive
+        data_type : str, default "np",
+            the type of the returned data, can be one of "pt", "np",
+            case insensitive
 
         Returns
         -------
@@ -342,12 +398,18 @@ class CINC2022Reader(PCGDataBase):
         if fs == -1:
             fs = None
         data_file = self.data_dir / f"{rec}.{self.data_ext}"
-        data, _ = librosa.load(data_file, sr=fs, mono=False)
-        if data_format.lower() == "flat":
-            return data
-        data = np.atleast_2d(data)
+        data, data_fs = self._audio_load_func(data_file, fs)
+        # data of shape (n_channels, n_samples), of type torch.Tensor
+        if fs is not None and data_fs != fs:
+            data = torchaudio.transforms.Resample(data_fs, fs)(data)
         if data_format.lower() == "channel_last":
             data = data.T
+        elif data_format.lower() == "flat":
+            data = data.reshape(-1)
+        if data_type.lower() == "np":
+            data = data.numpy()
+        elif data_type.lower() != "pt":
+            raise ValueError(f"Unsupported data type: {data_type}")
         return data
 
     def load_ann(
@@ -638,6 +700,7 @@ class CINC2016Reader(PCGDataBase):
         self,
         db_dir: str,
         fs: int = 2000,
+        audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
         verbose: int = 2,
         **kwargs: Any,
@@ -647,6 +710,7 @@ class CINC2016Reader(PCGDataBase):
             db_name="challenge-2016",
             db_dir=db_dir,
             fs=fs,
+            audio_backend=audio_backend,
             working_dir=working_dir,
             verbose=verbose,
             **kwargs,
@@ -750,6 +814,7 @@ class EPHNOGRAMReader(PCGDataBase):
         self,
         db_dir: str,
         fs: int = 8000,
+        audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
         verbose: int = 2,
         **kwargs: Any,
@@ -759,6 +824,7 @@ class EPHNOGRAMReader(PCGDataBase):
             db_name="ephnogram",
             db_dir=db_dir,
             fs=fs,
+            audio_backend=audio_backend,
             working_dir=working_dir,
             verbose=verbose,
             **kwargs,
