@@ -33,7 +33,7 @@ WORKDIR /physionet
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
 RUN apt update
-RUN apt install ffmpeg libsm6 libxext6 vim libsndfile1 -y
+RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 
 # RUN apt update && apt install -y --no-install-recommends \
 #         build-essential \
@@ -48,13 +48,14 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 # http://mirrors.aliyun.com/pypi/simple/
 # http://pypi.douban.com/simple/
 # RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+## Include the following line if you have a requirements.txt file.
+RUN pip install -r requirements.txt
 # RUN pip install torch==1.8.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install torch==1.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
 RUN pip install torchaudio==0.6.0 --no-deps
 # RUN pip install torch
-## Include the following line if you have a requirements.txt file.
-RUN pip install -r requirements.txt
+RUN pip install git+https://github.com/DeepPSP/torch_ecg.git
 
 
 # RUN python docker_test.py
