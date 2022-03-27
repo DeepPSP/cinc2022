@@ -51,7 +51,7 @@ class CinC2022Dataset(ReprMixin, Dataset):
         df = self.reader.df_stats[self.reader.df_stats["Patient ID"].isin(self.subjects)]
         self.records = list_sum([
             self.reader.subject_records[row["Patient ID"]] \
-                for _, row in df.iterrows() for pos in row["Locations"]
+                for _, row in df.iterrows()
         ])
         if self.training:
             shuffle(self.records)
