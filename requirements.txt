@@ -15,6 +15,7 @@ easydict
 torchsummary
 tensorboardX
 tqdm
+biosppy
 deprecated
 torch_optimizer
 librosa
@@ -24,3 +25,4 @@ PyWavelets
 xmltodict
 einops
 matplotlib
+requests
