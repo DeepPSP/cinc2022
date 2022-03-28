@@ -1,4 +1,8 @@
 """
+Transforms for data augmentation.
+
+deprecated and overrided by ./augmentations.py
+
 """
 
 import re
