@@ -11,11 +11,16 @@ easydict
 # torch==1.6.0  # see Dockerfile
 # torchaudio==0.6.0  # see Dockerfile
 # torch-audiomentations  # see Dockerfile
+# torch_ecg  # see Dockerfile
 torchsummary
 tensorboardX
-torch_ecg
 tqdm
 deprecated
 torch_optimizer
 librosa
 IPython
+pyEDFlib
+PyWavelets
+xmltodict
+einops
+matplotlib
