@@ -82,7 +82,10 @@ class PCGDataBase(PhysioNetDataBase):
         if self.audio_backend == "torchaudio":
 
             def torchaudio_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
-                data, new_fs = torchaudio.load(file, normalize=True)
+                try:
+                    data, new_fs = torchaudio.load(file, normalize=True)
+                except:
+                    data, new_fs = torchaudio.load(file, normalization=True)
                 return data, new_fs
 
             self._audio_load_func = torchaudio_load
