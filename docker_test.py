@@ -61,9 +61,9 @@ def test_models() -> NoReturn:
     ds_val._load_all_data()
     dl = DataLoader(
         dataset=ds_val,
-        batch_size=64,
+        batch_size=16,
         shuffle=True,
-        num_workers=4,
+        num_workers=0,
         pin_memory=True,
         drop_last=False,
         collate_fn=collate_fn,
