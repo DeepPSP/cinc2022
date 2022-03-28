@@ -12,6 +12,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 
 from cfg_models import ModelArchCfg
+from inputs import InputConfig
 
 
 __all__ = [
@@ -31,7 +32,7 @@ BaseCfg.log_dir = _BASE_DIR / "log"
 BaseCfg.model_dir = _BASE_DIR / "saved_models"
 BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
-BaseCfg.fs = 800
+BaseCfg.fs = 1000
 BaseCfg.torch_dtype = torch.float32  # "double"
 
 BaseCfg.classes = [
@@ -55,16 +56,7 @@ BaseCfg.order = 5
 # training configurations for machine learning and deep learning
 TrainCfg = deepcopy(BaseCfg)
 
-TrainCfg.input_type = "raw"  # "raw", "springer"
-
 TrainCfg.train_ratio = 0.8
-
-# configs of signal preprocessing
-TrainCfg.normalize = CFG(
-    method="z-score",
-    mean=0.0,
-    std=1.0,
-)
 
 # configs of training epochs, batch, etc.
 TrainCfg.n_epochs = 50
@@ -116,7 +108,12 @@ for t in TrainCfg.tasks:
 TrainCfg.classification = CFG()
 TrainCfg.classification.fs = BaseCfg.fs
 TrainCfg.classification.data_format = "channel_first"
-TrainCfg.classification.num_channels = 1
+TrainCfg.classification.input_config = InputConfig(
+    input_type="waveform",  # "waveform", "spectrogram", "mel", "mfcc", "spectral"
+    n_channels=1,
+    fs=TrainCfg.classification.fs,
+)
+TrainCfg.classification.num_channels = TrainCfg.classification.input_config.n_channels
 TrainCfg.classification.input_len = int(
     30 * TrainCfg.classification.fs
 )  # 30 seconds, to adjust
@@ -133,7 +130,6 @@ TrainCfg.classification.bandpass = CFG(
     filter_type="butter",
     order=BaseCfg.order,
 )
-TrainCfg.classification.normalize = TrainCfg.normalize
 TrainCfg.classification.final_model_name = None
 TrainCfg.classification.model_name = "crnn"
 TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
@@ -147,9 +143,14 @@ TrainCfg.classification.loss_kw = CFG(
 
 
 TrainCfg.segmentation = CFG()
-TrainCfg.segmentation.fs = 500
+TrainCfg.segmentation.fs = 1000
 TrainCfg.segmentation.data_format = "channel_first"
-TrainCfg.segmentation.num_channels = 1
+TrainCfg.segmentation.input_config = InputConfig(
+    input_type="waveform",  # "waveform", "spectrogram", "mel", "mfcc", "spectral"
+    n_channels=1,
+    fs=TrainCfg.segmentation.fs,
+)
+TrainCfg.segmentation.num_channels = TrainCfg.segmentation.input_config.n_channels
 TrainCfg.segmentation.input_len = int(
     30 * TrainCfg.segmentation.fs
 )  # 30seconds, to adjust
@@ -166,7 +167,6 @@ TrainCfg.segmentation.bandpass = CFG(
     filter_type="butter",
     order=BaseCfg.order,
 )
-TrainCfg.segmentation.normalize = TrainCfg.normalize
 TrainCfg.segmentation.final_model_name = None
 TrainCfg.segmentation.model_name = "seq_lab"  # unet
 TrainCfg.segmentation.cnn_name = "resnet_nature_comm_bottle_neck_se"

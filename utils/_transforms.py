@@ -42,6 +42,7 @@ class PitchShift(torch.nn.Module):
         >>> waveform, sample_rate = torchaudio.load('test.wav', normalize=True)
         >>> transform = transforms.PitchShift(sample_rate, 4)
         >>> waveform_shift = transform(waveform)  # (channel, time)
+
     """
     __constants__ = [
         "sample_rate",
@@ -83,6 +84,7 @@ class PitchShift(torch.nn.Module):
             waveform (Tensor): Tensor of audio of dimension `(..., time)`.
         Returns:
             Tensor: The pitch-shifted audio of shape `(..., time)`.
+
         """
 
         return pitch_shift(
@@ -122,6 +124,7 @@ def pitch_shift(
             If None, then ``torch.hann_window(win_length)`` is used (Default: ``None``).
     Returns:
         Tensor: The pitch-shifted audio waveform of shape `(..., time)`.
+
     """
     if hop_length is None:
         hop_length = n_fft // 4
@@ -196,6 +199,7 @@ def phase_vocoder(
         >>> x = phase_vocoder(complex_specgrams, rate, phase_advance)
         >>> x.shape # with 231 == ceil(300 / 1.3)
         torch.Size([2, 1025, 231, 2])
+
     """
 
     # pack batch

@@ -27,6 +27,14 @@ from torch_ecg.utils.misc import (
 from torch_ecg._preprocessors import PreprocManager
 
 from cfg import BaseCfg, TrainCfg, ModelCfg
+from inputs import (
+    InputConfig,
+    WaveformInput,
+    SpectrogramInput,
+    MelSpectrogramInput,
+    MFCCInput,
+    SpectralInput,
+)
 from data_reader import PCGDataBase, CINC2022Reader, CINC2016Reader
 from utils.springer_features import get_springer_features
 

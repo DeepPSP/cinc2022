@@ -1,4 +1,5 @@
 """
+wav2vec2 does not exists in torchaudio before version 0.9
 """
 
 from . import utils

@@ -22,7 +22,7 @@ __all__ = [
 class Transforms(Sequential):
     """
 
-    Composition of transforms.
+    Composition of transforms for audio data augmentation.
 
     Supported transforms:
         - :class:`torchaudio.transforms.Fade`
@@ -71,6 +71,7 @@ class Transforms(Sequential):
     ...     )
     ... )
     >>> t(torch.rand(8, 1, 201, 433))
+
     """
 
     __name__ = "Transforms"

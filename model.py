@@ -1,4 +1,7 @@
 """
+Models, including:
+    - 1D models accepcting raw audio signal input
+    - 2D models accepcting spectrogram input
 """
 
 from copy import deepcopy
@@ -22,16 +25,17 @@ from cfg import ModelCfg
 
 
 __all__ = [
-    "ECG_CRNN_CINC2022",
-    "ECG_SEQ_LAB_NET_CINC2022",
-    "ECG_UNET_CINC2022",
+    "CRNN_CINC2022",
+    "SEQ_LAB_NET_CINC2022",
+    "UNET_CINC2022",
 ]
 
 
-class ECG_CRNN_CINC2022(ECG_CRNN):
+class CRNN_CINC2022(ECG_CRNN):
     """ """
 
-    __name__ = "ECG_CRNN_CINC2022"
+    __DEBUG__ = True
+    __name__ = "CRNN_CINC2022"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> NoReturn:
         """
@@ -112,7 +116,7 @@ class ECG_CRNN_CINC2022(ECG_CRNN):
         )
 
     @torch.no_grad()
-    def inference_CINC2021(
+    def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
@@ -123,10 +127,11 @@ class ECG_CRNN_CINC2022(ECG_CRNN):
         return self.inference(input, class_names)
 
 
-class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
+class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
     """ """
 
-    __name__ = "ECG_SEQ_LAB_NET_CINC2022"
+    __DEBUG__ = True
+    __name__ = "SEQ_LAB_NET_CINC2022"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> NoReturn:
         """
@@ -198,7 +203,7 @@ class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         )
 
     @torch.no_grad()
-    def inference_CINC2021(
+    def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
     ) -> SequenceLabelingOutput:
@@ -208,11 +213,11 @@ class ECG_SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         return self.inference(input)
 
 
-class ECG_UNET_CINC2022(ECG_UNET):
+class UNET_CINC2022(ECG_UNET):
     """ """
 
     __DEBUG__ = True
-    __name__ = "ECG_UNET_CINC2022"
+    __name__ = "UNET_CINC2022"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> NoReturn:
         """
@@ -282,7 +287,7 @@ class ECG_UNET_CINC2022(ECG_UNET):
         )
 
     @torch.no_grad()
-    def inference_CINC2021(
+    def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
     ) -> SequenceLabelingOutput:
