@@ -172,9 +172,9 @@ class CinC2022Dataset(ReprMixin, Dataset):
 
         if not force_recompute and aux_train_file.exists() and aux_test_file.exists():
             if self.training:
-                return json.load(open(train_file, "r"))
+                return json.load(open(aux_train_file, "r"))
             else:
-                return json.load(open(test_file, "r"))
+                return json.load(open(aux_test_file, "r"))
 
         df_train, df_test = strafified_train_test_split(
             self.reader.df_stats,
