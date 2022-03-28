@@ -9,14 +9,64 @@
 #
 ################################################################################
 
-import os, sys
+import os, time
+from copy import deepcopy
 
 import numpy as np
 import torch
+from torch.nn.parallel import (
+    DistributedDataParallel as DDP,
+    DataParallel as DP,
+)
+from torch.utils.data import DataLoader
 
 from cfg import TrainCfg, ModelCfg
+from dataset import CinC2022Dataset
+from inputs import (
+    InputConfig,
+    BaseInput,
+    WaveformInput,
+    SpectrogramInput,
+    MelSpectrogramInput,
+    MFCCInput,
+    SpectralInput,
+)
+from model import (
+    CRNN_CINC2022,
+    SEQ_LAB_NET_CINC2022,
+    UNET_CINC2022,
+)
+from trainer import (
+    CINC2022Trainer,
+    _MODEL_MAP,
+    _set_task,
+)
 
 from helper_code import *
+
+
+CinC2022Dataset.__DEBUG__ = False
+CRNN_CINC2022.__DEBUG__ = False
+SEQ_LAB_NET_CINC2022.__DEBUG__ = False
+UNET_CINC2022.__DEBUG__ = False
+CINC2022Trainer.__DEBUG__ = False
+
+
+TASK = "classification"
+
+# _TrainCfg = deepcopy(TrainCfg[TASK])
+# _ModelCfg = deepcopy(ModelCfg[TASK])
+
+_ModelFilename = "final_model.pth.tar"
+
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if _ModelCfg.torch_dtype == torch.float64:
+    torch.set_default_tensor_type(torch.DoubleTensor)
+    DTYPE = np.float64
+else:
+    DTYPE = np.float32
+
 
 ################################################################################
 #
@@ -44,7 +94,59 @@ def train_challenge_model(data_folder, model_folder, verbose):
     num_classes = len(classes)
 
     # TODO: Train the model.
-    raise NotImplementedError
+    # general configs and logger
+    train_config = deepcopy(TrainCfg)
+    train_config.db_dir = data_folder
+    train_config.model_dir = model_folder
+    train_config.debug = False
+
+    train_config.n_epochs = 100
+    train_config.batch_size = 64  # 16G (Tesla T4)
+    train_config.log_step = 4
+    # train_config.max_lr = 1.5e-3
+    train_config.early_stopping.patience = 20
+    
+    # train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
+    # train_config[TASK].rnn_name = "none"  # "none", "lstm"
+    # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
+
+    _set_task(task, train_config)
+
+    model_config = deepcopy(ModelCfg[task])
+
+    model_config.cnn.name = train_config[TASK].cnn_name
+    model_config.rnn.name = train_config[TASK].rnn_name
+    model_config.attn.name = train_config[TASK].attn_name
+
+    start_time = time.time()
+
+    ds_train_cache = CinC2022Dataset(train_config, TASK, training=True, lazy=False)
+    ds_val_cache = CinC2022Dataset(train_config, TASK, training=False, lazy=False)
+
+    model_cls = _MODEL_MAP[train_config[task].model_name]
+    model_cls.__DEBUG__ = False
+
+    model = model_cls(config=model_config)
+    if torch.cuda.device_count() > 1:
+        model = DP(model)
+        # model = DDP(model)
+    model.to(device=DEVICE)
+
+    trainer = CINC2022Trainer(
+        model=model,
+        model_config=model_config,
+        train_config=train_config,
+        device=DEVICE,
+        lazy=False,
+    )
+
+    best_state_dict = trainer.train()  # including saving model
+
+    del trainer
+    del model
+    del best_state_dict
+
+    torch.cuda.empty_cache()
 
     if verbose >= 1:
         print("Done.")
