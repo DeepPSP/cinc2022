@@ -48,6 +48,7 @@ tmp_data_dir = _BASE_DIR / "tmp" / "CINC2022"
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
 dr = CINC2022Reader(tmp_data_dir)
 dr.download(compressed=True)
+dr._ls_rec()
 del dr
 
 TASK = "classification"

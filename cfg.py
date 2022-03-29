@@ -99,7 +99,7 @@ TrainCfg.max_lr = 2e-3  # for "one_cycle" scheduler, to adjust via expriments
 # configs of callbacks, including early stopping, checkpoint, etc.
 TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
 TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
-TrainCfg.early_stopping.patience = 20
+TrainCfg.early_stopping.patience = TrainCfg.n_epochs // 2
 TrainCfg.keep_checkpoint_max = 10
 
 # configs of loss function

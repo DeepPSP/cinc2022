@@ -141,3 +141,5 @@ log
 # !inspect_data.ipynb
 
 *.npy
+
+saved_models/
