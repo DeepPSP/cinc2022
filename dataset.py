@@ -2,7 +2,7 @@
 """
 
 import json
-from random import shuffle
+from random import shuffle, sample
 from copy import deepcopy
 from typing import Union, Optional, List, Tuple, Dict, Sequence, Set, NoReturn
 
@@ -68,6 +68,8 @@ class CinC2022Dataset(ReprMixin, Dataset):
         self.records = list_sum(
             [self.reader.subject_records[row["Patient ID"]] for _, row in df.iterrows()]
         )
+        if self.config.get("entry_test_flag", False):
+            self.records = sample(self.records, int(len(self.records) * 0.2))
         if self.training:
             shuffle(self.records)
 
