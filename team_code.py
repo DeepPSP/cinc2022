@@ -58,6 +58,8 @@ CINC2022Trainer.__DEBUG__ = False
 
 TASK = "classification"
 FS = 4000
+POSITIVE_CLASS = "Present"
+UNKNOWN_CLASS = "Unknown"
 
 _ModelFilename = "final_model.pth.tar"
 
@@ -293,37 +295,59 @@ def run_challenge_model(
 
     classes = train_cfg[TASK].classes
 
-    # probabilities, labels, forward_outputs = [], [], []
-    features = []
-    if BaseCfg.merge_rule.lower() == "avg":
-        pooler = torch.nn.AdaptiveAvgPool1d((1,))
-    elif BaseCfg.merge_rule.lower() == "max":
-        pooler = torch.nn.AdaptiveMaxPool1d((1,))
+    probabilities, labels, cls_labels, forward_outputs = [], [], [], []
+    # features = []
+    # if BaseCfg.merge_rule.lower() == "avg":
+    #     pooler = torch.nn.AdaptiveAvgPool1d((1,))
+    # elif BaseCfg.merge_rule.lower() == "max":
+    #     pooler = torch.nn.AdaptiveMaxPool1d((1,))
 
     for rec, fs in zip(recordings, frequencies):
         rec = _to_dtype(rec, DTYPE)
         rec, _ = ppm(rec, fs)
-        # model_output = _model.inference(np.atleast_2d(rec))
-        # probabilities.append(model_output.prob)
-        # labels.append(model_output.bin_pred)
-        # forward_outputs.append(model_output.forward_output)
         for _ in range(3-rec.ndim):
             rec = rec[np.newaxis, :]
-        rec = torch.from_numpy(rec.copy().astype(DTYPE)).to(device=DEVICE)
-        # rec of shape (1, 1, n_samples)
-        features.append(_model.extract_features(rec))  # shape (1, n_features, n_samples)
+        model_output = _model.inference(rec.copy().astype(DTYPE))
+        probabilities.append(model_output.prob)
+        labels.append(model_output.bin_pred)
+        cls_labels.append(model_output.pred)
+        forward_outputs.append(model_output.forward_output)
+        # rec = torch.from_numpy(rec.copy().astype(DTYPE)).to(device=DEVICE)
+        # # rec of shape (1, 1, n_samples)
+        # features.append(_model.extract_features(rec))  # shape (1, n_features, n_samples)
 
-    features = torch.cat(features, dim=-1)  # shape (1, n_features, n_samples)
-    features = pooler(features).squeeze(dim=-1)  # shape (1, n_features)
-    forward_output = _model.clf(features)  # shape (1, n_classes)
-    probabilities = _model.softmax(forward_output)
-    labels = (probabilities == probabilities.max(dim=-1, keepdim=True).values).to(int)
-    probabilities = probabilities.squeeze(dim=0).cpu().detach().numpy()
-    labels = labels.squeeze(dim=0).cpu().detach().numpy()
+    # features = torch.cat(features, dim=-1)  # shape (1, n_features, n_samples)
+    # features = pooler(features).squeeze(dim=-1)  # shape (1, n_features)
+    # forward_output = _model.clf(features)  # shape (1, n_classes)
+    # probabilities = _model.softmax(forward_output)
+    # labels = (probabilities == probabilities.max(dim=-1, keepdim=True).values).to(int)
+    # probabilities = probabilities.squeeze(dim=0).cpu().detach().numpy()
+    # labels = labels.squeeze(dim=0).cpu().detach().numpy()
 
-    # probabilities = np.concatenate(probabilities, axis=0)
-    # labels = np.concatenate(labels, axis=0)
-    # forward_outputs = np.concatenate(forward_outputs, axis=0)
+    probabilities = np.concatenate(probabilities, axis=0)
+    labels = np.concatenate(labels, axis=0)
+    cls_labels = np.concatenate(cls_labels, axis=0)
+    forward_outputs = np.concatenate(forward_outputs, axis=0)
+
+    positive_class_id = classes.index(POSITIVE_CLASS)
+    positive_indices = np.where(cls_labels == positive_class_id)[0]
+    unknown_class_id = classes.index(UNKNOWN_CLASS)
+    unknown_indices = np.where(cls_labels == unknown_class_id)[0]
+
+    if len(positive_indices) > 0:
+        # if exists at least one positive recording,
+        # then the subject is diagnosed with the positive class
+        probabilities = probabilities[positive_indices, ...].mean(axis=0)
+        labels = labels[positive_indices[0]]
+    elif len(unknown_indices) > 0:
+        # no positive recording, but at least one unknown recording
+        probabilities = probabilities[unknown_indices, ...].mean(axis=0)
+        labels = labels[unknown_indices[0]]
+    else:
+        # no positive or unknown recording,
+        # only negative class recordings
+        probabilities = probabilities.mean(axis=0)
+        labels = labels[0]
 
     return classes, labels, probabilities
 
