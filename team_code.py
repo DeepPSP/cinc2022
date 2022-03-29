@@ -11,6 +11,8 @@
 
 import os, time
 from copy import deepcopy
+from itertools import repeat
+from typing import NoReturn, List, Tuple, Dict
 
 import numpy as np
 import torch
@@ -19,8 +21,10 @@ from torch.nn.parallel import (
     DataParallel as DP,
 )
 from torch.utils.data import DataLoader
+from torch_ecg.cfg import CFG
+from torch_ecg._preprocessors import PreprocManager
 
-from cfg import TrainCfg, ModelCfg
+from cfg import BaseCfg, TrainCfg, ModelCfg
 from dataset import CinC2022Dataset
 from inputs import (
     InputConfig,
@@ -53,6 +57,7 @@ CINC2022Trainer.__DEBUG__ = False
 
 
 TASK = "classification"
+FS = 4000
 
 # _TrainCfg = deepcopy(TrainCfg[TASK])
 # _ModelCfg = deepcopy(ModelCfg[TASK])
@@ -75,7 +80,27 @@ else:
 ################################################################################
 
 # Train your model.
-def train_challenge_model(data_folder, model_folder, verbose):
+def train_challenge_model(
+    data_folder: str, model_folder: str, verbose: int
+) -> NoReturn:
+    """
+
+    Parameters
+    ----------
+    data_folder: str,
+        path to the folder containing the training data
+    model_folder: str,
+        path to the folder to save the trained model
+    verbose: int,
+        verbosity level
+
+    """
+
+    print("\n" + "*" * 100)
+    msg = "   CinC2022 challenge training entry starts   ".center(100, "#")
+    print(msg)
+    print("*" * 100 + "\n")
+
     # Find data files.
     if verbose >= 1:
         print("Finding data files...")
@@ -101,12 +126,20 @@ def train_challenge_model(data_folder, model_folder, verbose):
     train_config.final_model_filename = _ModelFilename
     train_config.debug = False
 
-    train_config.n_epochs = 100
-    train_config.batch_size = 24  # 16G (Tesla T4)
-    train_config.log_step = 20
-    # train_config.max_lr = 1.5e-3
-    train_config.early_stopping.patience = 20
-    
+    if train_config.get("entry_test_flag", False):
+        # to test in the file docker_test.py
+        train_config.n_epochs = 20
+        train_config.batch_size = 24  # 16G (Tesla T4)
+        train_config.log_step = 4
+        # train_config.max_lr = 1.5e-3
+        train_config.early_stopping.patience = 20
+    else:
+        train_config.n_epochs = 100
+        train_config.batch_size = 24  # 16G (Tesla T4)
+        train_config.log_step = 20
+        # train_config.max_lr = 1.5e-3
+        train_config.early_stopping.patience = 20
+
     # train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
     # train_config[TASK].rnn_name = "none"  # "none", "lstm"
     # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
@@ -154,24 +187,149 @@ def train_challenge_model(data_folder, model_folder, verbose):
     if verbose >= 1:
         print("Done.")
 
+    print("\n" + "*" * 100)
+    msg = "   CinC2022 challenge training entry ends   ".center(100, "#")
+    print(msg)
+    print("*" * 100 + "\n\n")
+
 
 # Load your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments and outputs of this function.
-def load_challenge_model(model_folder, verbose):
-    """ """
+def load_challenge_model(
+    model_folder: str, verbose: int
+) -> Dict[str, Union[CFG, torch.nn.Module]]:
+    """
+
+    Parameters
+    ----------
+    model_folder: str,
+        path to the folder containing the trained model
+    verbose: int,
+        verbosity level
+
+    Returns
+    -------
+    dict, with items:
+        - model: torch.nn.Module,
+            the loaded model
+        - train_cfg: CFG,
+            the training configuration,
+            including the list of classes (the ordering is important),
+            and the preprocessing configurations
+
+    """
+    print("\n" + "*" * 100)
+    msg = "   loading CinC2022 challenge model   ".center(100, "#")
+    print(msg)
     model_cls = _MODEL_MAP[TrainCfg[TASK].model_name]
     model, train_cfg = model_cls.from_checkpoint(
         path=os.path.join(model_folder, _ModelFilename),
         device=DEVICE,
     )
     model.eval()
-    return model
+    msg = "   CinC2022 challenge model loaded   ".center(100, "#")
+    print(msg)
+    print("*" * 100 + "\n")
+    return dict(model=model, train_cfg=train_cfg)
 
 
 # Run your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments and outputs of this function.
-def run_challenge_model(model, data, recordings, verbose):
-    """ """
-    raise NotImplementedError
+def run_challenge_model(
+    model: Dict[str, Union[CFG, torch.nn.Module]],
+    data: str,
+    recordings: Union[List[np.ndarray], Tuple[List[np.ndarray], List[int]]],
+    verbose: int,
+) -> Tuple[List[str], np.ndarray, np.ndarray]:
+    """
+
+    Parameters
+    ----------
+    model: Dict[str, Union[CFG, torch.nn.Module]],
+        the trained model (key "model"),
+        along with the training configuration (key "train_cfg")
+    data: str,
+        patient metadata file data, read from a text file
+    recordings: List[np.ndarray],
+        list of recordings, each recording is a 1D numpy array
+    verbose: int,
+        verbosity level
+
+    Returns
+    -------
+    classes: list of str,
+        list of class names
+    labels: np.ndarray,
+        binary prediction
+    probabilities: np.ndarray,
+        probability prediction
+
+    NOTE
+    ----
+    the `recordings` are read by `scipy.io.wavfile.read`, with the following possible data types:
+    =====================  ===========  ===========  =============
+        WAV format            Min          Max       NumPy dtype
+    =====================  ===========  ===========  =============
+    32-bit floating-point  -1.0         +1.0         float32
+    32-bit PCM             -2147483648  +2147483647  int32
+    16-bit PCM             -32768       +32767       int16
+    8-bit PCM              0            255          uint8
+    =====================  ===========  ===========  =============
+    Note that 8-bit PCM is unsigned.
+
+    """
+
+    _model = model["model"]
+    train_cfg = model["train_cfg"]
+    ppm_config = CFG(random=False)
+    ppm_config.update(deepcopy(train_cfg[TASK]))
+    ppm = PreprocManager.from_config(ppm_config)
+
+    if not isinstance(recordings[0], np.ndarray):
+        recordings, frequencies = recordings
+        num_recordings = len(recordings)
+    else:
+        num_recordings = len(recordings)
+        frequencies = list(repeat(FS, num_recordings))
+
+    classes = train_cfg[TASK].classes
+
+    # probabilities, labels, forward_outputs = [], [], []
+    features = []
+    if BaseCfg.merge_rule.lower() == "avg":
+        pooler = torch.nn.AdaptiveAvgPool1d((1,))
+    elif BaseCfg.merge_rule.lower() == "max":
+        pooler = torch.nn.AdaptiveMaxPool1d((1,))
+
+    for rec, fs in zip(recordings, frequencies):
+        rec = _to_dtype(rec, DTYPE)
+        rec, _ = ppm(rec, fs)
+        # model_output = _model.inference(np.atleast_2d(rec))
+        # probabilities.append(model_output.prob)
+        # labels.append(model_output.bin_pred)
+        # forward_outputs.append(model_output.forward_output)
+        rec = torch.from_numpy(np.atleast_2d(rec)).to(device=DEVICE)
+        # rec of shape (1, n_features, n_samples)
+        features.append(_model.extract_feature(rec))
+
+    features = torch.cat(features, dim=-1).squeeze(dim=-1)  # shape (1, n_features)
+    forward_output = _model.clf(features)  # shape (1, n_classes)
+    probabilities = _model.softmax(forward_output)
+    labels = (probabilities == probabilities.max(dim=-1, keepdim=True).values).to(int)
+    probabilities = probabilities.squeeze(dim=0).cpu().detach().numpy()
+    labels = labels.squeeze(dim=0).cpu().detach().numpy()
+
+    # probabilities = np.concatenate(probabilities, axis=0)
+    # labels = np.concatenate(labels, axis=0)
+    # forward_outputs = np.concatenate(forward_outputs, axis=0)
 
     return classes, labels, probabilities
+
+
+def _to_dtype(data: np.ndarray, dtype: np.dtype = np.float32) -> np.ndarray:
+    """ """
+    if data.dtype == dtype:
+        return data
+    if data.dtype in (np.int8, np.uint8, np.int16, np.int32, np.int64):
+        data = data.astype(dtype) / (np.iinfo(data.dtype).max + 1)
+    return data
