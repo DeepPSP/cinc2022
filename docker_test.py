@@ -151,13 +151,14 @@ from run_model import run_model
 def test_entry() -> NoReturn:
     """ """
 
-    train_challenge_model(tmp_data_dir, TrainCfg.model_dir, verbose=2)
+    data_folder = str(tmp_data_dir / "training_data")
+    train_challenge_model(data_folder, TrainCfg.model_dir, verbose=2)
 
     output_dir = _BASE_DIR / "tmp" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
     run_model(
         TrainCfg.model_dir,
-        tmp_data_dir,
+        data_folder,
         str(output_dir),
         allow_failures=False,
         verbose=2,
