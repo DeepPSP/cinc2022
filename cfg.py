@@ -168,6 +168,8 @@ TrainCfg.classification.loss_kw = CFG(
 )
 
 # monitor choices
+# challenge metric is the **cost** of misclassification
+# hence it is the lower the better
 TrainCfg.classification.monitor = "neg_challenge_metric"  # accuracy (not recommended)
 
 ###########################################
