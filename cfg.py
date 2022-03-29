@@ -25,6 +25,11 @@ __all__ = [
 _BASE_DIR = pathlib.Path(__file__).absolute().parent
 
 
+###############################################################################
+# Base Configs,
+# including path, data type, classes, etc.
+###############################################################################
+
 BaseCfg = CFG()
 BaseCfg.db_dir = None
 BaseCfg.project_dir = _BASE_DIR
@@ -53,8 +58,18 @@ BaseCfg.passband = [25, 400]  # Hz, candidates: [20, 500], [15, 250]
 BaseCfg.order = 5
 
 
+###############################################################################
 # training configurations for machine learning and deep learning
+###############################################################################
+
 TrainCfg = deepcopy(BaseCfg)
+
+###########################################
+# common configurations for all tasks
+###########################################
+
+TrainCfg.checkpoints = _BASE_DIR / "checkpoints"
+TrainCfg.checkpoints.mkdir(exist_ok=True)
 
 TrainCfg.train_ratio = 0.8
 
@@ -62,8 +77,7 @@ TrainCfg.train_ratio = 0.8
 TrainCfg.n_epochs = 50
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
-TrainCfg.batch_size = 64
-# TrainCfg.max_batches = 500500
+TrainCfg.batch_size = 24
 
 # configs of optimizers and lr_schedulers
 TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"
@@ -79,19 +93,24 @@ TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = 2e-3  # for "one_cycle" scheduler, to adjust via expriments
 
+# configs of callbacks, including early stopping, checkpoint, etc.
 TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
 TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
-TrainCfg.early_stopping.patience = 10
+TrainCfg.early_stopping.patience = 20
+TrainCfg.keep_checkpoint_max = 10
 
 # configs of loss function
-# TrainCfg.loss = "BCEWithLogitsLoss"
-# TrainCfg.loss = "BCEWithLogitsWithClassWeightLoss"
-TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
 TrainCfg.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
 TrainCfg.flooding_level = 0.0  # flooding performed if positive,
 
+# configs of logging
 TrainCfg.log_step = 20
-TrainCfg.eval_every = 20
+# TrainCfg.eval_every = 20
+
+###########################################
+# task specific configurations
+###########################################
 
 # tasks of training
 TrainCfg.tasks = [
@@ -99,14 +118,17 @@ TrainCfg.tasks = [
     "segmentation",
 ]
 
-# configs of model selection
-# "resnet_leadwise", "multi_scopic_leadwise", "vgg16", "resnet", "vgg16_leadwise", "cpsc", "cpsc_leadwise", etc.
-
 for t in TrainCfg.tasks:
     TrainCfg[t] = CFG()
 
-TrainCfg.classification = CFG()
+###########################################
+# classification configurations
+###########################################
+
 TrainCfg.classification.fs = BaseCfg.fs
+TrainCfg.classification.final_model_name = None
+
+# input format configurations
 TrainCfg.classification.data_format = "channel_first"
 TrainCfg.classification.input_config = InputConfig(
     input_type="waveform",  # "waveform", "spectrogram", "mel", "mfcc", "spectral"
@@ -118,11 +140,13 @@ TrainCfg.classification.input_len = int(
     30 * TrainCfg.classification.fs
 )  # 30 seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
-TrainCfg.classification.sig_slice_tol = 0.4  # None, do no slicing
+TrainCfg.classification.sig_slice_tol = 0.2  # None, do no slicing
 TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
 TrainCfg.classification.class_map = {
     c: i for i, c in enumerate(TrainCfg.classification.classes)
 }
+
+# preprocess configurations
 TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
 TrainCfg.classification.bandpass = CFG(
     lowcut=BaseCfg.passband[0],
@@ -130,20 +154,30 @@ TrainCfg.classification.bandpass = CFG(
     filter_type="butter",
     order=BaseCfg.order,
 )
-TrainCfg.classification.final_model_name = None
+
+# model choices
 TrainCfg.classification.model_name = "crnn"
 TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
 TrainCfg.classification.rnn_name = "none"  # "none", "lstm"
 TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
-TrainCfg.classification.monitor = "challenge_metric"  # accuracy (not recommended)
+
+# loss function choices
 TrainCfg.classification.loss = "AsymmetricLoss"  # "FocalLoss"
 TrainCfg.classification.loss_kw = CFG(
     gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
 )
 
+# monitor choices
+TrainCfg.classification.monitor = "challenge_metric"  # accuracy (not recommended)
 
-TrainCfg.segmentation = CFG()
+###########################################
+# classification configurations
+###########################################
+
 TrainCfg.segmentation.fs = 1000
+TrainCfg.segmentation.final_model_name = None
+
+# input format configurations
 TrainCfg.segmentation.data_format = "channel_first"
 TrainCfg.segmentation.input_config = InputConfig(
     input_type="waveform",  # "waveform", "spectrogram", "mel", "mfcc", "spectral"
@@ -160,6 +194,8 @@ TrainCfg.segmentation.classes = BaseCfg.states
 TrainCfg.segmentation.class_map = {
     c: i for i, c in enumerate(TrainCfg.segmentation.classes)
 }
+
+# preprocess configurations
 TrainCfg.segmentation.resample = CFG(fs=TrainCfg.segmentation.fs)
 TrainCfg.segmentation.bandpass = CFG(
     lowcut=BaseCfg.passband[0],
@@ -167,20 +203,27 @@ TrainCfg.segmentation.bandpass = CFG(
     filter_type="butter",
     order=BaseCfg.order,
 )
-TrainCfg.segmentation.final_model_name = None
+
+# model choices
 TrainCfg.segmentation.model_name = "seq_lab"  # unet
 TrainCfg.segmentation.cnn_name = "resnet_nature_comm_bottle_neck_se"
 TrainCfg.segmentation.rnn_name = "lstm"  # "none", "lstm"
 TrainCfg.segmentation.attn_name = "se"  # "none", "se", "gc", "nl"
-TrainCfg.segmentation.monitor = "jaccard"
+
+# loss function choices
 TrainCfg.segmentation.loss = "AsymmetricLoss"  # "FocalLoss"
 TrainCfg.segmentation.loss_kw = CFG(
     gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
 )
 
+# monitor choices
+TrainCfg.segmentation.monitor = "jaccard"
 
+
+###############################################################################
 # configurations for building deep learning models
 # terminologies of stanford ecg repo. will be adopted
+###############################################################################
 
 _BASE_MODEL_CONFIG = CFG()
 _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
