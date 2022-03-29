@@ -120,7 +120,6 @@ def train_challenge_model(
     train_config = deepcopy(TrainCfg)
     train_config.db_dir = data_folder
     train_config.model_dir = model_folder
-    train_config.final_model_name = _ModelFilename
     train_config.debug = False
 
     if train_config.get("entry_test_flag", False):
@@ -141,6 +140,8 @@ def train_challenge_model(
     # train_config[TASK].rnn_name = "none"  # "none", "lstm"
     # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 
+    train_config.final_model_name = _ModelFilename
+    train_config[TASK].final_model_name = _ModelFilename
     _set_task(TASK, train_config)
 
     model_config = deepcopy(ModelCfg[TASK])
