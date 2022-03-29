@@ -99,8 +99,10 @@ class CRNN_CINC2022(ECG_CRNN):
         # batch_size, channels, seq_len = _input.shape
         prob = self.softmax(self.forward(_input))
         pred = torch.argmax(prob, dim=-1)
+        bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
+        bin_pred = bin_pred.cpu().detach().numpy()
         if class_names:
             prob = pd.DataFrame(prob, columns=self.classes)
             prob["pred"] = ""
@@ -113,6 +115,7 @@ class CRNN_CINC2022(ECG_CRNN):
             classes=self.classes,
             prob=prob,
             pred=pred,
+            bin_pred=bin_pred,
         )
 
     @torch.no_grad()

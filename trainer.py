@@ -1,7 +1,7 @@
 """
 """
 
-import os, sys, argparse
+import os, sys, argparse, logging, textwrap
 from pathlib import Path
 from copy import deepcopy
 from collections import deque, OrderedDict
@@ -84,7 +84,7 @@ class CINC2022Trainer(BaseTrainer):
         lazy: bool, default True,
             whether to initialize the data loader lazily
         """
-        super().__init__(model, CPSC2021, model_config, train_config, device, lazy)
+        super().__init__(model, CinC2022Dataset, model_config, train_config, device, lazy)
 
     def _setup_dataloaders(
         self,
@@ -202,7 +202,7 @@ class CINC2022Trainer(BaseTrainer):
                 torch.cuda.synchronize()
             model_output = self._model.inference(signals)
             all_scalar_preds.append(model_output.prob)
-            all_bin_preds.append(model_output.pred)
+            all_bin_preds.append(model_output.bin_pred)
 
         all_scalar_preds = np.concatenate(all_scalar_preds, axis=0)
         all_bin_preds = np.concatenate(all_bin_preds, axis=0)
@@ -291,14 +291,14 @@ def get_args(**kwargs: Any):
     """NOT checked,"""
     cfg = deepcopy(kwargs)
     parser = argparse.ArgumentParser(
-        description="Train the Model on CPSC2021",
+        description="Train the Model on CINC2022 database",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "-b",
         "--batch-size",
         type=int,
-        default=128,
+        default=64,
         help="the batch size for training",
         dest="batch_size",
     )
@@ -320,7 +320,7 @@ def get_args(**kwargs: Any):
     parser.add_argument(
         "--keep-checkpoint-max",
         type=int,
-        default=20,
+        default=10,
         help="maximum number of checkpoints to keep. If set 0, all checkpoints will be kept",
         dest="keep_checkpoint_max",
     )
@@ -369,13 +369,22 @@ if __name__ == "__main__":
     train_config = get_args(**TrainCfg)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # TODO: adjust for CPSC2021
+    # TODO: adjust for CINC2022
     for task in train_config.tasks:
-        model_cls = _MODEL_MAP[train_config[task].model_name]
-        model_cls.__DEBUG__ = False
         _set_task(task, train_config)
         model_config = deepcopy(ModelCfg[task])
+        model_config = deepcopy(ModelCfg[TASK])
+
+        # adjust model choices if needed
+        model_name = model_config.model_name = train_config[TASK].model_name
+        model_config[model_name].cnn_name = train_config[TASK].cnn_name
+        model_config[model_name].rnn_name = train_config[TASK].rnn_name
+        model_config[model_name].attn_name = train_config[TASK].attn_name
+        
+        model_cls = _MODEL_MAP[train_config[task].model_name]
+        model_cls.__DEBUG__ = False
         model = model_cls(config=model_config)
+
         if torch.cuda.device_count() > 1:
             model = DP(model)
             # model = DDP(model)
