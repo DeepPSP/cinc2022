@@ -561,7 +561,7 @@ class CINC2022Reader(PCGDataBase):
         fs: Optional[int] = None,
         data_format: str = "channel_first",
         passband: Sequence[int] = BaseCfg.passband,
-        order: int = BaseCfg.order,
+        order: int = BaseCfg.filter_order,
         spike_removal: bool = True,
     ) -> np.ndarray:
         """
@@ -583,7 +583,7 @@ class CINC2022Reader(PCGDataBase):
             case insensitive
         passband : sequence of int, default `BaseCfg.passband`,
             the passband of the bandpass filter
-        order : int, default `BaseCfg.order`,
+        order : int, default `BaseCfg.filter_order`,
             the order of the bandpass filter
         spike_removal : bool, default True,
             whether to remove spikes using the Schmmidt algorithm

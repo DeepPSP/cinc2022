@@ -55,7 +55,7 @@ BaseCfg.states = [
 
 # for example, can use scipy.signal.buttord(wp=[15, 250], ws=[5, 400], gpass=1, gstop=40, fs=1000)
 BaseCfg.passband = [25, 400]  # Hz, candidates: [20, 500], [15, 250]
-BaseCfg.order = 5
+BaseCfg.filter_order = 5
 
 
 ###############################################################################
@@ -74,7 +74,7 @@ TrainCfg.checkpoints.mkdir(exist_ok=True)
 TrainCfg.train_ratio = 0.8
 
 # configs of training epochs, batch, etc.
-TrainCfg.n_epochs = 50
+TrainCfg.n_epochs = 100
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 TrainCfg.batch_size = 24
@@ -152,7 +152,7 @@ TrainCfg.classification.bandpass = CFG(
     lowcut=BaseCfg.passband[0],
     highcut=BaseCfg.passband[1],
     filter_type="butter",
-    order=BaseCfg.order,
+    filter_order=BaseCfg.filter_order,
 )
 
 # model choices
@@ -168,7 +168,7 @@ TrainCfg.classification.loss_kw = CFG(
 )
 
 # monitor choices
-TrainCfg.classification.monitor = "challenge_metric"  # accuracy (not recommended)
+TrainCfg.classification.monitor = "neg_challenge_metric"  # accuracy (not recommended)
 
 ###########################################
 # classification configurations
@@ -201,7 +201,7 @@ TrainCfg.segmentation.bandpass = CFG(
     lowcut=BaseCfg.passband[0],
     highcut=BaseCfg.passband[1],
     filter_type="butter",
-    order=BaseCfg.order,
+    filter_order=BaseCfg.filter_order,
 )
 
 # model choices

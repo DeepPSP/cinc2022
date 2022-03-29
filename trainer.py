@@ -248,6 +248,7 @@ class CINC2022Trainer(BaseTrainer):
             accuracy=accuracy,
             f_measure=f_measure,
             challenge_metric=challenge_metric,
+            neg_challenge_metric=-challenge_metric,
         )
 
         # in case possible memeory leakage?

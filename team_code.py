@@ -98,11 +98,12 @@ def train_challenge_model(data_folder, model_folder, verbose):
     train_config = deepcopy(TrainCfg)
     train_config.db_dir = data_folder
     train_config.model_dir = model_folder
+    train_config.final_model_filename = _ModelFilename
     train_config.debug = False
 
     train_config.n_epochs = 100
-    train_config.batch_size = 64  # 16G (Tesla T4)
-    train_config.log_step = 4
+    train_config.batch_size = 24  # 16G (Tesla T4)
+    train_config.log_step = 20
     # train_config.max_lr = 1.5e-3
     train_config.early_stopping.patience = 20
     
@@ -110,20 +111,22 @@ def train_challenge_model(data_folder, model_folder, verbose):
     # train_config[TASK].rnn_name = "none"  # "none", "lstm"
     # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 
-    _set_task(task, train_config)
+    _set_task(TASK, train_config)
 
-    model_config = deepcopy(ModelCfg[task])
+    model_config = deepcopy(ModelCfg[TASK])
 
-    model_config.cnn.name = train_config[TASK].cnn_name
-    model_config.rnn.name = train_config[TASK].rnn_name
-    model_config.attn.name = train_config[TASK].attn_name
+    # adjust model choices if needed
+    model_name = model_config.model_name = train_config[TASK].model_name
+    model_config[model_name].cnn_name = train_config[TASK].cnn_name
+    model_config[model_name].rnn_name = train_config[TASK].rnn_name
+    model_config[model_name].attn_name = train_config[TASK].attn_name
 
     start_time = time.time()
 
-    ds_train_cache = CinC2022Dataset(train_config, TASK, training=True, lazy=False)
-    ds_val_cache = CinC2022Dataset(train_config, TASK, training=False, lazy=False)
+    # ds_train = CinC2022Dataset(train_config, TASK, training=True, lazy=False)
+    # ds_val = CinC2022Dataset(train_config, TASK, training=False, lazy=False)
 
-    model_cls = _MODEL_MAP[train_config[task].model_name]
+    model_cls = _MODEL_MAP[model_config.model_name]
     model_cls.__DEBUG__ = False
 
     model = model_cls(config=model_config)
