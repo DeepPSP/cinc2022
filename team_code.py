@@ -12,7 +12,7 @@
 import os, time
 from copy import deepcopy
 from itertools import repeat
-from typing import NoReturn, List, Tuple, Dict
+from typing import NoReturn, List, Tuple, Dict, Union
 
 import numpy as np
 import torch
@@ -59,14 +59,11 @@ CINC2022Trainer.__DEBUG__ = False
 TASK = "classification"
 FS = 4000
 
-# _TrainCfg = deepcopy(TrainCfg[TASK])
-# _ModelCfg = deepcopy(ModelCfg[TASK])
-
 _ModelFilename = "final_model.pth.tar"
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-if _ModelCfg.torch_dtype == torch.float64:
+if ModelCfg.torch_dtype == torch.float64:
     torch.set_default_tensor_type(torch.DoubleTensor)
     DTYPE = np.float64
 else:
@@ -123,7 +120,7 @@ def train_challenge_model(
     train_config = deepcopy(TrainCfg)
     train_config.db_dir = data_folder
     train_config.model_dir = model_folder
-    train_config.final_model_filename = _ModelFilename
+    train_config.final_model_name = _ModelFilename
     train_config.debug = False
 
     if train_config.get("entry_test_flag", False):
@@ -138,7 +135,7 @@ def train_challenge_model(
         train_config.batch_size = 24  # 16G (Tesla T4)
         train_config.log_step = 20
         # train_config.max_lr = 1.5e-3
-        train_config.early_stopping.patience = 20
+        train_config.early_stopping.patience = train_config.n_epochs // 2
 
     # train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
     # train_config[TASK].rnn_name = "none"  # "none", "lstm"
@@ -280,6 +277,7 @@ def run_challenge_model(
     """
 
     _model = model["model"]
+    _model.to(device=DEVICE)
     train_cfg = model["train_cfg"]
     ppm_config = CFG(random=False)
     ppm_config.update(deepcopy(train_cfg[TASK]))
@@ -308,11 +306,14 @@ def run_challenge_model(
         # probabilities.append(model_output.prob)
         # labels.append(model_output.bin_pred)
         # forward_outputs.append(model_output.forward_output)
-        rec = torch.from_numpy(np.atleast_2d(rec)).to(device=DEVICE)
-        # rec of shape (1, n_features, n_samples)
-        features.append(_model.extract_feature(rec))
+        for _ in range(3-rec.ndim):
+            rec = rec[np.newaxis, :]
+        rec = torch.from_numpy(rec.copy().astype(DTYPE)).to(device=DEVICE)
+        # rec of shape (1, 1, n_samples)
+        features.append(_model.extract_features(rec))  # shape (1, n_features, n_samples)
 
-    features = torch.cat(features, dim=-1).squeeze(dim=-1)  # shape (1, n_features)
+    features = torch.cat(features, dim=-1)  # shape (1, n_features, n_samples)
+    features = pooler(features).squeeze(dim=-1)  # shape (1, n_features)
     forward_output = _model.clf(features)  # shape (1, n_classes)
     probabilities = _model.softmax(forward_output)
     labels = (probabilities == probabilities.max(dim=-1, keepdim=True).values).to(int)
