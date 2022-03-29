@@ -125,8 +125,8 @@ def train_challenge_model(
 
     if train_config.get("entry_test_flag", False):
         # to test in the file docker_test.py
-        train_config.n_epochs = 20
-        train_config.batch_size = 24  # 16G (Tesla T4)
+        train_config.n_epochs = 1
+        train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.log_step = 4
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = 20

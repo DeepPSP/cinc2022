@@ -152,7 +152,7 @@ def test_entry() -> NoReturn:
     """ """
 
     data_folder = str(tmp_data_dir / "training_data")
-    train_challenge_model(data_folder, TrainCfg.model_dir, verbose=2)
+    train_challenge_model(data_folder, str(TrainCfg.model_dir), verbose=2)
 
     output_dir = _BASE_DIR / "tmp" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
