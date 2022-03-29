@@ -91,18 +91,26 @@ class CRNN_CINC2022(ECG_CRNN):
                 (and binary predictions if `class_names` is True)
             - pred: ndarray,
                 the array of class number predictions
+            - bin_pred: ndarray,
+                the array of binary predictions
+            - forward_output: ndarray,
+                the array of output of the model's forward function,
+                useful for producing challenge result using
+                multiple recordings
         """
         self.eval()
         _input = torch.as_tensor(input, dtype=self.dtype, device=self.device)
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
-        prob = self.softmax(self.forward(_input))
+        forward_output = self.forward(_input)
+        prob = self.softmax(forward_output)
         pred = torch.argmax(prob, dim=-1)
         bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
         bin_pred = bin_pred.cpu().detach().numpy()
+        forward_output = forward_output.cpu().detach().numpy()
         if class_names:
             prob = pd.DataFrame(prob, columns=self.classes)
             prob["pred"] = ""
@@ -116,6 +124,7 @@ class CRNN_CINC2022(ECG_CRNN):
             prob=prob,
             pred=pred,
             bin_pred=bin_pred,
+            forward_output=forward_output,
         )
 
     @torch.no_grad()

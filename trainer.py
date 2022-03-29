@@ -84,7 +84,9 @@ class CINC2022Trainer(BaseTrainer):
         lazy: bool, default True,
             whether to initialize the data loader lazily
         """
-        super().__init__(model, CinC2022Dataset, model_config, train_config, device, lazy)
+        super().__init__(
+            model, CinC2022Dataset, model_config, train_config, device, lazy
+        )
 
     def _setup_dataloaders(
         self,
@@ -381,7 +383,7 @@ if __name__ == "__main__":
         model_config[model_name].cnn_name = train_config[TASK].cnn_name
         model_config[model_name].rnn_name = train_config[TASK].rnn_name
         model_config[model_name].attn_name = train_config[TASK].attn_name
-        
+
         model_cls = _MODEL_MAP[train_config[task].model_name]
         model_cls.__DEBUG__ = False
         model = model_cls(config=model_config)

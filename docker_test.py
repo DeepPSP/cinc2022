@@ -7,9 +7,16 @@
 # sys.path.insert(0, "/home/wenhao/Jupyter/wenhao/workspace/torch_ecg/")
 # tmp_data_dir = "/home/wenhao/Jupyter/wenhao/data/CinC2022/"
 
+# set test flag
+from cfg import set_entry_test_flag
+
+set_entry_test_flag(True)
+
+
 from copy import deepcopy
 from typing import NoReturn
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch_ecg.cfg import DEFAULTS
@@ -136,9 +143,24 @@ def test_trainer() -> NoReturn:
     print("trainer test passed")
 
 
+from train_model import train_challenge_model
+from run_model import run_model
+
+
 def test_entry() -> NoReturn:
     """ """
-    pass
+
+    train_challenge_model(tmp_data_dir, TrainCfg.model_dir, verbose=2)
+
+    output_dir = _BASE_DIR / "tmp" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    run_model(
+        TrainCfg.model_dir,
+        tmp_data_dir,
+        str(output_dir),
+        allow_failures=False,
+        verbose=2,
+    )
 
     print("entry test passed")
 
@@ -147,7 +169,8 @@ test_team_code = test_entry  # alias
 
 
 if __name__ == "__main__":
-    # test_dataset()
-    # test_models()
-    test_trainer()
+    # test_dataset()  # passed
+    # test_models()  # passed
+    # test_trainer()  # directly run test_entry
     test_entry()
+    set_entry_test_flag(False)

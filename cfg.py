@@ -57,6 +57,9 @@ BaseCfg.states = [
 BaseCfg.passband = [25, 400]  # Hz, candidates: [20, 500], [15, 250]
 BaseCfg.filter_order = 5
 
+# challenge specific configs, for merging results from multiple recordings into one
+BaseCfg.merge_rule = "avg"  # "avg", "max"
+
 
 ###############################################################################
 # training configurations for machine learning and deep learning
@@ -220,6 +223,10 @@ TrainCfg.segmentation.loss_kw = CFG(
 
 # monitor choices
 TrainCfg.segmentation.monitor = "jaccard"
+
+
+def set_entry_test_flag(test_flag: bool):
+    TrainCfg.entry_test_flag = test_flag
 
 
 ###############################################################################

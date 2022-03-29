@@ -20,7 +20,5 @@ class Augmenter(TA.SomeOf):
         transforms: Sequence[BaseWaveformTransform],
         p: float = 1.0,
     ) -> NoReturn:
-        """
-
-        """
+        """ """
         super().__init__((1, None), transforms, p=p)
