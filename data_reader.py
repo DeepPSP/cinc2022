@@ -1,7 +1,7 @@
 """
 """
 
-import re, warnings
+import re, warnings, os
 from pathlib import Path
 from collections import defaultdict
 from abc import ABC, abstractmethod
@@ -27,6 +27,7 @@ except ModuleNotFoundError:
     from tqdm import tqdm
 from torch_ecg.databases.base import PhysioNetDataBase
 from torch_ecg.utils.utils_signal import butter_bandpass_filter
+from torch_ecg.utils.misc import get_record_list_recursive3
 
 from cfg import BaseCfg
 from utils.schmidt_spike_removal import schmidt_spike_removal
@@ -177,7 +178,10 @@ class CINC2022Reader(PCGDataBase):
             verbose=verbose,
             **kwargs,
         )
-        self.data_dir = self.db_dir / "training_data"
+        if "training_data" in os.listdir(self.db_dir):
+            self.data_dir = self.db_dir / "training_data"
+        else:
+            self.data_dir = self.db_dir
         self.data_ext = "wav"
         self.ann_ext = "hea"
         self.segmentation_ext = "tsv"
@@ -246,14 +250,19 @@ class CINC2022Reader(PCGDataBase):
             else:
                 self._all_records = sorted(
                     [
-                        f"training_data/{item.name}".replace(".hea", "")
+                        f"{item.name}".replace(".hea", "")
                         for item in (self.data_dir).glob("*.hea")
                     ]
                 )
-                records_file.write_text("\n".join(self._all_records))
+                # records_file.write_text("\n".join(self._all_records))
         except:
             print("Reading the list of records from PhysioNet...")
-            self._all_records = wfdb.get_record_list(self.db_name)
+            try:
+                self._all_records = wfdb.get_record_list(self.db_name)
+            except:
+                self._all_records = []
+        if len(self._all_records) == 0:
+            self._all_records = get_record_list_recursive3(self.data_dir, self._rec_pattern)
         self._all_records = [
             item.replace("training_data/", "")
             for item in self._all_records
