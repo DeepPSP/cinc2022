@@ -10,6 +10,7 @@
 from copy import deepcopy
 from typing import NoReturn
 
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
@@ -146,7 +147,7 @@ test_team_code = test_entry  # alias
 
 
 if __name__ == "__main__":
-    test_dataset()
-    test_models()
+    # test_dataset()
+    # test_models()
     test_trainer()
     test_entry()

@@ -159,7 +159,12 @@ def train_challenge_model(data_folder, model_folder, verbose):
 # arguments and outputs of this function.
 def load_challenge_model(model_folder, verbose):
     """ """
-    raise NotImplementedError
+    model_cls = _MODEL_MAP[TrainCfg[TASK].model_name]
+    model, train_cfg = model_cls.from_checkpoint(
+        path=os.path.join(model_folder, _ModelFilename),
+        device=DEVICE,
+    )
+    model.eval()
     return model
 
 
