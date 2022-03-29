@@ -55,7 +55,7 @@ BaseCfg.states = [
 
 # for example, can use scipy.signal.buttord(wp=[15, 250], ws=[5, 400], gpass=1, gstop=40, fs=1000)
 BaseCfg.passband = [25, 400]  # Hz, candidates: [20, 500], [15, 250]
-BaseCfg.filter_order = 5
+BaseCfg.filter_order = 3
 
 # challenge specific configs, for merging results from multiple recordings into one
 BaseCfg.merge_rule = "avg"  # "avg", "max"
