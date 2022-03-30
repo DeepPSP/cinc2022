@@ -15,9 +15,9 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP, DataParallel as DP
 
 from torch_ecg.cfg import CFG
-from torch_ecg.utils.trainer import BaseTrainer
-from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
+from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import str2bool
+from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from torch_ecg.utils.utils_interval import mask_to_intervals
 
 from model import (
@@ -25,9 +25,9 @@ from model import (
     SEQ_LAB_NET_CINC2022,
     UNET_CINC2022,
 )
-from scoring_metrics import compute_metrics
 from cfg import BaseCfg, TrainCfg, ModelCfg
 from dataset import CinC2022Dataset
+from utils.scoring_metrics import compute_metrics
 
 if BaseCfg.torch_dtype == torch.float64:
     torch.set_default_tensor_type(torch.DoubleTensor)

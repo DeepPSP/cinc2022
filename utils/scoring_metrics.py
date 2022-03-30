@@ -6,7 +6,7 @@ from typing import Union, Optional, List, Tuple, Sequence, NoReturn
 from numbers import Number, Real
 
 import numpy as np
-from torch_ecg.utils.outputs import ClassificationOutput
+from torch_ecg.components.outputs import ClassificationOutput
 
 from cfg import BaseCfg
 
