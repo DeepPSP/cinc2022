@@ -26,3 +26,4 @@ xmltodict
 einops
 matplotlib
 requests
+kaldi_io
