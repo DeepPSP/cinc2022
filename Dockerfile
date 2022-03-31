@@ -3,9 +3,10 @@
 # FROM nvidia/cuda:11.1.1-devel
 # FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
 # FROM pytorch/pytorch:1.8.0-cuda11.1-cudnn8-devel
-FROM pytorch/pytorch:1.6.0-cuda10.1-cudnn7-devel
+# FROM pytorch/pytorch:1.6.0-cuda10.1-cudnn7-devel
+FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime
 
-# NOTE: The GPU provided by the Challenge is  GPU Tesla T4 with nvidiaDriverVersion: 418.40.04
+# NOTE: The GPU provided by the Challenge is GPU Tesla T4 with nvidiaDriverVersion: 470.82.01
 # by checking https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
 # and https://download.pytorch.org/whl/torch_stable.html
 # one should use 1.6.0-cuda10.1
@@ -51,9 +52,9 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 ## Include the following line if you have a requirements.txt file.
 RUN pip install -r requirements.txt
 # RUN pip install torch==1.8.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install torch==1.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
-RUN pip install torchaudio==0.6.0 --no-deps
+RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
 # RUN pip install torch
 RUN pip install git+https://github.com/DeepPSP/torch_ecg.git
 RUN pip install git+https://github.com/asteroid-team/torch-audiomentations.git --no-deps
