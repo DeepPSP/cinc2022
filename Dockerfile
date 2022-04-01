@@ -56,8 +56,10 @@ RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_st
 # compatible with torch
 RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
 # RUN pip install torch
-RUN pip install git+https://github.com/DeepPSP/torch_ecg.git
-RUN pip install git+https://github.com/asteroid-team/torch-audiomentations.git --no-deps
+# RUN pip install git+https://github.com/DeepPSP/torch_ecg.git
+# RUN pip install git+https://github.com/asteroid-team/torch-audiomentations.git --no-deps
+RUN pip install torch-ecg
+RUN pip install torch-audiomentations --no-deps
 
 
 RUN python docker_test.py
