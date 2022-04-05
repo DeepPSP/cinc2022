@@ -9,7 +9,6 @@ FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime
 # NOTE: The GPU provided by the Challenge is GPU Tesla T4 with nvidiaDriverVersion: 470.82.01
 # by checking https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
 # and https://download.pytorch.org/whl/torch_stable.html
-# one should use 1.6.0-cuda10.1
 
 
 ## The MAINTAINER instruction sets the author field of the generated images.
@@ -24,12 +23,8 @@ WORKDIR /physionet
 # RUN apt-get update && \
 #     apt-get upgrade -y && \
 #     apt-get install -y git
-# RUN git submodule update --init --remote --recursive --merge --progress
-# RUN git submodule update --remote --recursive --merge --progress
 
 ## Install your dependencies here using apt install, etc.
-# RUN apt update && apt upgrade -y && apt clean
-# RUN apt install -y python3.8 python3.8-dev python3.8-distutils python3-pip
 
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
@@ -42,7 +37,6 @@ RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 #         software-properties-common \
 #         unzip
 
-# RUN apt install python3-pip
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 # RUN pip install --upgrade pip
 
@@ -63,11 +57,6 @@ RUN pip install torch-audiomentations --no-deps
 
 
 RUN python docker_test.py
-
-
-# temporarily commented, await for the updates of the official phase
-# RUN python test_team_code.py
-
 
 
 # commands to run test with docker container:
