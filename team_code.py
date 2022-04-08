@@ -134,7 +134,7 @@ def train_challenge_model(
     else:
         train_config.n_epochs = 110
         train_config.batch_size = 24  # 16G (Tesla T4)
-        train_config.log_step = 20
+        train_config.log_step = 50
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.6)
 

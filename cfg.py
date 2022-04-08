@@ -160,7 +160,7 @@ TrainCfg.classification.bandpass = CFG(
 
 # model choices
 TrainCfg.classification.model_name = "crnn"
-TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
+TrainCfg.classification.cnn_name = "tresnetP"
 TrainCfg.classification.rnn_name = "lstm"  # "none", "lstm"
 TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
 
