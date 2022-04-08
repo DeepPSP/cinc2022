@@ -1,0 +1,38 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Formatting with black & flake8
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
+        python -m pip install black==22.3.0 flake8 # Testing packages
+        python -m pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch-ecg
+        python -m pip install torch-audiomentations --no-deps
+    - name: Check code format with black and flake8
+      run: |
+        black . --check --extend-exclude .ipynb -v --exclude "/(build|dist|official_baseline_classifier|wav2vec2|official_scoring_metric|helper\_code\.py|run\_model\.py|train\_model\.py|evaluate_model\.py)/"
+        flake8 . --count --ignore="E501 W503 E203 F841 E402" --show-source --statistics --exclude=./.*,build,dist,wav2vec2,official*,helper_code.py,run_model.py,train_model.py,evaluate_model.py,*.ipynb
