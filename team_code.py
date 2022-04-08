@@ -133,7 +133,7 @@ def train_challenge_model(
         train_config.early_stopping.patience = 20
     else:
         train_config.n_epochs = 110
-        train_config.batch_size = 24  # 16G (Tesla T4)
+        train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.log_step = 50
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.6)
@@ -150,9 +150,14 @@ def train_challenge_model(
 
     # adjust model choices if needed
     model_name = model_config.model_name = train_config[TASK].model_name
-    model_config[model_name].cnn_name = train_config[TASK].cnn_name
-    model_config[model_name].rnn_name = train_config[TASK].rnn_name
-    model_config[model_name].attn_name = train_config[TASK].attn_name
+    if "cnn" in model_config[model_name]:
+        model_config[model_name].cnn.name = train_config[TASK].cnn_name
+    if "rnn" in model_config[model_name]:
+        model_config[model_name].rnn.name = train_config[TASK].rnn_name
+    if "attn" in model_config[model_name]:
+        model_config[model_name].attn.name = train_config[TASK].attn_name
+    # if "encoder" in model_config[model_name]:
+    #     model_config[model_name].encoder.name = train_config[TASK].encoder_name
 
     start_time = time.time()
 
@@ -167,6 +172,11 @@ def train_challenge_model(
         model = DP(model)
         # model = DDP(model)
     model.to(device=DEVICE)
+
+    if isinstance(model, DP):
+        print(model.module.config)
+    else:
+        print(model.config)
 
     trainer = CINC2022Trainer(
         model=model,

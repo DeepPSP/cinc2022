@@ -24,7 +24,8 @@ from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from torch_ecg.utils.utils_interval import mask_to_intervals  # noqa: F401
 
-from model import (
+from model import (  # noqa: F401
+    Wav2Vec2_CINC2022,
     CRNN_CINC2022,
     SEQ_LAB_NET_CINC2022,
     UNET_CINC2022,
@@ -351,6 +352,7 @@ def get_args(**kwargs: Any):
 
 
 _MODEL_MAP = {
+    "wav2vec2": Wav2Vec2_CINC2022,
     "crnn": CRNN_CINC2022,
     "seq_lab": SEQ_LAB_NET_CINC2022,
     "unet": UNET_CINC2022,
@@ -384,9 +386,12 @@ if __name__ == "__main__":
 
         # adjust model choices if needed
         model_name = model_config.model_name = train_config[task].model_name
-        model_config[model_name].cnn_name = train_config[task].cnn_name
-        model_config[model_name].rnn_name = train_config[task].rnn_name
-        model_config[model_name].attn_name = train_config[task].attn_name
+        if "cnn" in model_config[model_name]:
+            model_config[model_name].cnn.name = train_config[task].cnn_name
+        if "rnn" in model_config[model_name]:
+            model_config[model_name].rnn.name = train_config[task].rnn_name
+        if "attn" in model_config[model_name]:
+            model_config[model_name].attn.name = train_config[task].attn_name
 
         model_cls = _MODEL_MAP[train_config[task].model_name]
         model_cls.__DEBUG__ = False

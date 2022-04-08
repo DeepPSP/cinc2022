@@ -129,7 +129,12 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             skip_last_activation=True,
         )
 
-        aux = torch.nn.Sequential(Rearrange("batch seqlen chan -> batch chan seqlen"), pool, Rearrange("batch chan seqlen -> batch (chan seqlen)"), clf)
+        aux = torch.nn.Sequential(
+            Rearrange("batch seqlen chan -> batch chan seqlen"),
+            pool,
+            Rearrange("batch chan seqlen -> batch (chan seqlen)"),
+            clf,
+        )
 
         super().__init__(cnn, encoder, aux)
 
@@ -142,7 +147,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
         self.sigmoid = torch.nn.Sigmoid()
         self.softmax = torch.nn.Softmax(-1)
 
-    def forward(self, waveforms:Tensor) -> Tensor:
+    def forward(self, waveforms: Tensor) -> Tensor:
         """
 
         Parameters
