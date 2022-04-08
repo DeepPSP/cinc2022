@@ -7,6 +7,7 @@ from typing import Optional, Tuple, List
 import torch
 from torch import Tensor, nn
 from torch.nn import Module, Parameter
+from torch_ecg.utils.utils_nn import SizeMixin
 
 
 class LayerNorm(nn.LayerNorm):
@@ -73,7 +74,7 @@ class ConvLayerBlock(Module):
         return x, length
 
 
-class FeatureExtractor(Module):
+class FeatureExtractor(SizeMixin, Module):
     """Extract features from audio
 
     Args:
@@ -120,7 +121,7 @@ class FeatureExtractor(Module):
         return x, length
 
 
-class FeatureProjection(Module):
+class FeatureProjection(SizeMixin, Module):
     """Layer that connects FeatureExtractor and Encoder
 
     Projects features to encoder dimension.
@@ -331,7 +332,7 @@ class FeedForward(Module):
         return x
 
 
-class EncoderLayer(Module):
+class EncoderLayer(SizeMixin, Module):
     """A layer unit in encoder. Combines multihead self attention and feed forward."""
 
     def __init__(
@@ -377,7 +378,7 @@ class EncoderLayer(Module):
         return x
 
 
-class Transformer(Module):
+class Transformer(SizeMixin, Module):
     def __init__(
         self,
         pos_conv_embed: Module,
@@ -440,7 +441,7 @@ class Transformer(Module):
         return ret
 
 
-class Encoder(Module):
+class Encoder(SizeMixin, Module):
     def __init__(
         self,
         feature_projection: Module,
