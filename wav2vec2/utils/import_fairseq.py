@@ -21,12 +21,13 @@ def _parse_config(w2v_model):
         extractor_mode = "layer_norm"
 
     conv_layer_config = [
-        (l[0].out_channels, l[0].kernel_size[0], l[0].stride[0]) for l in conv_layers
+        (cl[0].out_channels, cl[0].kernel_size[0], cl[0].stride[0])
+        for cl in conv_layers
     ]
 
-    if all(l[0].bias is None for l in conv_layers):
+    if all(cl[0].bias is None for cl in conv_layers):
         conv_bias = False
-    elif all(l[0].bias is not None for l in conv_layers):
+    elif all(cl[0].bias is not None for cl in conv_layers):
         conv_bias = True
     else:
         raise ValueError(
