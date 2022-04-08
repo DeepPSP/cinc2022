@@ -1,12 +1,10 @@
 """
 """
 
-
 from copy import deepcopy
-from itertools import repeat
 
 from torch_ecg.cfg import CFG
-from torch_ecg.model_configs import (
+from torch_ecg.model_configs import (  # noqa: F401
     # cnn bankbone
     vgg_block_basic,
     vgg_block_mish,

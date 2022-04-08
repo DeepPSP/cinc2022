@@ -28,7 +28,7 @@ def get_dwt_features(
     detail_coefs = pywt.downcoef(
         "d", signal, wavelet=cfg.wavelet_name, level=cfg.wavelet_level
     )
-    dwt_features = _wkeep1(np.repeat(detail_coefs, 2 ** cfg.wavelet_level), siglen)
+    dwt_features = _wkeep1(np.repeat(detail_coefs, 2**cfg.wavelet_level), siglen)
     return dwt_features
 
 

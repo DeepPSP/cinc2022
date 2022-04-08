@@ -1,24 +1,28 @@
 """
 """
 
-import os, sys, argparse, logging, textwrap
-from pathlib import Path
+import os
+import sys
+import argparse
+import logging
+import textwrap
 from copy import deepcopy
-from collections import deque, OrderedDict
-from typing import Any, Union, Optional, Tuple, Sequence, NoReturn, Dict, List
-from numbers import Real, Number
+from typing import Any, Optional, Tuple, NoReturn, Dict, List
 
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
-from torch.nn.parallel import DistributedDataParallel as DDP, DataParallel as DP
+from torch.nn.parallel import (  # noqa: F401
+    DistributedDataParallel as DDP,
+    DataParallel as DP,
+)  # noqa: F401
 
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
-from torch_ecg.utils.utils_interval import mask_to_intervals
+from torch_ecg.utils.utils_interval import mask_to_intervals  # noqa: F401
 
 from model import (
     CRNN_CINC2022,
@@ -34,7 +38,7 @@ if BaseCfg.torch_dtype == torch.float64:
 
 
 __all__ = [
-    "CinC2022Trainer",
+    "CINC2022Trainer",
 ]
 
 
@@ -376,13 +380,13 @@ if __name__ == "__main__":
     for task in train_config.tasks:
         _set_task(task, train_config)
         model_config = deepcopy(ModelCfg[task])
-        model_config = deepcopy(ModelCfg[TASK])
+        model_config = deepcopy(ModelCfg[task])
 
         # adjust model choices if needed
-        model_name = model_config.model_name = train_config[TASK].model_name
-        model_config[model_name].cnn_name = train_config[TASK].cnn_name
-        model_config[model_name].rnn_name = train_config[TASK].rnn_name
-        model_config[model_name].attn_name = train_config[TASK].attn_name
+        model_name = model_config.model_name = train_config[task].model_name
+        model_config[model_name].cnn_name = train_config[task].cnn_name
+        model_config[model_name].rnn_name = train_config[task].rnn_name
+        model_config[model_name].attn_name = train_config[task].attn_name
 
         model_cls = _MODEL_MAP[train_config[task].model_name]
         model_cls.__DEBUG__ = False

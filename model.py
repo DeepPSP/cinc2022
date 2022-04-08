@@ -5,12 +5,11 @@ Models, including:
 """
 
 from copy import deepcopy
-from typing import Union, Optional, Sequence, Tuple, NoReturn, Any
+from typing import Union, Optional, NoReturn, Any
 
 import numpy as np
 import pandas as pd
 import torch
-from torch import nn
 from torch import Tensor
 from torch_ecg.cfg import CFG
 from torch_ecg.models.ecg_crnn import ECG_CRNN

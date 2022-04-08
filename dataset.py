@@ -4,12 +4,9 @@
 import json
 from random import shuffle, sample
 from copy import deepcopy
-from typing import Union, Optional, List, Tuple, Dict, Sequence, Set, NoReturn
+from typing import Optional, List, Tuple, Sequence, NoReturn
 
 import numpy as np
-
-np.set_printoptions(precision=5, suppress=True)
-import pandas as pd
 
 try:
     from tqdm.auto import tqdm
@@ -26,17 +23,17 @@ from torch_ecg.utils.misc import (
 )
 from torch_ecg._preprocessors import PreprocManager
 
-from cfg import BaseCfg, TrainCfg, ModelCfg
-from inputs import (
+from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
+from inputs import (  # noqa: F401
     InputConfig,
     WaveformInput,
     SpectrogramInput,
     MelSpectrogramInput,
     MFCCInput,
     SpectralInput,
-)
-from data_reader import PCGDataBase, CINC2022Reader, CINC2016Reader
-from utils.springer_features import get_springer_features
+)  # noqa: F401
+from data_reader import PCGDataBase, CINC2022Reader, CINC2016Reader  # noqa: F401
+from utils.springer_features import get_springer_features  # noqa: F401
 
 
 __all__ = [

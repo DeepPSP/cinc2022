@@ -2,11 +2,10 @@
 metrics from the official scoring repository
 """
 
-from typing import Union, Optional, List, Tuple, Sequence, NoReturn
-from numbers import Number, Real
+from typing import Tuple, Sequence
 
 import numpy as np
-from torch_ecg.components.outputs import ClassificationOutput
+from torch_ecg.components.outputs import ClassificationOutput  # noqa: F401
 
 from cfg import BaseCfg
 

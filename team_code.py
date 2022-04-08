@@ -9,24 +9,24 @@
 #
 ################################################################################
 
-import os, time
+import os
+import time
 from copy import deepcopy
 from itertools import repeat
 from typing import NoReturn, List, Tuple, Dict, Union
 
 import numpy as np
 import torch
-from torch.nn.parallel import (
+from torch.nn.parallel import (  # noqa: F401
     DistributedDataParallel as DDP,
     DataParallel as DP,
-)
-from torch.utils.data import DataLoader
+)  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg._preprocessors import PreprocManager
 
-from cfg import BaseCfg, TrainCfg, ModelCfg
+from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
 from dataset import CinC2022Dataset
-from inputs import (
+from inputs import (  # noqa: F401
     InputConfig,
     BaseInput,
     WaveformInput,
@@ -34,19 +34,19 @@ from inputs import (
     MelSpectrogramInput,
     MFCCInput,
     SpectralInput,
-)
-from model import (
+)  # noqa: F401
+from model import (  # noqa: F401
     CRNN_CINC2022,
     SEQ_LAB_NET_CINC2022,
     UNET_CINC2022,
-)
-from trainer import (
+)  # noqa: F401
+from trainer import (  # noqa: F401
     CINC2022Trainer,
     _MODEL_MAP,
     _set_task,
-)
+)  # noqa: F401
 
-from helper_code import *
+from helper_code import *  # noqa: F403
 
 
 CinC2022Dataset.__DEBUG__ = False
@@ -105,7 +105,7 @@ def train_challenge_model(
         print("Finding data files...")
 
     # Find the patient data files.
-    patient_files = find_patient_files(data_folder)
+    patient_files = find_patient_files(data_folder)  # noqa: F405
     num_patient_files = len(patient_files)
 
     if num_patient_files == 0:
@@ -305,7 +305,7 @@ def run_challenge_model(
     for rec, fs in zip(recordings, frequencies):
         rec = _to_dtype(rec, DTYPE)
         rec, _ = ppm(rec, fs)
-        for _ in range(3-rec.ndim):
+        for _ in range(3 - rec.ndim):
             rec = rec[np.newaxis, :]
         model_output = _model.inference(rec.copy().astype(DTYPE))
         probabilities.append(model_output.prob)

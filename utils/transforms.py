@@ -13,9 +13,9 @@ from torch.nn import Module, Sequential
 from torchaudio import transforms as TT
 
 try:
-    from torchaudio.transforms import PitchShift
+    from torchaudio.transforms import PitchShift  # noqa: F401
 except ImportError:
-    from ._transforms import PitchShift
+    from ._transforms import PitchShift  # noqa: F401
 
 
 __all__ = [
@@ -105,7 +105,7 @@ def _normalize_transform_name(tn: str) -> Module:
         timestretch=TT.TimeStretch,  # complex spectrogram
         timemasking=TT.TimeMasking,  # spectrogram
         frequencymasking=TT.FrequencyMasking,  # spectrogram
-    )[re.sub("[\s\-\_]+", "", tn).lower()]
+    )[re.sub("[\\s\\-\\_]+", "", tn).lower()]
 
 
 def _applies_to(tn: str) -> str:
@@ -116,4 +116,4 @@ def _applies_to(tn: str) -> str:
         timestretch="complex_specgram",
         timemasking="specgram",
         frequencymasking="specgram",
-    )[re.sub("[\s\-\_]+", "", tn).lower()]
+    )[re.sub("[\\s\\-\\_]+", "", tn).lower()]

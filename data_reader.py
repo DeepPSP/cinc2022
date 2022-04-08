@@ -1,13 +1,13 @@
 """
 """
 
-import re, warnings, os
+import re
+import warnings
+import os
 from pathlib import Path
 from collections import defaultdict
-from abc import ABC, abstractmethod
-from functools import partial
-from typing import Union, Optional, Any, List, Dict, Tuple, Set, Sequence, NoReturn
-from numbers import Real, Number
+from abc import abstractmethod
+from typing import Union, Optional, Any, List, Dict, Tuple, Sequence, NoReturn
 
 import numpy as np
 import pandas as pd
@@ -15,10 +15,9 @@ import wfdb
 import librosa
 import torch
 import torchaudio
-import scipy.signal as ss
+import scipy.signal as ss  # noqa: F401
 import scipy.io as sio
 import scipy.io.wavfile as sio_wav
-from easydict import EasyDict as ED
 import IPython
 
 try:
@@ -85,7 +84,7 @@ class PCGDataBase(PhysioNetDataBase):
             def torchaudio_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
                 try:
                     data, new_fs = torchaudio.load(file, normalize=True)
-                except:
+                except Exception:
                     data, new_fs = torchaudio.load(file, normalization=True)
                 return data, new_fs
 
@@ -101,7 +100,7 @@ class PCGDataBase(PhysioNetDataBase):
 
             def scipy_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
                 new_fs, data = sio_wav.read(file)
-                data = (data / (2 ** 15)).astype(self.dtype)[np.newaxis, :]
+                data = (data / (2**15)).astype(self.dtype)[np.newaxis, :]
                 return torch.from_numpy(data), new_fs
 
             self._audio_load_func = scipy_load
@@ -132,7 +131,7 @@ class PCGDataBase(PhysioNetDataBase):
         """ """
         raise NotImplementedError
 
-    def _reset_fs(new_fs: int) -> NoReturn:
+    def _reset_fs(self, new_fs: int) -> NoReturn:
         """ """
         self.fs = new_fs
 
@@ -195,7 +194,7 @@ class CINC2022Reader(PCGDataBase):
             "Phc",
         }
 
-        self._rec_pattern = f"(?P<sid>[\d]+)\_(?P<loc>{'|'.join(self.auscultation_locations)})((?:\_)(?P<num>\d))?"
+        self._rec_pattern = f"(?P<sid>[\\d]+)\\_(?P<loc>{'|'.join(self.auscultation_locations)})((?:\\_)(?P<num>\\d))?"
 
         self._all_records = None
         self._all_subjects = None
@@ -255,14 +254,16 @@ class CINC2022Reader(PCGDataBase):
                     ]
                 )
                 # records_file.write_text("\n".join(self._all_records))
-        except:
+        except Exception:
             print("Reading the list of records from PhysioNet...")
             try:
                 self._all_records = wfdb.get_record_list(self.db_name)
-            except:
+            except Exception:
                 self._all_records = []
         if len(self._all_records) == 0:
-            self._all_records = get_record_list_recursive3(self.data_dir, self._rec_pattern)
+            self._all_records = get_record_list_recursive3(
+                self.data_dir, self._rec_pattern
+            )
         self._all_records = [
             item.replace("training_data/", "")
             for item in self._all_records
@@ -295,12 +296,12 @@ class CINC2022Reader(PCGDataBase):
                     content = f.read_text().splitlines()
                     new_row = {"Patient ID": s}
                     localtions = set()
-                    for l in content:
-                        if not l.startswith("#"):
-                            if l.split()[0] in self.auscultation_locations:
-                                localtions.add(l.split()[0])
+                    for line in content:
+                        if not line.startswith("#"):
+                            if line.split()[0] in self.auscultation_locations:
+                                localtions.add(line.split()[0])
                             continue
-                        k, v = l.replace("#", "").split(":")
+                        k, v = line.replace("#", "").split(":")
                         k, v = k.strip(), v.strip()
                         if v == "nan":
                             v = ""
@@ -879,7 +880,7 @@ class EPHNOGRAMReader(PCGDataBase):
         """ """
         try:
             self._all_records = wfdb.get_record_list(self.db_name)
-        except:
+        except Exception:
             records_file = self.db_dir / "RECORDS"
             if records_file.exists():
                 self._all_records = records_file.read_text().splitlines()

@@ -1,12 +1,9 @@
 """
 """
 
-import os, pathlib
+import pathlib
 from copy import deepcopy
-from itertools import repeat
-from typing import List, NoReturn
 
-import numpy as np
 import torch
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths

@@ -2,7 +2,10 @@
 to cope with DNS spoofing, automatically retry a git command until success
 """
 
-import os, argparse, warnings, time
+import os
+import argparse
+import warnings
+import time
 from typing import NoReturn
 
 
@@ -26,28 +29,28 @@ def get_parser() -> dict:
         "-s",
         "--submodule",
         action="store_true",
-        help=f"submodule update",
+        help="submodule update",
         dest="submodule",
     )
     parser.add_argument(
         "-f",
         "--fetch",
         action="store_true",
-        help=f"fetch origin",
+        help="fetch origin",
         dest="fetch",
     )
     parser.add_argument(
         "-p",
         "--push",
         action="store_true",
-        help=f"push origin",
+        help="push origin",
         dest="push",
     )
     parser.add_argument(
         "-c",
         "--custom",
         type=str,
-        help=f'custom git command, enclosed within "',
+        help='custom git command, enclosed within "',
         dest="custom",
     )
 

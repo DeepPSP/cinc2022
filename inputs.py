@@ -1,7 +1,8 @@
 """
 """
 
-import inspect, math
+import inspect
+import math
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from typing import NoReturn, Union, List, Sequence, Tuple
