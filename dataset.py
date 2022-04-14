@@ -18,7 +18,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import (
     ensure_siglen,
     ReprMixin,
-    strafified_train_test_split,
+    stratified_train_test_split,
     list_sum,
 )
 from torch_ecg._preprocessors import PreprocManager
@@ -175,7 +175,7 @@ class CinC2022Dataset(ReprMixin, Dataset):
             else:
                 return json.load(open(aux_test_file, "r"))
 
-        df_train, df_test = strafified_train_test_split(
+        df_train, df_test = stratified_train_test_split(
             self.reader.df_stats,
             [
                 "Murmur",
