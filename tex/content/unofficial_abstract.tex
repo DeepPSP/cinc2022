@@ -22,14 +22,14 @@ Tianjin, China} % city, [state or province,] country only
 
 Aim: This work focuses on the problem of heart murmur detection from phonocardiogram (PCG) recordings raised by the George B. Moody PhysioNet Challenge 2022. Heart murmur is an important indicator for cardiac pathologies, especially congenital heart diseases. Its accurate detection helps early clinical intervention of such vital diseases, hence having a significant medical and social value.
 
-Methods: PCGs are normalized to have values in $[-1, 1]$, resampled to 1000 Hz and filtered with a Butterworth band-pass filter of order 3 and cutoff frequencies 25 - 400 Hz. Deep neural network (DNN) models which accept waveform inputs are used to make 3-class classification, namely ``Present'', ``Absent'' and ``Unknown'', for each recording. We performed neural architecture searching (NAS) among a set of networks, including multi-branch convolutional neural networks (CNNs), SE-ResNet with basic or bottleneck building blocks, TResNets, simplified wav2vec2, etc.
+Methods: PCGs are normalized to have values in [-1, 1], resampled to 1000 Hz and filtered with a Butterworth band-pass filter of order 3 and cutoff frequencies 25 - 400 Hz. Deep neural networks (DNNs) which accept waveform inputs are used to make 3-class classification, namely ``Present'', ``Absent'' and ``Unknown'', for each recording. We performed neural architecture searching (NAS) among a set of networks, including multi-branch convolutional neural networks (CNNs), SE-ResNet with basic or bottleneck building blocks, TResNets, simplified wav2vec2, etc.
 
-Based on a stratified splitting on the attributes ``Murmur'', ``Age'', ``Sex'', and ``Pregnancy status'' of the subjects, 20\% of the public training data were left out for model selection with challenge score as the monitor. Each recording was padded or sliced to a length of 30 seconds (30000 in sample points) and a batch size of 24 was used for parallel training. The AdamW optimizer was adopted, along with the OneCycle scheduler of a maximum learning rate of 0.002, to optimize the model weights on the asymmetric loss of the training data.
+Based on a stratified splitting on the attributes ``Murmur'', ``Age'', ``Sex'', and ``Pregnancy status'' of the subjects, 20\% of the public training data were left out as a validation set for model selection. Each recording was padded or sliced to a length of 30 seconds (30000 in sample points) and a batch size of 24 was used for parallel training. The AdamW optimizer was adopted, along with the OneCycle scheduler of a maximum learning rate of 0.002, to optimize the model weights on the asymmetric loss of the training data.
 
-Predictions of multiple recordings from one subject were merged to give the final prediction for this subject.
+Predictions of multiple recordings from one subject were merged via manually designed rules to give its final prediction.
 
-Results: The best entry submission of our team ``Revenger'' used the bottleneck SE-ResNet model and received a challenge score of 736 on the hidden validation set, ranked 32 out of 166 submissions.
+Results: The best entry submission of our team ``Revenger'' used the bottleneck SE-ResNet model and received a challenge score of 736 on the hidden validation set. The score on the left-out validation set was 474.
 
-Conclusion: We provided an effective solution, which still has space for improvements, to the problem of detecting heart murmurs from PCGs.
+Conclusion: We provided an effective solution, which still has improvement spaces, to the problem of detecting heart murmurs from PCGs.
 
 \end{document}
