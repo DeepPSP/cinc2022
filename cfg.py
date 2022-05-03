@@ -272,4 +272,6 @@ for t in TrainCfg.tasks:
 
 
 ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
-ModelCfg.classification.outcome_head.out_channels.append(len(ModelCfg.classification.outcomes))
+ModelCfg.classification.outcome_head.out_channels.append(
+    len(ModelCfg.classification.outcomes)
+)
