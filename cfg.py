@@ -37,6 +37,10 @@ BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 1000
 BaseCfg.torch_dtype = torch.float32  # "double"
 
+BaseCfg.outcomes = [
+    "Abnormal",
+    "Normal",
+]
 BaseCfg.classes = [
     "Present",
     "Absent",
