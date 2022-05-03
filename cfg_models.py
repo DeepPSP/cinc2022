@@ -131,6 +131,15 @@ ModelArchCfg.classification = CFG()
 ModelArchCfg.classification.crnn = deepcopy(ECG_CRNN_CONFIG)
 
 ModelArchCfg.classification.wav2vec2 = deepcopy(wav2vec2)
+ModelArchCfg.classification.outcome_head = CFG()
+ModelArchCfg.classification.outcome_head.out_channels = [
+    1024,
+    # not including the last linear layer, whose out channels equals n_classes
+]
+ModelArchCfg.classification.outcome_head.activation = "mish"
+ModelArchCfg.classification.outcome_head.bias = True
+ModelArchCfg.classification.outcome_head.kernel_initializer = "he_normal"
+ModelArchCfg.classification.outcome_head.dropouts = 0.2
 
 
 ModelArchCfg.segmentation = CFG()

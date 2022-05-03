@@ -5,13 +5,14 @@ Models, including:
 """
 
 from copy import deepcopy
-from typing import Union, Optional, NoReturn, Any
+from typing import Union, Optional, NoReturn, Any, Tuple
 
 import numpy as np
 import pandas as pd
 from einops.layers.torch import Rearrange
 import torch
 from torch import Tensor
+from einops import rearrange
 from torch_ecg.cfg import CFG
 from torch_ecg.models.cnn.vgg import VGG16
 from torch_ecg.models.cnn.resnet import ResNet
@@ -278,13 +279,59 @@ class CRNN_CINC2022(ECG_CRNN):
             _config.num_channels,
             _config[_config.model_name],
         )
+        if _config.get("outcomes", None) is not None:
+            self.outcome_head = MLP(
+                in_channels=self.clf.in_channels,
+                skip_last_activation=True,
+                **_config.outcome_head,
+            )
+        else:
+            self.outcome_head = None
+
+    def forward(self, input: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        """
+
+        Parameters
+        ----------
+        input: Tensor,
+            of shape (batch_size, channels, seq_len)
+
+        Returns
+        -------
+        pred: Tensor,
+            of shape (batch_size, n_classes)
+        outcome: Tensor, optional,
+            of shape (batch_size, n_outcomes)
+
+        """
+        features = self.extract_features(input)
+
+        if self.pool:
+            features = self.pool(features)  # (batch_size, channels, pool_size)
+            # features = features.squeeze(dim=-1)
+            features = rearrange(
+                features,
+                "batch_size channels pool_size -> batch_size (channels pool_size)",
+            )
+        else:
+            # features of shape (batch_size, channels) or (batch_size, seq_len, channels)
+            pass
+
+        # print(f"clf in shape = {x.shape}")
+        pred = self.clf(features)  # batch_size, n_classes
+
+        if self.outcome_head is not None:
+            outcome = self.outcome_head(features)
+            return pred, outcome
+
+        return pred
 
     @torch.no_grad()
     def inference(
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
-    ) -> ClassificationOutput:
+    ) -> Union[ClassificationOutput, Tuple[ClassificationOutput, ClassificationOutput]]:
         """
 
         auxiliary function to `forward`, for CINC2022,
@@ -320,7 +367,11 @@ class CRNN_CINC2022(ECG_CRNN):
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
-        forward_output = self.forward(_input)
+        if self.outcome_head is not None:
+            forward_output, outcome = self.forward(_input)
+        else:
+            forward_output = self.forward(_input)
+            outcome = None
         prob = self.softmax(forward_output)
         pred = torch.argmax(prob, dim=-1)
         bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
@@ -336,20 +387,38 @@ class CRNN_CINC2022(ECG_CRNN):
             prob["pred"] = prob["pred"].apply(lambda x: self.classes[x])
             pred = prob["pred"].values
 
-        return ClassificationOutput(
+        clf_output = ClassificationOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
             bin_pred=bin_pred,
             forward_output=forward_output,
         )
+        if outcome is None:
+            return clf_output
+
+        prob = self.softmax(outcome)
+        pred = torch.argmax(prob, dim=-1)
+        bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
+        prob = prob.cpu().detach().numpy()
+        pred = pred.cpu().detach().numpy()
+        bin_pred = bin_pred.cpu().detach().numpy()
+        outcome = outcome.cpu().detach().numpy()
+        outcome_output = ClassificationOutput(
+            classes=self.config.outcomes,
+            prob=prob,
+            pred=pred,
+            bin_pred=bin_pred,
+            outcome=outcome,
+        )
+        return clf_output, outcome_output
 
     @torch.no_grad()
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
-    ) -> ClassificationOutput:
+    ) -> Union[ClassificationOutput, Tuple[ClassificationOutput, ClassificationOutput]]:
         """
         alias for `self.inference`
         """

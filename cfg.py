@@ -146,6 +146,7 @@ TrainCfg.classification.input_len = int(
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = 0.2  # None, do no slicing
 TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
+TrainCfg.classification.outcomes = deepcopy(BaseCfg.outcomes)
 TrainCfg.classification.class_map = {
     c: i for i, c in enumerate(TrainCfg.classification.classes)
 }
@@ -268,3 +269,7 @@ for t in TrainCfg.tasks:
         ModelCfg[t][mn].cnn_name = ModelCfg[t].cnn_name
         ModelCfg[t][mn].rnn_name = ModelCfg[t].rnn_name
         ModelCfg[t][mn].attn_name = ModelCfg[t].attn_name
+
+
+ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
+ModelCfg.classification.outcome_head.out_channels.append(len(ModelCfg.classification.outcomes))
