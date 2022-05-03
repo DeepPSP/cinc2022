@@ -22,7 +22,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
-from torch_ecg.utils.utils_interval import mask_to_intervals  # noqa: F401
+from torch_ecg.utils.utils_data import mask_to_intervals  # noqa: F401
 
 from model import (  # noqa: F401
     Wav2Vec2_CINC2022,

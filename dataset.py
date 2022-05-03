@@ -15,12 +15,8 @@ except ModuleNotFoundError:
 import torch
 from torch.utils.data.dataset import Dataset
 from torch_ecg.cfg import CFG
-from torch_ecg.utils.misc import (
-    ensure_siglen,
-    ReprMixin,
-    stratified_train_test_split,
-    list_sum,
-)
+from torch_ecg.utils.misc import ReprMixin, list_sum
+from torch_ecg.utils.utils_data import ensure_siglen, stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
 
 from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
