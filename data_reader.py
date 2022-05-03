@@ -74,6 +74,7 @@ class PCGDataBase(PhysioNetDataBase):
         verbose: int, default 2,
             log verbosity
         kwargs: auxilliary key word arguments
+
         """
         super().__init__(db_name, db_dir, working_dir, verbose, **kwargs)
         self.fs = fs
@@ -137,7 +138,11 @@ class PCGDataBase(PhysioNetDataBase):
 
 
 class CINC2022Reader(PCGDataBase):
-    """ """
+    """
+
+    The CirCor DigiScope Phonocardiogram Dataset (main resource for CinC2022)
+
+    """
 
     __name__ = "CINC2022Reader"
 
@@ -167,6 +172,7 @@ class CINC2022Reader(PCGDataBase):
         verbose: int, default 2,
             log verbosity
         kwargs: auxilliary key word arguments
+
         """
         super().__init__(
             db_name="circor-heart-sound",

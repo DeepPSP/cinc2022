@@ -18,6 +18,11 @@ from torch_ecg.utils.utils_nn import compute_conv_output_shape
 
 __all__ = [
     "InputConfig",
+    "WaveformInput",
+    "SpectrogramInput",
+    "MelSpectrogramInput",
+    "MFCCInput",
+    "SpectralInput",
 ]
 
 
