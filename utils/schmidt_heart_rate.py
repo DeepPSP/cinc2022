@@ -19,7 +19,36 @@ __all__ = [
 def get_schmidt_heart_rate(
     signal: np.ndarray, fs: int, config: Optional[dict] = None
 ) -> Tuple[float, float]:
-    """ """
+    """
+
+    compute heart rate from (ECG) signal using Schmidt algorithm (using autocorrelation)
+
+    Parameters
+    ----------
+    signal : np.ndarray,
+        the (ECG) signal
+    fs : int,
+        the sampling frequency
+    config : dict, optional,
+        the configuration, with the following keys:
+        - ``'order'``: int,
+            the order of the filter, default: 2
+        - ``'lowcut'``: real number,
+            the low cutoff frequency, default: 25
+        - ``'highcut'``: real number,
+            the high cutoff frequency, default: 400
+        - ``'lpf_freq'``: real number,
+            the frequency of the low pass filter for computing the envelope,
+            default 8
+
+    Returns
+    -------
+    mean_hr : float,
+        the mean heart rate
+    systolic_time_interval: float,
+        the systolic time interval
+
+    """
     cfg = ED(
         order=2,
         lowcut=25,

@@ -16,7 +16,29 @@ def schmidt_spike_removal(
     threshold: float = 3.0,
     eps: float = 1e-4,
 ) -> np.ndarray:
-    """ """
+    """
+
+    spike removal using Schmidt algorithm
+
+    Parameters
+    ----------
+    original_signal : np.ndarray,
+        the original signal
+    fs : int,
+        the sampling frequency
+    window_size : float, default 0.5,
+        the sliding window size, with units in seconds
+    threshold : float, default 3.0,
+        the threshold (multiplier for the median value) for detecting spikes
+    eps : float, default 1e-4,
+        the epsilon for numerical stability
+
+    Returns
+    -------
+    despiked_signal : np.ndarray,
+        the despiked signal
+
+    """
     window_size = round(fs * window_size)
     nframes, res = divmod(original_signal.shape[0], window_size)
     frames = original_signal[: window_size * nframes].reshape((nframes, window_size))

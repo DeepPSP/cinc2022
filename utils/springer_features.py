@@ -57,6 +57,7 @@ def get_springer_features(
         - hilbert envelope
         - PSD
         - DWT
+
     """
     assert feature_format.lower() in [
         "flat",
@@ -104,9 +105,7 @@ def get_springer_features(
     psd = SS.resample_poly(psd, len(downsampled_homomorphic_envelope), len(psd))
     psd = normalize(psd, method="z-score", mean=0.0, std=1.0)
 
-    wavelet_feature = np.abs(
-        get_dwt_features(filtered_signal, fs, feature_fs, config=cfg)
-    )
+    wavelet_feature = np.abs(get_dwt_features(filtered_signal, fs, config=cfg))
     wavelet_feature = wavelet_feature[: len(homomorphic_envelope)]
     wavelet_feature = SS.resample_poly(wavelet_feature, feature_fs, fs)
     wavelet_feature = normalize(wavelet_feature, method="z-score", mean=0.0, std=1.0)
@@ -130,6 +129,7 @@ def get_springer_features(
 
 def hilbert_envelope(signal: np.ndarray, fs: int) -> np.ndarray:
     """
+
     Compute the envelope of the signal using the Hilbert transform.
 
     Parameters
@@ -143,6 +143,7 @@ def hilbert_envelope(signal: np.ndarray, fs: int) -> np.ndarray:
     -------
     ndarray:
         The envelope of the signal.
+
     """
     return np.abs(SS.hilbert(signal))
 
@@ -151,6 +152,7 @@ def homomorphic_envelope_with_hilbert(
     signal: np.ndarray, fs: int, lpf_freq: int = 8, order: int = 1
 ) -> np.ndarray:
     """
+
     Compute the homomorphic envelope of the signal using the Hilbert transform.
 
     Parameters
@@ -169,6 +171,7 @@ def homomorphic_envelope_with_hilbert(
     -------
     homomorphic_envelope: ndarray,
         The homomorphic envelope of the signal.
+
     """
     amplitude_envelope = hilbert_envelope(signal, fs)
     homomorphic_envelope = np.exp(
@@ -186,6 +189,7 @@ def get_PSD_feature(
     overlap_size: float = 1 / 80,
 ) -> np.ndarray:
     """
+
     Compute the PSD (power spectral density) of the signal.
 
     Parameters
@@ -213,6 +217,7 @@ def get_PSD_feature(
     ref. https://en.wikipedia.org/wiki/IEEE_754#Rounding_rules.
     The rounding rule for matlab is `to nearest, ties away from zero`,
     while the rounding rule for python is `to nearest, ties to even`.
+
     """
     with localcontext() as ctx:
         ctx.rounding = ROUND_HALF_UP
