@@ -252,6 +252,13 @@ class FastDataReader(ReprMixin, Dataset):
             values = values[np.newaxis, ...]
 
         labels = self.reader.load_ann(rec)
+        masks = self.reader.load_segmentation(rec, seg_format="binary")
+        masks = ensure_siglen(
+            masks,
+            siglen=self.config[self.task].input_len,
+            fmt=self.config[self.task].data_format,
+            tolerance=self.config[self.task].sig_slice_tol,
+        ).astype(self.dtype)
         if self.config[self.task].loss != "CrossEntropyLoss":
             labels = (
                 np.isin(self.config[self.task].classes, labels)
@@ -266,6 +273,9 @@ class FastDataReader(ReprMixin, Dataset):
                 ],
                 dtype=int,
             )
+
+        if self.task == "multi_task":
+            return values, labels, masks
 
         return values, labels
 

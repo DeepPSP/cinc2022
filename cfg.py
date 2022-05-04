@@ -120,6 +120,7 @@ TrainCfg.log_step = 20
 TrainCfg.tasks = [
     "classification",
     "segmentation",
+    "multi_task",  # classification and segmentation with weight sharing
 ]
 
 for t in TrainCfg.tasks:
@@ -146,7 +147,8 @@ TrainCfg.classification.input_len = int(
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = 0.2  # None, do no slicing
 TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
-TrainCfg.classification.outcomes = deepcopy(BaseCfg.outcomes)
+# TrainCfg.classification.outcomes = deepcopy(BaseCfg.outcomes)
+TrainCfg.classification.outcomes = None
 TrainCfg.classification.class_map = {
     c: i for i, c in enumerate(TrainCfg.classification.classes)
 }
@@ -178,7 +180,7 @@ TrainCfg.classification.loss_kw = CFG(
 TrainCfg.classification.monitor = "neg_challenge_metric"  # accuracy (not recommended)
 
 ###########################################
-# classification configurations
+# segmentation configurations
 ###########################################
 
 TrainCfg.segmentation.fs = 1000
@@ -227,6 +229,54 @@ TrainCfg.segmentation.loss_kw = CFG(
 TrainCfg.segmentation.monitor = "jaccard"
 
 
+###########################################
+# multi-task configurations
+###########################################
+
+TrainCfg.multi_task.fs = 1000
+TrainCfg.multi_task.final_model_name = None
+
+# input format configurations
+TrainCfg.multi_task.data_format = "channel_first"
+TrainCfg.multi_task.input_config = InputConfig(
+    input_type="waveform",  # "waveform", "spectrogram", "mel", "mfcc", "spectral"
+    n_channels=1,
+    fs=TrainCfg.multi_task.fs,
+)
+TrainCfg.multi_task.num_channels = TrainCfg.multi_task.input_config.n_channels
+TrainCfg.multi_task.input_len = int(30 * TrainCfg.multi_task.fs)  # 30seconds, to adjust
+TrainCfg.multi_task.siglen = TrainCfg.multi_task.input_len  # alias
+TrainCfg.multi_task.sig_slice_tol = 0.4  # None, do no slicing
+TrainCfg.multi_task.classes = BaseCfg.classes
+TrainCfg.multi_task.class_map = {
+    c: i for i, c in enumerate(TrainCfg.multi_task.classes)
+}
+TrainCfg.multi_task.states = BaseCfg.states
+TrainCfg.multi_task.state_map = {s: i for i, s in enumerate(TrainCfg.multi_task.states)}
+
+# preprocess configurations
+TrainCfg.multi_task.resample = CFG(fs=TrainCfg.multi_task.fs)
+TrainCfg.multi_task.bandpass = CFG(
+    lowcut=BaseCfg.passband[0],
+    highcut=BaseCfg.passband[1],
+    filter_type="butter",
+    filter_order=BaseCfg.filter_order,
+)
+
+# model choices
+TrainCfg.multi_task.model_name = "crnn"  # unet
+TrainCfg.multi_task.cnn_name = "resnet_nature_comm_bottle_neck_se"
+TrainCfg.multi_task.rnn_name = "lstm"  # "none", "lstm"
+TrainCfg.multi_task.attn_name = "se"  # "none", "se", "gc", "nl"
+
+# loss function choices
+TrainCfg.multi_task.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.multi_task.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+
+# monitor choices
+# TrainCfg.multi_task.monitor = "jaccard"  # TODO: chose a monitor
+
+
 def set_entry_test_flag(test_flag: bool):
     TrainCfg.entry_test_flag = test_flag
 
@@ -271,7 +321,18 @@ for t in TrainCfg.tasks:
         ModelCfg[t][mn].attn_name = ModelCfg[t].attn_name
 
 
+# classification model aux. output
 ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
-ModelCfg.classification.outcome_head.out_channels.append(
-    len(ModelCfg.classification.outcomes)
+if ModelCfg.classification.outcomes is not None:
+    ModelCfg.classification.outcome_head.out_channels.append(
+        len(ModelCfg.classification.outcomes)
+    )
+else:
+    ModelCfg.classification.outcome_head = None
+
+
+# multi-task model segmentation head
+ModelCfg.multi_task.states = deepcopy(TrainCfg.multi_task.states)
+ModelCfg.multi_task.segmentation_head.out_channels.append(
+    len(TrainCfg.multi_task.states)
 )

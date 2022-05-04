@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from einops.layers.torch import Rearrange
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 from einops import rearrange
 from torch_ecg.cfg import CFG
@@ -26,6 +27,7 @@ from torch_ecg.components.outputs import (
     ClassificationOutput,
     SequenceLabelingOutput,
 )
+from torch_ecg.utils import add_docstring
 
 from cfg import ModelCfg
 from wav2vec2 import Wav2Vec2Model, components as w2v2_components
@@ -236,7 +238,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             forward_output=forward_output,
         )
 
-    @torch.no_grad()
+    @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
@@ -287,6 +289,14 @@ class CRNN_CINC2022(ECG_CRNN):
             )
         else:
             self.outcome_head = None
+        if _config.get("states", None) is not None:
+            self.segmentation_head = MLP(
+                in_channels=self.clf.in_channels,
+                skip_last_activation=True,
+                **_config.segmentation_head,
+            )
+        else:
+            self.segmentation_head = None
 
     def forward(self, input: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
@@ -304,25 +314,38 @@ class CRNN_CINC2022(ECG_CRNN):
             of shape (batch_size, n_outcomes)
 
         """
+        batch_size, channels, seq_len = input.shape
+
         features = self.extract_features(input)
 
         if self.pool:
-            features = self.pool(features)  # (batch_size, channels, pool_size)
+            pooled_features = self.pool(features)  # (batch_size, channels, pool_size)
             # features = features.squeeze(dim=-1)
-            features = rearrange(
-                features,
+            pooled_features = rearrange(
+                pooled_features,
                 "batch_size channels pool_size -> batch_size (channels pool_size)",
             )
         else:
-            # features of shape (batch_size, channels) or (batch_size, seq_len, channels)
-            pass
+            # pooled_features of shape (batch_size, channels) or (batch_size, seq_len, channels)
+            pooled_features = features
 
         # print(f"clf in shape = {x.shape}")
-        pred = self.clf(features)  # batch_size, n_classes
+        pred = self.clf(pooled_features)  # batch_size, n_classes
 
         if self.outcome_head is not None:
-            outcome = self.outcome_head(features)
+            outcome = self.outcome_head(pooled_features)
             return pred, outcome
+
+        if self.segmentation_head is not None:
+            segmentation = self.segmentation_head(features)
+            if self.config.segmentation_head.get("recover_length", True):
+                segmentation = F.interpolate(
+                    segmentation.permute(0, 2, 1),
+                    size=seq_len,
+                    mode="linear",
+                    align_corners=True,
+                ).permute(0, 2, 1)
+            return pred, segmentation
 
         return pred
 
@@ -331,7 +354,11 @@ class CRNN_CINC2022(ECG_CRNN):
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
-    ) -> Union[ClassificationOutput, Tuple[ClassificationOutput, ClassificationOutput]]:
+    ) -> Union[
+        ClassificationOutput,
+        Tuple[ClassificationOutput, ClassificationOutput],
+        Tuple[ClassificationOutput, SequenceLabelingOutput],
+    ]:
         """
 
         auxiliary function to `forward`, for CINC2022,
@@ -372,6 +399,11 @@ class CRNN_CINC2022(ECG_CRNN):
         else:
             forward_output = self.forward(_input)
             outcome = None
+        if self.segmentation_head is not None:
+            forward_output, states = self.forward(_input)
+        else:
+            forward_output = self.forward(_input)
+            states = None
         prob = self.softmax(forward_output)
         pred = torch.argmax(prob, dim=-1)
         bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
@@ -394,31 +426,41 @@ class CRNN_CINC2022(ECG_CRNN):
             bin_pred=bin_pred,
             forward_output=forward_output,
         )
-        if outcome is None:
-            return clf_output
 
-        prob = self.softmax(outcome)
-        pred = torch.argmax(prob, dim=-1)
-        bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
-        prob = prob.cpu().detach().numpy()
-        pred = pred.cpu().detach().numpy()
-        bin_pred = bin_pred.cpu().detach().numpy()
-        outcome = outcome.cpu().detach().numpy()
-        outcome_output = ClassificationOutput(
-            classes=self.config.outcomes,
-            prob=prob,
-            pred=pred,
-            bin_pred=bin_pred,
-            outcome=outcome,
-        )
-        return clf_output, outcome_output
+        if outcome is not None:
+            prob = self.softmax(outcome)
+            pred = torch.argmax(prob, dim=-1)
+            bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
+            prob = prob.cpu().detach().numpy()
+            pred = pred.cpu().detach().numpy()
+            bin_pred = bin_pred.cpu().detach().numpy()
+            outcome = outcome.cpu().detach().numpy()
+            outcome_output = ClassificationOutput(
+                classes=self.config.outcomes,
+                prob=prob,
+                pred=pred,
+                bin_pred=bin_pred,
+                outcome=outcome,
+            )
+            return clf_output, outcome_output
 
-    @torch.no_grad()
+        if states is not None:
+            prob = self.sigmoid(states)
+            # TODO: finish implementing this
+            raise NotImplementedError
+
+        return clf_output
+
+    @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
-    ) -> Union[ClassificationOutput, Tuple[ClassificationOutput, ClassificationOutput]]:
+    ) -> Union[
+        ClassificationOutput,
+        Tuple[ClassificationOutput, ClassificationOutput],
+        Tuple[ClassificationOutput, SequenceLabelingOutput],
+    ]:
         """
         alias for `self.inference`
         """
@@ -501,7 +543,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
             pred=pred,
         )
 
-    @torch.no_grad()
+    @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
@@ -586,7 +628,7 @@ class UNET_CINC2022(ECG_UNET):
             pred=pred,
         )
 
-    @torch.no_grad()
+    @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
