@@ -145,6 +145,7 @@ ModelArchCfg.classification.outcome_head.dropouts = 0.2
 
 ModelArchCfg.segmentation = CFG()
 ModelArchCfg.segmentation.seq_lab = deepcopy(ECG_SEQ_LAB_NET_CONFIG)
+ModelArchCfg.segmentation.seq_lab.reduction = 1
 ModelArchCfg.segmentation.seq_lab.recover_length = True
 ModelArchCfg.segmentation.unet = deepcopy(ECG_UNET_VANILLA_CONFIG)
 

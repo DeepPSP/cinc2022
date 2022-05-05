@@ -141,6 +141,31 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         super().__init__(cnn, encoder, aux)
 
+        if _config.get("outcomes", None) is not None:
+            self.outcome_head = torch.nn.Sequential(
+                Rearrange("batch seqlen chan -> batch chan seqlen"),
+                pool,
+                Rearrange("batch chan seqlen -> batch (chan seqlen)"),
+                MLP(
+                    in_channels=self.clf.in_channels,
+                    skip_last_activation=True,
+                    **_config.outcome_head,
+                )
+            )
+        else:
+            self.outcome_head = None
+        if _config.get("states", None) is not None:
+            self.states = _config.get("states")
+            _config.segmentation_head.out_channels.append(len(self.states))
+            self.segmentation_head = MLP(
+                in_channels=self.clf.in_channels,
+                skip_last_activation=True,
+                **_config.segmentation_head,
+            )
+        else:
+            self.segmentation_head = None
+            self.states = None
+
         if "wav2vec2" in cnn_choice:
             self.squeeze = Rearrange("batch 1 seqlen -> batch seqlen")
 
@@ -150,7 +175,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
         self.sigmoid = torch.nn.Sigmoid()
         self.softmax = torch.nn.Softmax(-1)
 
-    def forward(self, waveforms: Tensor) -> Tensor:
+    def forward(self, waveforms: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
 
         Parameters
@@ -160,25 +185,50 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         Returns
         -------
-        Tensor,
-            shape: (batch, n_classes)
+        pred: Tensor,
+            of shape (batch_size, n_classes)
+        outcome: Tensor, optional,
+            of shape (batch_size, n_outcomes)
+        segmentation: Tensor, optional,
+            of shape (batch_size, seqlen, n_states)
 
         """
         if self.squeeze is not None:
             waveforms = self.squeeze(waveforms)
             return super().forward(waveforms)[0]
-        x = self.feature_extractor(waveforms)
-        x = self.encoder(x)
+        features = self.feature_extractor(waveforms)
+        features = self.encoder(features)
         if self.aux is not None:
-            x = self.aux(x)
-        return x
+            pred = self.aux(features)
+
+        if self.outcome_head is not None:
+            outcome = self.outcome_head(features)
+            return pred, outcome
+
+        if self.segmentation_head is not None:
+            segmentation = self.segmentation_head(features)
+            if self.config.segmentation_head.get("recover_length", True):
+                segmentation = F.interpolate(
+                    segmentation.permute(0, 2, 1),
+                    size=seq_len,
+                    mode="linear",
+                    align_corners=True,
+                ).permute(0, 2, 1)
+            return pred, segmentation
+
+        return pred
 
     @torch.no_grad()
     def inference(
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
-    ) -> ClassificationOutput:
+        seg_thr: float = 0.5,
+    ) -> Union[
+        ClassificationOutput,
+        Tuple[ClassificationOutput, ClassificationOutput],
+        Tuple[ClassificationOutput, SequenceLabelingOutput],
+    ]:
         """
 
         auxiliary function to `forward`, for CINC2022,
@@ -190,10 +240,13 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
         class_names: bool, default False,
             if True, the returned scalar predictions will be a `DataFrame`,
             with class names for each scalar prediction
+        seg_thr: float, default 0.5,
+            threshold for making binary predictions for
+            the optional segmentaion head
 
         Returns
         -------
-        output: ClassificationOutput, with items:
+        clf_output: ClassificationOutput, with items:
             - classes: list of str,
                 list of the class names
             - prob: ndarray or DataFrame,
@@ -207,6 +260,20 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                 the array of output of the model's forward function,
                 useful for producing challenge result using
                 multiple recordings
+        outcome_output: ClassificationOutput, optional, with items:
+            - classes: list of str,
+                list of the outcome class names
+            - prob: ndarray,
+                scalar (probability) predictions,
+            - pred: ndarray,
+                the array of outcome class number predictions
+        seg_output: SequenceLabelingOutput, optional, with items:
+            - classes: list of str,
+                list of the state class names
+            - prob: ndarray,
+                scalar (probability) predictions,
+            - pred: ndarray,
+                the array of binarized prediction
 
         """
         self.eval()
@@ -230,7 +297,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             prob["pred"] = prob["pred"].apply(lambda x: self.classes[x])
             pred = prob["pred"].values
 
-        return ClassificationOutput(
+        clf_output = ClassificationOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
@@ -238,12 +305,54 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             forward_output=forward_output,
         )
 
+        if outcome is not None:
+            prob = self.softmax(outcome)
+            pred = torch.argmax(prob, dim=-1)
+            bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
+            prob = prob.cpu().detach().numpy()
+            pred = pred.cpu().detach().numpy()
+            bin_pred = bin_pred.cpu().detach().numpy()
+            outcome = outcome.cpu().detach().numpy()
+            outcome_output = ClassificationOutput(
+                classes=self.config.outcomes,
+                prob=prob,
+                pred=pred,
+                bin_pred=bin_pred,
+                outcome=outcome,
+            )
+            return clf_output, outcome_output
+
+        if states is not None:
+            # if "unannotated" in self.config.states, use softmax
+            # else use sigmoid
+            if "unannotated" in self.states:
+                prob = self.softmax(states)
+                pred = torch.argmax(prob, dim=-1)
+            else:
+                prob = self.sigmoid(states)
+                pred = (prob > seg_thr).int() * (prob == prob.max(dim=-1, keepdim=True).values).int()
+            prob = prob.cpu().detach().numpy()
+            pred = pred.cpu().detach().numpy()
+            seg_output = SequenceLabelingOutput(
+                classes=self.states,
+                prob=prob,
+                pred=pred,
+            )
+            return clf_output, seg_output
+
+        return clf_output
+
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
-    ) -> ClassificationOutput:
+        seg_thr: float = 0.5,
+    ) -> Union[
+        ClassificationOutput,
+        Tuple[ClassificationOutput, ClassificationOutput],
+        Tuple[ClassificationOutput, SequenceLabelingOutput],
+    ]:
         """
         alias for `self.inference`
         """
@@ -273,8 +382,9 @@ class CRNN_CINC2022(ECG_CRNN):
         model_cfg = deepcopy(ModelCfg[task])
         model = ECG_CRNN_CINC2022(model_cfg)
         ````
+
         """
-        _config = CFG(deepcopy(ModelCfg.classification))
+        _config = CFG(deepcopy(ModelCfg.multi_task))
         _config.update(deepcopy(config) or {})
         super().__init__(
             _config.classes,
@@ -290,6 +400,8 @@ class CRNN_CINC2022(ECG_CRNN):
         else:
             self.outcome_head = None
         if _config.get("states", None) is not None:
+            self.states = _config.get("states")
+            _config.segmentation_head.out_channels.append(len(self.states))
             self.segmentation_head = MLP(
                 in_channels=self.clf.in_channels,
                 skip_last_activation=True,
@@ -297,6 +409,7 @@ class CRNN_CINC2022(ECG_CRNN):
             )
         else:
             self.segmentation_head = None
+            self.states = None
 
     def forward(self, input: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
@@ -312,6 +425,8 @@ class CRNN_CINC2022(ECG_CRNN):
             of shape (batch_size, n_classes)
         outcome: Tensor, optional,
             of shape (batch_size, n_outcomes)
+        segmentation: Tensor, optional,
+            of shape (batch_size, seqlen, n_states)
 
         """
         batch_size, channels, seq_len = input.shape
@@ -337,6 +452,7 @@ class CRNN_CINC2022(ECG_CRNN):
             return pred, outcome
 
         if self.segmentation_head is not None:
+            features = features.permute(0, 2, 1)  # (batch_size, seq_len, channels)
             segmentation = self.segmentation_head(features)
             if self.config.segmentation_head.get("recover_length", True):
                 segmentation = F.interpolate(
@@ -354,6 +470,7 @@ class CRNN_CINC2022(ECG_CRNN):
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
+        seg_thr: float = 0.5,
     ) -> Union[
         ClassificationOutput,
         Tuple[ClassificationOutput, ClassificationOutput],
@@ -370,10 +487,13 @@ class CRNN_CINC2022(ECG_CRNN):
         class_names: bool, default False,
             if True, the returned scalar predictions will be a `DataFrame`,
             with class names for each scalar prediction
+        seg_thr: float, default 0.5,
+            threshold for making binary predictions for
+            the optional segmentaion head
 
         Returns
         -------
-        output: ClassificationOutput, with items:
+        clf_output: ClassificationOutput, with items:
             - classes: list of str,
                 list of the class names
             - prob: ndarray or DataFrame,
@@ -387,6 +507,20 @@ class CRNN_CINC2022(ECG_CRNN):
                 the array of output of the model's forward function,
                 useful for producing challenge result using
                 multiple recordings
+        outcome_output: ClassificationOutput, optional, with items:
+            - classes: list of str,
+                list of the outcome class names
+            - prob: ndarray,
+                scalar (probability) predictions,
+            - pred: ndarray,
+                the array of outcome class number predictions
+        seg_output: SequenceLabelingOutput, optional, with items:
+            - classes: list of str,
+                list of the state class names
+            - prob: ndarray,
+                scalar (probability) predictions,
+            - pred: ndarray,
+                the array of binarized prediction
 
         """
         self.eval()
@@ -445,9 +579,22 @@ class CRNN_CINC2022(ECG_CRNN):
             return clf_output, outcome_output
 
         if states is not None:
-            prob = self.sigmoid(states)
-            # TODO: finish implementing this
-            raise NotImplementedError
+            # if "unannotated" in self.config.states, use softmax
+            # else use sigmoid
+            if "unannotated" in self.states:
+                prob = self.softmax(states)
+                pred = torch.argmax(prob, dim=-1)
+            else:
+                prob = self.sigmoid(states)
+                pred = (prob > seg_thr).int() * (prob == prob.max(dim=-1, keepdim=True).values).int()
+            prob = prob.cpu().detach().numpy()
+            pred = pred.cpu().detach().numpy()
+            seg_output = SequenceLabelingOutput(
+                classes=self.states,
+                prob=prob,
+                pred=pred,
+            )
+            return clf_output, seg_output
 
         return clf_output
 
@@ -456,6 +603,7 @@ class CRNN_CINC2022(ECG_CRNN):
         self,
         input: Union[np.ndarray, Tensor],
         class_names: bool = False,
+        seg_thr: float = 0.5,
     ) -> Union[
         ClassificationOutput,
         Tuple[ClassificationOutput, ClassificationOutput],
@@ -506,6 +654,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
     def inference(
         self,
         input: Union[np.ndarray, Tensor],
+        bin_pred_threshold: float = 0.5,
     ) -> SequenceLabelingOutput:
         """
 
@@ -515,6 +664,9 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         ----------
         input: ndarray or Tensor,
             input tensor, of shape (batch_size, channels, seq_len)
+        bin_pred_threshold: float, default 0.5,
+            threshold for binary predictions,
+            works only if "unannotated" not in `self.classes`
 
         Returns
         -------
@@ -532,8 +684,12 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
-        prob = self.softmax(self.forward(_input))
-        pred = torch.argmax(prob, dim=-1)
+        if "unannotated" in self.classes:
+            prob = self.softmax(self.forward(_input))
+            pred = torch.argmax(prob, dim=-1)
+        else:
+            prob = self.sigmoid(self.forward(_input))
+            pred = (prob > bin_pred_threshold).int() * (prob == prob.max(dim=-1, keepdim=True)).int()
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
