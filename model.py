@@ -171,7 +171,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         # for inference
         # classification: if single-label, use softmax; otherwise (multi-label) use sigmoid
-        # sequence tagging: if background counted in `classes`, use softmax; otherwise use sigmoid
+        # sequence tagging: if "unannotated" counted in `classes`, use softmax; otherwise use sigmoid
         self.sigmoid = torch.nn.Sigmoid()
         self.softmax = torch.nn.Softmax(-1)
 

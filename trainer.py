@@ -58,7 +58,7 @@ class CINC2022Trainer(BaseTrainer):
         lazy: bool = True,
         **kwargs: Any,
     ) -> NoReturn:
-        """finished, checked,
+        """
 
         Parameters
         ----------
@@ -88,6 +88,7 @@ class CINC2022Trainer(BaseTrainer):
             the device to be used for training
         lazy: bool, default True,
             whether to initialize the data loader lazily
+
         """
         super().__init__(
             model, CinC2022Dataset, model_config, train_config, device, lazy
@@ -98,7 +99,7 @@ class CINC2022Trainer(BaseTrainer):
         train_dataset: Optional[Dataset] = None,
         val_dataset: Optional[Dataset] = None,
     ) -> NoReturn:
-        """finished, checked,
+        """
 
         setup the dataloaders for training and validation
 
@@ -108,6 +109,7 @@ class CINC2022Trainer(BaseTrainer):
             the training dataset
         val_dataset: Dataset, optional,
             the validation dataset
+
         """
         if train_dataset is None:
             train_dataset = self.dataset_cls(
@@ -166,7 +168,7 @@ class CINC2022Trainer(BaseTrainer):
 
     def run_one_step(
         self, *data: Tuple[torch.Tensor, torch.Tensor]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, ...]:
         """
 
         Parameters
@@ -182,18 +184,24 @@ class CINC2022Trainer(BaseTrainer):
             the predictions of the model for the given data
         labels: Tensor,
             the labels of the given data
+        masks: Tensor, optional,
+            the state masks of the given data, if available
+
         """
-        signals, labels = data
+        signals, *labels = data
         signals = signals.to(device=self.device, dtype=self.dtype)
-        labels = labels.to(device=self.device, dtype=self.dtype)
+        labels = (lb.to(device=self.device, dtype=self.dtype) for lb in labels)
         # print(f"signals: {signals.shape}")
         # print(f"labels: {labels.shape}")
         preds = self.model(signals)
-        return preds, labels
+        return (preds, *labels)
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
         """ """
+        if self.train_config.task == "multi_task":
+            return self.evaluate_multi_task(data_loader)
+
         self.model.eval()
 
         all_scalar_preds = []
@@ -265,13 +273,47 @@ class CINC2022Trainer(BaseTrainer):
 
         return eval_res
 
+    def evaluate_multi_task(self, data_loader: DataLoader) -> Dict[str, float]:
+        """ """
+        self.model.eval()
+
+        all_scalar_preds = []
+        all_bin_preds = []
+        all_aux_preds = []
+        all_labels = []
+        all_masks = []
+
+        for signals, labels, masks in data_loader:
+            signals = signals.to(device=self.device, dtype=self.dtype)
+            labels = labels.numpy()
+            masks = masks.numpy()
+            all_labels.append(labels)
+            all_masks.append(masks)
+
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            model_output, aux_output = self._model.inference(signals)
+            all_scalar_preds.append(model_output.prob)
+            all_bin_preds.append(model_output.bin_pred)
+
+        raise NotImplementedError
+
+    def _setup_optimizer(self) -> NoReturn:
+        """ """
+        # TODO: adjust for multi-task
+        raise NotImplementedError
+
+    def _setup_criterion(self) -> NoReturn:
+        """ """
+        # TODO: adjust for multi-task
+        raise NotImplementedError
+
     @property
     def batch_dim(self) -> int:
         """
         batch dimension, usually 0,
         but can be 1 for some models, e.g. RR_LSTM
         """
-        # return 1 if self.train_config.task in ["rr_lstm"] else 0
         return 0
 
     @property
@@ -283,16 +325,10 @@ class CINC2022Trainer(BaseTrainer):
 
     @property
     def save_prefix(self) -> str:
-        if self.train_config.task in ["rr_lstm"]:
-            return f"task-{self.train_config.task}_{self._model.__name__}_epoch"
-        else:
-            return f"task-{self.train_config.task}_{self._model.__name__}_{self.model_config.cnn_name}_epoch"
+        return f"task-{self.train_config.task}_{self._model.__name__}_{self.model_config.cnn_name}_epoch"
 
     def extra_log_suffix(self) -> str:
-        if self.train_config.task in ["rr_lstm"]:
-            return f"task-{self.train_config.task}_{super().extra_log_suffix()}"
-        else:
-            return f"task-{self.train_config.task}_{super().extra_log_suffix()}_{self.model_config.cnn_name}"
+        return f"task-{self.train_config.task}_{super().extra_log_suffix()}_{self.model_config.cnn_name}"
 
 
 def get_args(**kwargs: Any):
@@ -360,7 +396,7 @@ _MODEL_MAP = {
 
 
 def _set_task(task: str, config: CFG) -> NoReturn:
-    """finished, checked,"""
+    """"""
     assert task in config.tasks
     config.task = task
     for item in [
