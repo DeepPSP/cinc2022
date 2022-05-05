@@ -150,7 +150,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                     in_channels=self.clf.in_channels,
                     skip_last_activation=True,
                     **_config.outcome_head,
-                )
+                ),
             )
         else:
             self.outcome_head = None
@@ -193,6 +193,8 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             of shape (batch_size, seqlen, n_states)
 
         """
+        batch_size, channels, seq_len = waveforms.shape
+
         if self.squeeze is not None:
             waveforms = self.squeeze(waveforms)
             return super().forward(waveforms)[0]
@@ -281,7 +283,13 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
-        forward_output = self.forward(_input)
+        outcome, states = None, None
+        if self.outcome_head is not None:
+            forward_output, outcome = self.forward(_input)
+        elif self.segmentation_head is not None:
+            forward_output, states = self.forward(_input)
+        else:
+            forward_output = self.forward(_input)
         prob = self.softmax(forward_output)
         pred = torch.argmax(prob, dim=-1)
         bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
@@ -330,7 +338,9 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                 pred = torch.argmax(prob, dim=-1)
             else:
                 prob = self.sigmoid(states)
-                pred = (prob > seg_thr).int() * (prob == prob.max(dim=-1, keepdim=True).values).int()
+                pred = (prob > seg_thr).int() * (
+                    prob == prob.max(dim=-1, keepdim=True).values
+                ).int()
             prob = prob.cpu().detach().numpy()
             pred = pred.cpu().detach().numpy()
             seg_output = SequenceLabelingOutput(
@@ -528,16 +538,13 @@ class CRNN_CINC2022(ECG_CRNN):
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
+        outcome, states = None, None
         if self.outcome_head is not None:
             forward_output, outcome = self.forward(_input)
-        else:
-            forward_output = self.forward(_input)
-            outcome = None
-        if self.segmentation_head is not None:
+        elif self.segmentation_head is not None:
             forward_output, states = self.forward(_input)
         else:
             forward_output = self.forward(_input)
-            states = None
         prob = self.softmax(forward_output)
         pred = torch.argmax(prob, dim=-1)
         bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
@@ -586,7 +593,9 @@ class CRNN_CINC2022(ECG_CRNN):
                 pred = torch.argmax(prob, dim=-1)
             else:
                 prob = self.sigmoid(states)
-                pred = (prob > seg_thr).int() * (prob == prob.max(dim=-1, keepdim=True).values).int()
+                pred = (prob > seg_thr).int() * (
+                    prob == prob.max(dim=-1, keepdim=True).values
+                ).int()
             prob = prob.cpu().detach().numpy()
             pred = pred.cpu().detach().numpy()
             seg_output = SequenceLabelingOutput(
@@ -689,7 +698,9 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
             pred = torch.argmax(prob, dim=-1)
         else:
             prob = self.sigmoid(self.forward(_input))
-            pred = (prob > bin_pred_threshold).int() * (prob == prob.max(dim=-1, keepdim=True)).int()
+            pred = (prob > bin_pred_threshold).int() * (
+                prob == prob.max(dim=-1, keepdim=True)
+            ).int()
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
