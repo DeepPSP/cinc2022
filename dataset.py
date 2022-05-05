@@ -52,7 +52,10 @@ class CinC2022Dataset(ReprMixin, Dataset):
         self.training = training
         self.lazy = lazy
 
-        self.reader = CINC2022Reader(self.config.db_dir)
+        self.reader = CINC2022Reader(
+            self.config.db_dir,
+            ignore_unannotated=self.config.get("ignore_unannotated", True),
+        )
 
         self.subjects = self._train_test_split()
         df = self.reader.df_stats[
@@ -80,7 +83,7 @@ class CinC2022Dataset(ReprMixin, Dataset):
 
         self._signals = None
         self._labels = None
-        # self._masks = None
+        self._masks = None
         self.__set_task(task, lazy)
 
     def __len__(self) -> int:
@@ -89,10 +92,12 @@ class CinC2022Dataset(ReprMixin, Dataset):
             return len(self.fdr)
         return self._signals.shape[0]
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """ """
         if self.lazy:
             return self.fdr[index]
+        if self.task in ["multi_task"]:
+            return self._signals[index], self._labels[index], self._masks[index]
         return self._signals[index], self._labels[index]
 
     def __set_task(self, task: str, lazy: bool) -> NoReturn:
@@ -111,9 +116,7 @@ class CinC2022Dataset(ReprMixin, Dataset):
         self.n_classes = len(self.config[task].classes)
         self.lazy = lazy
 
-        if self.task in [
-            "classification",
-        ]:
+        if self.task in ["classification", "multi_task"]:
             self.fdr = FastDataReader(
                 self.reader, self.records, self.config, self.task, self.ppm
             )
@@ -123,22 +126,30 @@ class CinC2022Dataset(ReprMixin, Dataset):
             self.fdr = FastDataReader(
                 self.reader, self.records, self.config, self.task, self.seg_ppm
             )
+        else:
+            raise ValueError("illegal task")
 
         if self.lazy:
             return
 
-        self._signals, self._labels = [], []
+        self._signals, self._labels, self._masks = [], [], []
         with tqdm(range(len(self.fdr)), desc="Loading data", unit="records") as pbar:
             for idx in pbar:
-                values, labels = self.fdr[idx]
+                values, *labels = self.fdr[idx]
                 self._signals.append(values)
-                self._labels.append(labels)
+                self._labels.append(labels[0])
+                if len(labels) == 2:
+                    self._masks.append(labels[1])
+                else:
+                    raise ValueError("incorrect number of types of labels")
 
         self._signals = np.concatenate(self._signals, axis=0)
         if self.config[self.task].loss != "CrossEntropyLoss":
             self._labels = np.concatenate(self._labels, axis=0)
         else:
             self._labels = np.array(sum(self._labels)).astype(int)
+        if len(self._masks) > 0:
+            self._masks = np.concatenate(self._masks, axis=0)
 
     def _load_all_data(self) -> NoReturn:
         """ """

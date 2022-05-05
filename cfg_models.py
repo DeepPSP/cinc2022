@@ -149,14 +149,20 @@ ModelArchCfg.segmentation.seq_lab.recover_length = True
 ModelArchCfg.segmentation.unet = deepcopy(ECG_UNET_VANILLA_CONFIG)
 
 
-ModelArchCfg.multi_task = deepcopy(ECG_CRNN_CONFIG)
-ModelArchCfg.multi_task.segmentation_head = CFG()
-ModelArchCfg.multi_task.segmentation_head.out_channels = [
+_multi_task_segmentation_head = CFG()
+_multi_task_segmentation_head.out_channels = [
     512,
     256,
 ]  # not including the last linear layer
-ModelArchCfg.multi_task.segmentation_head.activation = "mish"
-ModelArchCfg.multi_task.segmentation_head.bias = True
-ModelArchCfg.multi_task.segmentation_head.kernel_initializer = "he_normal"
-ModelArchCfg.multi_task.segmentation_head.dropouts = [0.2, 0.2, 0.0]
-ModelArchCfg.multi_task.segmentation_head.recover_length = True
+_multi_task_segmentation_head.activation = "mish"
+_multi_task_segmentation_head.bias = True
+_multi_task_segmentation_head.kernel_initializer = "he_normal"
+_multi_task_segmentation_head.dropouts = [0.2, 0.2, 0.0]
+_multi_task_segmentation_head.recover_length = True
+
+ModelArchCfg.multi_task = deepcopy(ECG_CRNN_CONFIG)
+ModelArchCfg.multi_task.crnn = deepcopy(ECG_CRNN_CONFIG)
+ModelArchCfg.multi_task.crnn.segmentation_head = deepcopy(_multi_task_segmentation_head)
+
+ModelArchCfg.multi_task.wav2vec2 = deepcopy(wav2vec2)
+ModelArchCfg.multi_task.segmentation_head = deepcopy(_multi_task_segmentation_head)

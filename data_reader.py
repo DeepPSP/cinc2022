@@ -641,13 +641,13 @@ class CINC2022Reader(PCGDataBase):
             "binary",
         ]:
             bin_mask = np.zeros(
-                (len(self.segmentation_states), df_seg.end.values[-1]), dtype=self.dtype
+                (df_seg.end.values[-1], len(self.segmentation_states)), dtype=self.dtype
             )
             for _, row in df_seg.iterrows():
                 if row["wave"] in self.segmentation_states:
                     bin_mask[
-                        self.segmentation_states.index(row["wave"]),
                         row["start"] : row["end"],
+                        self.segmentation_states.index(row["wave"]),
                     ] = 1
             return bin_mask
         else:

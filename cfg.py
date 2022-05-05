@@ -36,6 +36,8 @@ BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 1000
 BaseCfg.torch_dtype = torch.float32  # "double"
+BaseCfg.ignore_index = -100
+BaseCfg.ignore_unannotated = True
 
 BaseCfg.outcomes = [
     "Abnormal",
@@ -200,6 +202,10 @@ TrainCfg.segmentation.input_len = int(
 TrainCfg.segmentation.siglen = TrainCfg.segmentation.input_len  # alias
 TrainCfg.segmentation.sig_slice_tol = 0.4  # None, do no slicing
 TrainCfg.segmentation.classes = BaseCfg.states
+if TrainCfg.ignore_unannotated:
+    TrainCfg.segmentation.classes = [
+        s for s in TrainCfg.segmentation.classes if s != "unannotated"
+    ]
 TrainCfg.segmentation.class_map = {
     c: i for i, c in enumerate(TrainCfg.segmentation.classes)
 }
@@ -252,6 +258,10 @@ TrainCfg.multi_task.class_map = {
     c: i for i, c in enumerate(TrainCfg.multi_task.classes)
 }
 TrainCfg.multi_task.states = BaseCfg.states
+if TrainCfg.ignore_unannotated:
+    TrainCfg.multi_task.states = [
+        s for s in TrainCfg.multi_task.states if s != "unannotated"
+    ]
 TrainCfg.multi_task.state_map = {s: i for i, s in enumerate(TrainCfg.multi_task.states)}
 
 # preprocess configurations
@@ -333,6 +343,3 @@ else:
 
 # multi-task model segmentation head
 ModelCfg.multi_task.states = deepcopy(TrainCfg.multi_task.states)
-ModelCfg.multi_task.segmentation_head.out_channels.append(
-    len(TrainCfg.multi_task.states)
-)
