@@ -4,6 +4,7 @@
 import re
 import warnings
 import os
+from copy import deepcopy
 from pathlib import Path
 from collections import defaultdict
 from abc import abstractmethod
@@ -257,8 +258,15 @@ class CINC2022Reader(PCGDataBase):
         self.data_ext = "wav"
         self.ann_ext = "hea"
         self.segmentation_ext = "tsv"
-        self.segmentation_states = [s for s in BaseCfg.states if s != "unannotated"]
-        self.segmentation_map = {n: s for n, s in enumerate(BaseCfg.states)}
+        self.segmentation_states = deepcopy(BaseCfg.states)
+        self.ignore_unannotated = kwargs.get("ignore_unannotated", True)
+        if self.ignore_unannotated:
+            self.segmentation_states = [
+                s for s in self.segmentation_states if s != "unannotated"
+            ]
+        self.segmentation_map = {n: s for n, s in enumerate(self.segmentation_states)}
+        if self.ignore_unannotated:
+            self.segmentation_map[BaseCfg.ignore_index] = "unannotated"
         self.auscultation_locations = {
             "PV",
             "AV",
@@ -272,6 +280,7 @@ class CINC2022Reader(PCGDataBase):
         self._all_records = None
         self._all_subjects = None
         self._subject_records = None
+        self._exceptional_records = ["50782_MV_1"]
         self._ls_rec()
 
         self._df_stats = None
@@ -342,6 +351,7 @@ class CINC2022Reader(PCGDataBase):
             item.replace("training_data/", "")
             for item in self._all_records
             if (self.db_dir / item).with_suffix(".hea").exists()
+            and item.replace("training_data/", "") not in self._exceptional_records
         ]
         self._all_subjects = sorted(
             set([item.split("_")[0] for item in self._all_records]),
@@ -595,6 +605,10 @@ class CINC2022Reader(PCGDataBase):
         segmentation_file = self.data_dir / f"{rec}.{self.segmentation_ext}"
         df_seg = pd.read_csv(segmentation_file, sep="\t", header=None)
         df_seg.columns = ["start_t", "end_t", "label"]
+        if self.ignore_unannotated:
+            df_seg["label"] = df_seg["label"].apply(
+                lambda x: x - 1 if x > 0 else BaseCfg.ignore_index
+            )
         df_seg["wave"] = df_seg["label"].apply(lambda s: self.segmentation_map[s])
         df_seg["start"] = (fs * df_seg["start_t"]).apply(round)
         df_seg["end"] = (fs * df_seg["end_t"]).apply(round)
@@ -618,7 +632,8 @@ class CINC2022Reader(PCGDataBase):
         elif seg_format.lower() in [
             "mask",
         ]:
-            mask = np.zeros(df_seg.end.values[-1], dtype=int)
+            # mask = np.zeros(df_seg.end.values[-1], dtype=int)
+            mask = np.full(df_seg.end.values[-1], BaseCfg.ignore_index, dtype=int)
             for _, row in df_seg.iterrows():
                 mask[row["start"] : row["end"]] = int(row["label"])
             return mask
