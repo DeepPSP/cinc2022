@@ -27,3 +27,4 @@ einops
 matplotlib
 requests
 kaldi_io
+xgboost

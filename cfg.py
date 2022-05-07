@@ -343,3 +343,30 @@ else:
 
 # multi-task model segmentation head
 ModelCfg.multi_task.states = deepcopy(TrainCfg.multi_task.states)
+
+
+# model for the outcome (final diagnosis)
+
+ModelCfg.outcome = CFG()
+ModelCfg.outcome.name = "mlp"  # "xgboost"
+ModelCfg.outcome = deepcopy(_BASE_MODEL_CONFIG)
+ModelCfg.outcome.classes = BaseCfg.outcomes
+
+# mlp for outcome prediction (classification)
+ModelCfg.outcome.mlp = CFG()
+ModelCfg.outcome.mlp.out_channels = [
+    512,
+    128,
+]
+ModelCfg.outcome.mlp.bias = True
+ModelCfg.outcome.mlp.dropouts = 0.2
+ModelCfg.outcome.mlp.activation = "mish"
+
+# xgboost for outcome prediction (classification)
+# https://xgboost.readthedocs.io/en/stable/python/python_api.html#module-xgboost.training
+# TODO: finish xgboost config
+ModelCfg.outcome.xgboost = CFG()
+ModelCfg.outcome.xgboost.init_params = CFG()
+ModelCfg.outcome.xgboost.train_params = CFG()
+ModelCfg.outcome.xgboost.train_kw = CFG()
+ModelCfg.outcome.xgboost.cv_kw = CFG()

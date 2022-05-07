@@ -27,7 +27,7 @@ from torch_ecg.components.outputs import (
     ClassificationOutput,
     SequenceLabelingOutput,
 )
-from torch_ecg.utils import add_docstring
+from torch_ecg.utils import add_docstring, CkptMixin
 
 from cfg import ModelCfg
 from wav2vec2 import Wav2Vec2Model, components as w2v2_components
@@ -794,6 +794,47 @@ class UNET_CINC2022(ECG_UNET):
             prob=prob,
             pred=pred,
         )
+
+    @add_docstring(inference.__doc__)
+    def inference_CINC2022(
+        self,
+        input: Union[np.ndarray, Tensor],
+    ) -> SequenceLabelingOutput:
+        """
+        alias for `self.inference`
+        """
+        return self.inference(input)
+
+
+class OutComeMLP(MLP, CkptMixin):
+    """ """
+
+    __name__ = "OutComeMLP"
+
+    def __init__(
+        self, in_channels: int, config: Optional[CFG] = None, **kwargs: Any
+    ) -> NoReturn:
+        """ """
+        _config = CFG(deepcopy(ModelCfg.outcome))
+        _config.update(deepcopy(config) or {})
+        self.config = _config[_config.mlp]
+        super().__init__(
+            in_channels,
+            out_channels=self.config.out_channels + [len(self.config.classes)],
+            activation=self.config.activation,
+            bias=self.config.bias,
+            dropouts=self.config.dropouts,
+            skip_last_activation=True,
+        )
+
+    @torch.no_grad()
+    def inference(
+        self,
+        input: Union[np.ndarray, Tensor],
+    ) -> ClassificationOutput:
+        """ """
+        self.eval()
+        raise NotImplementedError
 
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
