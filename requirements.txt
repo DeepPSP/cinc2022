@@ -28,3 +28,5 @@ matplotlib
 requests
 kaldi_io
 xgboost
+transformers==4.18.0
+datasets

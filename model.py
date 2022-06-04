@@ -30,7 +30,7 @@ from torch_ecg.components.outputs import (
 from torch_ecg.utils import add_docstring, CkptMixin
 
 from cfg import ModelCfg
-from wav2vec2 import Wav2Vec2Model, components as w2v2_components
+from wav2vec2_ta import Wav2Vec2Model, components as w2v2_components
 
 
 __all__ = [
