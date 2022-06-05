@@ -27,7 +27,7 @@ except ModuleNotFoundError:
     from tqdm import tqdm
 from torch_ecg.databases.base import PhysioNetDataBase
 from torch_ecg.utils.utils_signal import butter_bandpass_filter
-from torch_ecg.utils.misc import get_record_list_recursive3
+from torch_ecg.utils.misc import get_record_list_recursive3, ReprMixin, list_sum
 
 from cfg import BaseCfg
 from utils.schmidt_spike_removal import schmidt_spike_removal
@@ -38,6 +38,7 @@ __all__ = [
     "CINC2022Reader",
     "CINC2016Reader",
     "EPHNOGRAMReader",
+    "CompositeReader",
 ]
 
 
@@ -480,6 +481,31 @@ class CINC2022Reader(PCGDataBase):
             rec = self[rec]
         return list(re.finditer(self._rec_pattern, rec))[0].groupdict()
 
+    def get_absolute_path(
+        self, rec: Union[str, int], extension: Optional[str] = None
+    ) -> Path:
+        """
+        get the absolute path of the record `rec`
+
+        Parameters
+        ----------
+        rec: str or int,
+            record name or index of the record in `self.all_records`
+        extension: str, optional,
+            extension of the file
+
+        Returns
+        -------
+        Path,
+            absolute path of the file
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        if extension is not None and not extension.startswith("."):
+            extension = f".{extension}"
+        return self.data_dir / f"{rec}{extension or ''}"
+
     def load_data(
         self,
         rec: Union[str, int],
@@ -516,7 +542,7 @@ class CINC2022Reader(PCGDataBase):
         fs = fs or self.fs
         if fs == -1:
             fs = None
-        data_file = self.data_dir / f"{rec}.{self.data_ext}"
+        data_file = self.get_absolute_path(rec, self.data_ext)
         data, data_fs = self._audio_load_func(data_file, fs)
         # data of shape (n_channels, n_samples), of type torch.Tensor
         if fs is not None and data_fs != fs:
@@ -530,6 +556,8 @@ class CINC2022Reader(PCGDataBase):
         elif data_type.lower() != "pt":
             raise ValueError(f"Unsupported data type: {data_type}")
         return data
+
+    load_pcg = load_data  # alias for load_data
 
     def load_ann(
         self, rec_or_sid: Union[str, int], class_map: Optional[Dict[str, int]] = None
@@ -579,7 +607,6 @@ class CINC2022Reader(PCGDataBase):
         self, rec: Union[str, int], seg_format: str = "df", fs: Optional[int] = None
     ) -> Union[pd.DataFrame, np.ndarray, dict]:
         """
-
         load the segmentation of the record `rec`
 
         Parameters
@@ -602,7 +629,7 @@ class CINC2022Reader(PCGDataBase):
         fs = fs or self.fs
         if fs == -1:
             fs = self.get_fs(rec)
-        segmentation_file = self.data_dir / f"{rec}.{self.segmentation_ext}"
+        segmentation_file = self.get_absolute_path(rec, self.segmentation_ext)
         df_seg = pd.read_csv(segmentation_file, sep="\t", header=None)
         df_seg.columns = ["start_t", "end_t", "label"]
         if self.ignore_unannotated:
@@ -748,8 +775,6 @@ class CINC2022Reader(PCGDataBase):
             the preprocessed data of the record
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
         fs = fs or self.fs
         data = butter_bandpass_filter(
             self.load_data(rec, fs=fs, data_format="flat"),
@@ -783,9 +808,7 @@ class CINC2022Reader(PCGDataBase):
             the original sampling frequency of the record
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
-        return wfdb.rdheader(self.data_dir / rec).fs
+        return wfdb.rdheader(str(self.get_absolute_path(rec))).fs
 
     def get_subject(self, rec: Union[str, int]) -> str:
         """
@@ -908,7 +931,9 @@ class CINC2016Reader(PCGDataBase):
             records_file.write_text("\n".join(self._all_records))
         self._all_records = [Path(item).name for item in self._all_records]
 
-    def get_path(self, rec: Union[str, int], extension: Optional[str] = None) -> Path:
+    def get_absolute_path(
+        self, rec: Union[str, int], extension: Optional[str] = None
+    ) -> Path:
         """ """
         if isinstance(rec, int):
             rec = self[rec]
@@ -920,6 +945,7 @@ class CINC2016Reader(PCGDataBase):
         rec: Union[str, int],
         fs: Optional[int] = None,
         data_format: str = "channel_first",
+        data_type: str = "np",
     ) -> Dict[str, np.ndarray]:
         """
         load data from the record `rec`
@@ -927,8 +953,8 @@ class CINC2016Reader(PCGDataBase):
         if isinstance(rec, int):
             rec = self[rec]
         data = {
-            "PCG": self.load_pcg(rec, fs, data_format),
-            "ECG": self.load_ecg(rec, fs, data_format),
+            "PCG": self.load_pcg(rec, fs, data_format, data_type),
+            "ECG": self.load_ecg(rec, fs, data_format, data_type),
         }
         return data
 
@@ -937,6 +963,7 @@ class CINC2016Reader(PCGDataBase):
         rec: Union[str, int],
         fs: Optional[int] = None,
         data_format: str = "channel_first",
+        data_type: str = "np",
     ) -> np.ndarray:
         """ """
         if isinstance(rec, int):
@@ -944,10 +971,14 @@ class CINC2016Reader(PCGDataBase):
         fs = fs or self.fs
         if fs == -1:
             fs = None
-        pcg, _ = librosa.load(self.get_path(rec, self.data_ext), sr=fs, mono=False)
+        pcg, _ = librosa.load(
+            self.get_absolute_path(rec, self.data_ext), sr=fs, mono=False
+        )
         pcg = np.atleast_2d(pcg)
         if data_format.lower() == "channel_last":
             pcg = pcg.T
+        if data_type.lower() == "pt":
+            pcg = torch.from_numpy(pcg).float()
         return pcg
 
     def load_ecg(
@@ -955,6 +986,7 @@ class CINC2016Reader(PCGDataBase):
         rec: Union[str, int],
         fs: Optional[int] = None,
         data_format: str = "channel_first",
+        data_type: str = "np",
     ) -> np.ndarray:
         """ """
         if isinstance(rec, int):
@@ -963,7 +995,7 @@ class CINC2016Reader(PCGDataBase):
         if fs == -1:
             fs = None
         wfdb_rec = wfdb.rdrecord(
-            str(self.get_path(rec)), channel_names=["ECG"], physical=True
+            str(self.get_absolute_path(rec)), channel_names=["ECG"], physical=True
         )
         ecg = wfdb_rec.p_signal.T
         if fs is not None and fs != wfdb_rec.fs:
@@ -971,17 +1003,19 @@ class CINC2016Reader(PCGDataBase):
             ecg = librosa.resample(ecg, wfdb_rec.fs, fs, res_type="kaiser_best")
         if data_format.lower() == "channel_last":
             ecg = ecg.T
+        if data_type.lower() == "pt":
+            ecg = torch.from_numpy(ecg).float()
         return ecg
 
     def load_ann(self, rec: Union[str, int]) -> str:
         """
         load annotations of the record `rec`
         """
-        return wfdb.rdheader(self.get_path(rec)).comments[0]
+        return wfdb.rdheader(self.get_absolute_path(rec)).comments[0]
 
     def play(self, rec: Union[str, int], **kwargs) -> IPython.display.Audio:
         """ """
-        audio_file = self.get_path(rec, self.data_ext)
+        audio_file = self.get_absolute_path(rec, self.data_ext)
         return IPython.display.Audio(filename=str(audio_file))
 
     def plot(self, rec: Union[str, int], **kwargs) -> NoReturn:
@@ -1073,6 +1107,7 @@ class EPHNOGRAMReader(PCGDataBase):
         rec: Union[str, int],
         fs: Optional[int] = None,
         data_format: str = "channel_first",
+        data_type: str = "np",
         channels: Optional[Union[str, Sequence[str]]] = None,
     ) -> Dict[str, np.ndarray]:
         """
@@ -1098,6 +1133,8 @@ class EPHNOGRAMReader(PCGDataBase):
         if fs is not None and fs != data_fs:
             for k in data:
                 data[k] = librosa.resample(data[k], data_fs, fs, res_type="kaiser_best")
+        if data_type.lower() == "pt":
+            data = {k: torch.from_numpy(v).float() for k, v in data.items()}
         return data
 
     def load_pcg(
@@ -1105,9 +1142,10 @@ class EPHNOGRAMReader(PCGDataBase):
         rec: Union[str, int],
         fs: Optional[int] = None,
         data_format: str = "channel_first",
+        data_type: str = "np",
     ) -> np.ndarray:
         """ """
-        return self.load_data(rec, fs, data_format, "PCG")["PCG"]
+        return self.load_data(rec, fs, data_format, data_type, "PCG")["PCG"]
 
     def load_ann(self, rec: str) -> str:
         """
@@ -1123,3 +1161,106 @@ class EPHNOGRAMReader(PCGDataBase):
     def plot(self, rec: Union[str, int], **kwargs) -> NoReturn:
         """ """
         raise NotImplementedError
+
+
+class CompositeReader(ReprMixin):
+    """
+    Database reader that combines multiple readers,
+    for the purpose of pretraining.
+
+    """
+
+    __name__ = "CompositeReader"
+
+    def __init__(self, databases: Sequence[PCGDataBase], fs: int = 1000) -> NoReturn:
+        """ """
+        self.databases = databases
+        self.fs = fs
+
+        self._sep = "^" * (
+            max(
+                [
+                    len(item)
+                    for item in list_sum(
+                        [
+                            re.findall("[\\^]+", rec)
+                            for dr in databases
+                            for rec in dr.all_records
+                        ]
+                    )
+                    + ["^"]
+                ]
+            )
+            + 1
+        )
+        self._all_records = [
+            f"{dr.db_name}{self._sep}{rec}"
+            for dr in databases
+            for rec in dr.all_records
+        ]
+        self._db_name_map = {dr.db_name: dr for dr in self.databases}
+
+    @property
+    def all_records(self) -> List[str]:
+        """ """
+        return self._all_records
+
+    def __len__(self) -> int:
+        """
+        number of records in the database
+
+        """
+        return len(self.all_records)
+
+    def __getitem__(self, index: int) -> str:
+        """
+        get the record name by index
+
+        """
+        return self.all_records[index]
+
+    def load_data(
+        self,
+        rec: Union[str, int],
+        fs: Optional[int] = None,
+        data_format: str = "channel_first",
+        data_type: str = "np",
+    ) -> np.ndarray:
+        """
+
+        load data from the record `rec`
+
+        Parameters
+        ----------
+        rec : str or int,
+            the record name or the index of the record in `self.all_records`
+        fs : int, optional,
+            the sampling frequency of the record, defaults to `self.fs`
+        data_format : str, optional,
+            the format of the returned data, defaults to `channel_first`
+            can be `channel_last`, `channel_first`, `flat`,
+            case insensitive
+        data_type : str, default "np",
+            the type of the returned data, can be one of "pt", "np",
+            case insensitive
+
+        Returns
+        -------
+        data : np.ndarray,
+            the data of the record
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        fs = fs or self.fs
+        if fs == -1:
+            fs = None
+        db_name, rec = rec.split(self._sep)
+        dr = self._db_name_map[db_name]
+        data = dr.load_pcg(rec, fs=fs, data_format=data_format, data_type=data_type)
+        return data
+
+    load_pcg = load_data  # alias
+
+    def extra_repr_keys(self) -> List[str]:
+        return ["databases", "fs"]
