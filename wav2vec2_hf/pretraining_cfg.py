@@ -7,6 +7,8 @@ from typing import List, NoReturn
 from transformers.models.wav2vec2.configuration_wav2vec2 import Wav2Vec2Config
 from torch_ecg.cfg import CFG
 
+from cfg import BaseCfg
+
 
 __all__ = [
     "PreTrainCfg",
@@ -19,6 +21,15 @@ PreTrainCfg = CFG()
 # TODO: add args for PreTrainCfg
 
 
+_DefaultFeatureExtractorCfg = CFG(
+    feature_size=1,
+    sampling_rate=BaseCfg.fs,
+    padding_value=0.0,
+    return_attention_mask=False,
+    do_normalize=True,
+)
+
+
 _PreTrainModelCfg = CFG()
 
 _PreTrainModelCfg.model_name = None
@@ -28,6 +39,8 @@ def register_model(model_name: str, model_cfg: dict) -> NoReturn:
     """register a new model configuration"""
     if model_name in [k for k in _PreTrainModelCfg if k != "model_name"]:
         raise ValueError(f"Model {model_name} already exists, choose another name.")
+    if "feature_extractor" not in model_cfg:
+        model_cfg["feature_extractor"] = deepcopy(_DefaultFeatureExtractorCfg)
     _PreTrainModelCfg[model_name] = model_cfg
 
 
@@ -41,65 +54,68 @@ def list_models() -> List[str]:
 
 
 _wav2vec_base = CFG(
-    vocab_size=32,
-    hidden_size=768,
-    num_hidden_layers=12,
-    num_attention_heads=12,
-    intermediate_size=3072,
-    hidden_act="gelu",
-    hidden_dropout=0.1,
-    activation_dropout=0.1,
-    attention_dropout=0.1,
-    feat_proj_dropout=0.0,
-    feat_quantizer_dropout=0.0,
-    final_dropout=0.1,
-    layerdrop=0.1,
-    initializer_range=0.02,
-    layer_norm_eps=1e-5,
-    feat_extract_norm="group",
-    feat_extract_activation="gelu",
-    conv_dim=(512, 512, 512, 512, 512, 512, 512),
-    conv_stride=(5, 2, 2, 2, 2, 2, 2),
-    conv_kernel=(10, 3, 3, 3, 3, 2, 2),
-    conv_bias=False,
-    num_conv_pos_embeddings=128,
-    num_conv_pos_embedding_groups=16,
-    do_stable_layer_norm=False,
-    apply_spec_augment=True,
-    mask_time_prob=0.05,
-    mask_time_length=10,
-    mask_time_min_masks=2,
-    mask_feature_prob=0.0,
-    mask_feature_length=10,
-    mask_feature_min_masks=0,
-    num_codevectors_per_group=320,
-    num_codevector_groups=2,
-    contrastive_logits_temperature=0.1,
-    num_negatives=100,
-    codevector_dim=256,
-    proj_codevector_dim=256,
-    diversity_loss_weight=0.1,
-    ctc_loss_reduction="sum",
-    ctc_zero_infinity=False,
-    use_weighted_layer_sum=False,
-    classifier_proj_size=256,
-    tdnn_dim=(512, 512, 512, 512, 1500),
-    tdnn_kernel=(5, 3, 3, 1, 1),
-    tdnn_dilation=(1, 2, 3, 1, 1),
-    xvector_output_dim=512,
-    pad_token_id=0,
-    bos_token_id=1,
-    eos_token_id=2,
-    add_adapter=False,
-    adapter_kernel_size=3,
-    adapter_stride=2,
-    num_adapter_layers=3,
-    output_hidden_size=None,
+    model_config_args=CFG(
+        vocab_size=32,
+        hidden_size=768,
+        num_hidden_layers=12,
+        num_attention_heads=12,
+        intermediate_size=3072,
+        hidden_act="gelu",
+        hidden_dropout=0.1,
+        activation_dropout=0.1,
+        attention_dropout=0.1,
+        feat_proj_dropout=0.0,
+        feat_quantizer_dropout=0.0,
+        final_dropout=0.1,
+        layerdrop=0.1,
+        initializer_range=0.02,
+        layer_norm_eps=1e-5,
+        feat_extract_norm="group",
+        feat_extract_activation="gelu",
+        conv_dim=(512, 512, 512, 512, 512, 512, 512),
+        conv_stride=(5, 2, 2, 2, 2, 2, 2),
+        conv_kernel=(10, 3, 3, 3, 3, 2, 2),
+        conv_bias=False,
+        num_conv_pos_embeddings=128,
+        num_conv_pos_embedding_groups=16,
+        do_stable_layer_norm=False,
+        apply_spec_augment=True,
+        mask_time_prob=0.05,
+        mask_time_length=10,
+        mask_time_min_masks=2,
+        mask_feature_prob=0.0,
+        mask_feature_length=10,
+        mask_feature_min_masks=0,
+        num_codevectors_per_group=320,
+        num_codevector_groups=2,
+        contrastive_logits_temperature=0.1,
+        num_negatives=100,
+        codevector_dim=256,
+        proj_codevector_dim=256,
+        diversity_loss_weight=0.1,
+        ctc_loss_reduction="sum",
+        ctc_zero_infinity=False,
+        use_weighted_layer_sum=False,
+        classifier_proj_size=256,
+        tdnn_dim=(512, 512, 512, 512, 1500),
+        tdnn_kernel=(5, 3, 3, 1, 1),
+        tdnn_dilation=(1, 2, 3, 1, 1),
+        xvector_output_dim=512,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+        add_adapter=False,
+        adapter_kernel_size=3,
+        adapter_stride=2,
+        num_adapter_layers=3,
+        output_hidden_size=None,
+    ),
+    feature_extractor=deepcopy(_DefaultFeatureExtractorCfg),
 )
 
 _wav2vec_small = deepcopy(_wav2vec_base)
-_wav2vec_small.hidden_size = 3 * 2**7  # 384
-_wav2vec_small.intermediate_size = 3 * 2**9  # 1536
+_wav2vec_small.model_config_args.hidden_size = 3 * 2**7  # 384
+_wav2vec_small.model_config_args.intermediate_size = 3 * 2**9  # 1536
 
 register_model("base", _wav2vec_base)
 register_model("small", _wav2vec_small)

@@ -10,6 +10,9 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _compute_mask_indices,
     _sample_negative_indices,
 )
+from torch_ecg.cfg import CFG
+
+from .pretraining_cfg import PretrainingConfig, PreTrainModelCfg  # noqa: F401
 
 
 __all__ = [
@@ -101,3 +104,10 @@ class DataCollatorForWav2Vec2Pretraining:
         )
 
         return batch
+
+
+def get_pretraining_datacollator(
+    cfg: Optional[CFG] = None,
+) -> DataCollatorForWav2Vec2Pretraining:
+    """ """
+    pass
