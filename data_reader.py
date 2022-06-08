@@ -13,12 +13,21 @@ from typing import Union, Optional, Any, List, Dict, Tuple, Sequence, NoReturn
 import numpy as np
 import pandas as pd
 import wfdb
-import librosa
+try:
+    import librosa
+except Exception:
+    librosa = None
 import torch
-import torchaudio
+try:
+    import torchaudio
+except Exception:
+    torchaudio = None
 import scipy.signal as ss  # noqa: F401
 import scipy.io as sio
-import scipy.io.wavfile as sio_wav
+try:
+    import scipy.io.wavfile as sio_wav
+except Exception:
+    sio_wav = None
 import IPython
 
 try:
@@ -39,6 +48,14 @@ __all__ = [
     "CINC2016Reader",
     "EPHNOGRAMReader",
     "CompositeReader",
+]
+
+
+_BACKEND_PRIORITY = [
+    "torchaudio",
+    "librosa",
+    "scipy",
+    "wfdb",
 ]
 
 
@@ -82,6 +99,12 @@ class PCGDataBase(PhysioNetDataBase):
         self.fs = fs
         self.dtype = kwargs.get("dtype", np.float32)
         self.audio_backend = audio_backend.lower()
+        if self.audio_backend not in self.available_backends():
+            self.audio_backend = self.available_backends()[0]
+            warnings.warn(
+                f"audio backend {audio_backend.lower()} is not available, "
+                f"using {self.audio_backend} instead"
+            )
         if self.audio_backend == "torchaudio":
 
             def torchaudio_load(file: str, fs: int) -> Tuple[torch.Tensor, int]:
@@ -122,6 +145,19 @@ class PCGDataBase(PhysioNetDataBase):
         self.ann_ext = None
         self.header_ext = "hea"
         self._all_records = None
+
+    @staticmethod
+    def available_backends() -> List[str]:
+        """ """
+        ab = ["wfdb"]
+        if torchaudio is not None:
+            ab.append("torchaudio")
+        if librosa is not None:
+            ab.append("librosa")
+        if sio_wav is not None:
+            ab.append("scipy")
+        ab = sorted(ab, key = lambda x: _BACKEND_PRIORITY.index(x))
+        return ab
 
     def _auto_infer_units(self) -> NoReturn:
         """
