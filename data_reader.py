@@ -13,17 +13,20 @@ from typing import Union, Optional, Any, List, Dict, Tuple, Sequence, NoReturn
 import numpy as np
 import pandas as pd
 import wfdb
+
 try:
     import librosa
 except Exception:
     librosa = None
 import torch
+
 try:
     import torchaudio
 except Exception:
     torchaudio = None
 import scipy.signal as ss  # noqa: F401
 import scipy.io as sio
+
 try:
     import scipy.io.wavfile as sio_wav
 except Exception:
@@ -37,6 +40,7 @@ except ModuleNotFoundError:
 from torch_ecg.databases.base import PhysioNetDataBase
 from torch_ecg.utils.utils_signal import butter_bandpass_filter
 from torch_ecg.utils.misc import get_record_list_recursive3, ReprMixin, list_sum
+from torch_ecg.utils.download import http_get
 
 from cfg import BaseCfg
 from utils.schmidt_spike_removal import schmidt_spike_removal
@@ -156,7 +160,7 @@ class PCGDataBase(PhysioNetDataBase):
             ab.append("librosa")
         if sio_wav is not None:
             ab.append("scipy")
-        ab = sorted(ab, key = lambda x: _BACKEND_PRIORITY.index(x))
+        ab = sorted(ab, key=lambda x: _BACKEND_PRIORITY.index(x))
         return ab
 
     def _auto_infer_units(self) -> NoReturn:
@@ -1057,6 +1061,18 @@ class CINC2016Reader(PCGDataBase):
     def plot(self, rec: Union[str, int], **kwargs) -> NoReturn:
         """ """
         raise NotImplementedError
+
+    @property
+    def url(self) -> List[str]:
+        return [
+            f"https://physionet.org/files/challenge-2016/1.0.0/{subset}.zip?download"
+            for subset in ["training", "validation"]
+        ]
+
+    def download(self) -> NoReturn:
+        """ """
+        for url in self.url:
+            http_get(url, self.db_dir / Path(url.split("?")[0]).stem, extract=True)
 
 
 class EPHNOGRAMReader(PCGDataBase):
