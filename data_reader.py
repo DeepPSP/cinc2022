@@ -39,7 +39,12 @@ except ModuleNotFoundError:
     from tqdm import tqdm
 from torch_ecg.databases.base import PhysioNetDataBase
 from torch_ecg.utils.utils_signal import butter_bandpass_filter
-from torch_ecg.utils.misc import get_record_list_recursive3, ReprMixin, list_sum
+from torch_ecg.utils.misc import (
+    get_record_list_recursive,
+    get_record_list_recursive3,
+    ReprMixin,
+    list_sum,
+)
 from torch_ecg.utils.download import http_get
 
 from cfg import BaseCfg
@@ -264,7 +269,6 @@ class CINC2022Reader(PCGDataBase):
         **kwargs: Any,
     ) -> NoReturn:
         """
-
         Parameters
         ----------
         db_dir: str,
@@ -503,7 +507,6 @@ class CINC2022Reader(PCGDataBase):
 
     def _decompose_rec(self, rec: Union[str, int]) -> Dict[str, str]:
         """
-
         decompose a record name into its components (subject, location, and number)
 
         Parameters
@@ -554,7 +557,6 @@ class CINC2022Reader(PCGDataBase):
         data_type: str = "np",
     ) -> np.ndarray:
         """
-
         load data from the record `rec`
 
         Parameters
@@ -603,7 +605,6 @@ class CINC2022Reader(PCGDataBase):
         self, rec_or_sid: Union[str, int], class_map: Optional[Dict[str, int]] = None
     ) -> Union[str, int]:
         """
-
         load classification annotation of the record `rec` or the subject `sid`
 
         Parameters
@@ -726,7 +727,6 @@ class CINC2022Reader(PCGDataBase):
         keys: Optional[Union[Sequence[str], str]] = None,
     ) -> Union[dict, str, float, int]:
         """
-
         load meta data of the subject `subject`
 
         Parameters
@@ -757,7 +757,6 @@ class CINC2022Reader(PCGDataBase):
 
     def load_outcome(self, subject: str) -> str:
         """
-
         load the expert cardiologist's overall diagnosis of  of the subject `subject`
 
         Parameters
@@ -785,7 +784,6 @@ class CINC2022Reader(PCGDataBase):
         spike_removal: bool = True,
     ) -> np.ndarray:
         """
-
         load preprocessed data of the record `rec`,
         with preprocessing procedure:
             - resample to `fs` (if `fs` is not None)
@@ -957,19 +955,38 @@ class CINC2016Reader(PCGDataBase):
     def _ls_rec(self) -> NoReturn:
         """ """
         records_file = self.db_dir / "RECORDS"
+        write_file = False
+        self._df_records = pd.DataFrame()
         if records_file.exists():
-            self._all_records = records_file.read_text().splitlines()
+            self._df_records["record"] = records_file.read_text().splitlines()
+            self._df_records["path"] = self._df_records["record"].apply(
+                lambda x: self.db_dir / x
+            )
         else:
-            self._all_records = sorted(self.db_dir.rglob(f"*.{self.header_ext}"))
-            self._all_records = [
-                str(item)
-                .replace(str(self.db_dir), "")
-                .replace(f".{self.header_ext}", "")
-                .strip(self.db_dir.anchor)
-                for item in self._all_records
-            ]
-            records_file.write_text("\n".join(self._all_records))
-        self._all_records = [Path(item).name for item in self._all_records]
+            write_file = True
+        if len(self._df_records) == 0:
+            write_file = True
+            self._df_records["path"] = get_record_list_recursive(
+                self.db_dir, self.header_ext, relative=False
+            )
+            self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
+        self._df_records["subset"] = self._df_records["path"].apply(
+            lambda x: x.parent.name
+        )
+        self._df_records = self._df_records[
+            self._df_records["subset"].isin(self._subsets)
+        ]
+        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
+        self._df_records.set_index("record", inplace=True)
+        self._all_records = self._df_records.index.values.tolist()
+        if write_file:
+            records_file.write_text(
+                "\n".join(
+                    self._df_records["path"]
+                    .apply(lambda x: x.relative_to(self.db_dir).as_posix())
+                    .tolist()
+                )
+            )
 
     def get_absolute_path(
         self, rec: Union[str, int], extension: Optional[str] = None
@@ -977,8 +994,12 @@ class CINC2016Reader(PCGDataBase):
         """ """
         if isinstance(rec, int):
             rec = self[rec]
-        filename = f"{rec}.{extension}" if extension else rec
-        return self.db_dir / f"training-{rec[0]}" / filename
+        path = self._df_records.loc[rec, "path"]
+        if extension is not None:
+            path = path.with_suffix(
+                extension if extension.startswith(".") else f".{extension}"
+            )
+        return path
 
     def load_data(
         self,
