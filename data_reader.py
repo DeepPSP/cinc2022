@@ -1123,6 +1123,89 @@ class EPHNOGRAMReader(PCGDataBase):
         self.data_ext = "mat"
         self.aux_ext = "dat"
 
+        self._ls_rec()
+        self.data_dir = self.db_dir / "MAT"
+        self.aux_dir = self.db_dir / "WFDB"
+        self._channels = [
+            "ECG",
+            "PCG",
+            "PCG2",
+            "AUX1",
+            "AUX2",
+        ]
+
+        self._df_stats = pd.DataFrame()
+        self._aggregate_stats()
+
+    def _ls_rec(self) -> NoReturn:
+        """ """
+        self._df_records = pd.DataFrame()
+        try:
+            self._df_records["record"] = wfdb.get_record_list(self.db_name)
+            self._df_records["record"] = self._df_records["record"].apply(
+                lambda x: x.replace("WFDB", "MAT")
+            )
+            self._df_records["path"] = self._df_records["record"].apply(
+                lambda x: self.db_dir / x
+            )
+            self._df_records["record"] = self._df_records["path"].apply(
+                lambda x: x.stem
+            )
+            self._df_records["aux_path"] = self._df_records["path"].apply(
+                lambda x: x.parents[1] / "WFDB" / x.stem
+            )
+            self._df_records.set_index("record", inplace=True)
+            self._df_records = self._df_records[
+                self._df_records["path"].apply(lambda x: x.exists())
+            ]
+            self._all_records = self._df_records.index.values.tolist()
+        except Exception:
+            self._ls_rec_local()
+        if len(self._df_records) == 0:
+            self._ls_rec_local()
+
+    def _ls_rec_local(self) -> NoReturn:
+        """ """
+        self._df_records = pd.DataFrame()
+        records_file = self.db_dir / "RECORDS"
+        write_file = False
+        if records_file.exists():
+            self._df_records["record"] = records_file.read_text().splitlines()
+            self._df_records["record"] = self._df_records["record"].apply(
+                lambda x: x.replace("WFDB", "MAT")
+            )
+            self._df_records["path"] = self._df_records["record"].apply(
+                lambda x: self.db_dir / x
+            )
+        else:
+            write_file = True
+        if len(self._df_records) == 0:
+            write_file = True
+            self._df_records["path"] = get_record_list_recursive(
+                self.db_dir, self.data_ext, relative=False
+            )
+            self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
+        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
+        self._df_records["aux_path"] = self._df_records["path"].apply(
+            lambda x: x.parents[1] / "WFDB" / x.stem
+        )
+        self._df_records.set_index("record", inplace=True)
+        self._all_records = self._df_records.index.values.tolist()
+        if write_file:
+            records_file.write_text(
+                "\n".join(
+                    self._df_records["path"]
+                    .apply(lambda x: x.relative_to(self.db_dir).as_posix())
+                    .tolist()
+                )
+            )
+
+        records_file.write_text("\n".join(self._all_records))
+
+    def _aggregate_stats(self) -> NoReturn:
+        """ """
+        if len(self) == 0:
+            return
         self._df_stats = pd.read_csv(self.db_dir / "ECGPCGSpreadsheet.csv")
         self._df_stats = self._df_stats[
             [
@@ -1145,35 +1228,21 @@ class EPHNOGRAMReader(PCGDataBase):
             ~self._df_stats["Record Name"].isna()
         ].reset_index(drop=True)
 
-        self._ls_rec()
-        self.data_dir = self.db_dir / "MAT"
-        self.aux_dir = self.db_dir / "WFDB"
-        self._channels = [
-            "ECG",
-            "PCG",
-            "PCG2",
-            "AUX1",
-            "AUX2",
-        ]
-
-    def _ls_rec(self) -> NoReturn:
+    def get_absolute_path(
+        self, rec: Union[str, int], extension: Optional[str] = None
+    ) -> Path:
         """ """
-        try:
-            self._all_records = wfdb.get_record_list(self.db_name)
-        except Exception:
-            records_file = self.db_dir / "RECORDS"
-            if records_file.exists():
-                self._all_records = records_file.read_text().splitlines()
-            else:
-                self._all_records = sorted(self.db_dir.rglob(f"*.{self.header_ext}"))
-                self._all_records = [
-                    item.replace(str(self.db_dir), "")
-                    .replace(f".{self.header_ext}", "")
-                    .strip(self.db_dir.anchor)
-                    for item in self._all_records
-                ]
-                records_file.write_text("\n".join(self._all_records))
-        self._all_records = [Path(item).name for item in self._all_records]
+        if isinstance(rec, int):
+            rec = self[rec]
+        key = "path"
+        if extension is not None and extension.strip(".") == self.aux_ext:
+            key = "aux_path"
+        path = self._df_records.loc[rec, key]
+        if extension is not None:
+            path = path.with_suffix(
+                extension if extension.startswith(".") else f".{extension}"
+            )
+        return path
 
     def load_data(
         self,
@@ -1191,7 +1260,7 @@ class EPHNOGRAMReader(PCGDataBase):
         fs = fs or self.fs
         if fs == -1:
             fs = None
-        data = sio.loadmat(self.data_dir / f"{rec}.{self.data_ext}")
+        data = sio.loadmat(self.get_absolute_path(rec, self.data_ext))
         data_fs = data["fs"][0][0]
         channels = channels or self._channels
         if isinstance(channels, str):
@@ -1234,6 +1303,12 @@ class EPHNOGRAMReader(PCGDataBase):
     def plot(self, rec: Union[str, int], **kwargs) -> NoReturn:
         """ """
         raise NotImplementedError
+
+    @property
+    def df_stats(self) -> pd.DataFrame:
+        if self._df_stats.empty:
+            self._aggregate_stats()
+        return self._df_stats
 
 
 class CompositeReader(ReprMixin):
