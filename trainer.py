@@ -251,19 +251,21 @@ class CINC2022Trainer(BaseTrainer):
                 )
                 self.log_manager.log_message(msg)
 
-        (auroc, auprc, accuracy, f_measure, challenge_metric,) = compute_metrics(
+        metrics = compute_metrics(
             classes=classes,
             labels=all_labels,
             scalar_outputs=all_scalar_preds,
             binary_outputs=all_bin_preds,
         )
         eval_res = dict(
-            auroc=auroc,
-            auprc=auprc,
-            accuracy=accuracy,
-            f_measure=f_measure,
-            challenge_metric=challenge_metric,
-            neg_challenge_metric=-challenge_metric,
+            auroc=metrics["auroc"],
+            auprc=metrics["auprc"],
+            f_measure=metrics["f_measure"],
+            accuracy=metrics["accuracy"],
+            weighted_accuracy=metrics["weighted_accuracy"],
+            challenge_cost=metrics["challenge_cost"],
+            task_score=metrics["task_score"],
+            neg_challenge_metric=-metrics["task_score"],
         )
 
         # in case possible memeory leakage?

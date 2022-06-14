@@ -39,19 +39,19 @@ def evaluate_model(label_folder, output_folder):
     murmur_auroc, murmur_auprc, murmur_auroc_classes, murmur_auprc_classes = compute_auc(murmur_labels, murmur_scalar_outputs)
     murmur_f_measure, murmur_f_measure_classes = compute_f_measure(murmur_labels, murmur_binary_outputs)
     murmur_accuracy, murmur_accuracy_classes = compute_accuracy(murmur_labels, murmur_binary_outputs)
-    murmur_weighted_accuracy = compute_weighted_accuracy(murmur_labels, murmur_binary_outputs, murmur_classes)
-    murmur_challenge_metric = compute_challenge_metric(outcome_labels, murmur_binary_outputs, outcome_classes, murmur_classes)
+    murmur_weighted_accuracy = compute_weighted_accuracy(murmur_labels, murmur_binary_outputs, murmur_classes) # This is the murmur scoring metric.
+    murmur_cost = compute_cost(outcome_labels, murmur_binary_outputs, outcome_classes, murmur_classes) # Use *outcomes* to score *murmurs* for the Challenge cost metric, but this is not the actual murmur scoring metric.
     murmur_scores = (murmur_classes, murmur_auroc, murmur_auprc, murmur_auroc_classes, murmur_auprc_classes, \
-        murmur_f_measure, murmur_f_measure_classes, murmur_accuracy, murmur_accuracy_classes, murmur_weighted_accuracy, murmur_challenge_metric)
+        murmur_f_measure, murmur_f_measure_classes, murmur_accuracy, murmur_accuracy_classes, murmur_weighted_accuracy, murmur_cost)
 
     # Evaluate the outcome model by comparing the labels and model outputs.
     outcome_auroc, outcome_auprc, outcome_auroc_classes, outcome_auprc_classes = compute_auc(outcome_labels, outcome_scalar_outputs)
     outcome_f_measure, outcome_f_measure_classes = compute_f_measure(outcome_labels, outcome_binary_outputs)
     outcome_accuracy, outcome_accuracy_classes = compute_accuracy(outcome_labels, outcome_binary_outputs)
     outcome_weighted_accuracy = compute_weighted_accuracy(outcome_labels, outcome_binary_outputs, outcome_classes)
-    outcome_challenge_metric = compute_challenge_metric(outcome_labels, outcome_binary_outputs, outcome_classes, outcome_classes)
+    outcome_cost = compute_cost(outcome_labels, outcome_binary_outputs, outcome_classes, outcome_classes) # This is the clinical outcomes scoring metric.
     outcome_scores = (outcome_classes, outcome_auroc, outcome_auprc, outcome_auroc_classes, outcome_auprc_classes, \
-        outcome_f_measure, outcome_f_measure_classes, outcome_accuracy, outcome_accuracy_classes, outcome_weighted_accuracy, outcome_challenge_metric)
+        outcome_f_measure, outcome_f_measure_classes, outcome_accuracy, outcome_accuracy_classes, outcome_weighted_accuracy, outcome_cost)
 
     # Return the results.
     return murmur_scores, outcome_scores
@@ -363,8 +363,8 @@ def cost_treatment(m):
 def cost_error(m):
     return 50000*m
 
-# Compute Challenge metric.
-def compute_challenge_metric(labels, outputs, label_classes, output_classes):
+# Compute Challenge cost metric.
+def compute_cost(labels, outputs, label_classes, output_classes):
     # Define positive and negative classes for referral and treatment.
     positive_classes = ['Present', 'Unknown', 'Abnormal']
     negative_classes = ['Absent', 'Normal']
@@ -402,8 +402,8 @@ def compute_challenge_metric(labels, outputs, label_classes, output_classes):
 if __name__ == '__main__':
     murmur_scores, outcome_scores = evaluate_model(sys.argv[1], sys.argv[2])
 
-    classes, auroc, auprc, auroc_classes, auprc_classes, f_measure, f_measure_classes, accuracy, accuracy_classes, weighted_accuracy, challenge_metric = murmur_scores
-    murmur_output_string = 'AUROC,AUPRC,F-measure,Accuracy,Weighted Accuracy,Challenge Metric\n{:.3f},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}\n'.format(auroc, auprc, f_measure, accuracy, weighted_accuracy, challenge_metric)
+    classes, auroc, auprc, auroc_classes, auprc_classes, f_measure, f_measure_classes, accuracy, accuracy_classes, weighted_accuracy, cost = murmur_scores
+    murmur_output_string = 'AUROC,AUPRC,F-measure,Accuracy,Weighted Accuracy,Cost\n{:.3f},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}\n'.format(auroc, auprc, f_measure, accuracy, weighted_accuracy, cost)
     murmur_class_output_string = 'Classes,{}\nAUROC,{}\nAUPRC,{}\nF-measure,{}\nAccuracy,{}\n'.format(
         ','.join(classes),
         ','.join('{:.3f}'.format(x) for x in auroc_classes),
@@ -411,8 +411,8 @@ if __name__ == '__main__':
         ','.join('{:.3f}'.format(x) for x in f_measure_classes),
         ','.join('{:.3f}'.format(x) for x in accuracy_classes))
 
-    classes, auroc, auprc, auroc_classes, auprc_classes, f_measure, f_measure_classes, accuracy, accuracy_classes, weighted_accuracy, challenge_metric = outcome_scores
-    outcome_output_string = 'AUROC,AUPRC,F-measure,Accuracy,Weighted Accuracy,Challenge Metric\n{:.3f},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}\n'.format(auroc, auprc, f_measure, accuracy, weighted_accuracy, challenge_metric)
+    classes, auroc, auprc, auroc_classes, auprc_classes, f_measure, f_measure_classes, accuracy, accuracy_classes, weighted_accuracy, cost = outcome_scores
+    outcome_output_string = 'AUROC,AUPRC,F-measure,Accuracy,Weighted Accuracy,Cost\n{:.3f},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}\n'.format(auroc, auprc, f_measure, accuracy, weighted_accuracy, cost)
     outcome_class_output_string = 'Classes,{}\nAUROC,{}\nAUPRC,{}\nF-measure,{}\nAccuracy,{}\n'.format(
         ','.join(classes),
         ','.join('{:.3f}'.format(x) for x in auroc_classes),

@@ -2,7 +2,7 @@
 metrics from the official scoring repository
 """
 
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, Dict, List, Union
 
 import numpy as np
 from torch_ecg.components.outputs import ClassificationOutput  # noqa: F401
@@ -26,7 +26,7 @@ def compute_metrics(
     scalar_outputs: np.ndarray,
     binary_outputs: np.ndarray,
     classes: Sequence[str] = BaseCfg.classes,
-) -> Tuple[float, float, float, float, float]:
+) -> Dict[str, float]:
     """
     Compute detailed metrics, modified from the function `evaluate_model`
     in `evaluate_model.py` in the official scoring repository.
@@ -44,29 +44,47 @@ def compute_metrics(
 
     Returns
     -------
-    auroc: float,
-        the macro-averaged area under the receiver operating characteristic curve
-    auprc: float,
-        the macro-averaged area under the precision-recall curve
-    accuracy: float,
-        the accuracy
-    f_measure: float,
-        the macro-averaged F-measure
-    challenge_score: float,
-        the challenge score
+    dict, a dict of the following metrics:
+        auroc: float,
+            the macro-averaged area under the receiver operating characteristic curve
+        auprc: float,
+            the macro-averaged area under the precision-recall curve
+        f_measure: float,
+            the macro-averaged F-measure
+        accuracy: float,
+            the accuracy
+        weighted_accuracy: float,
+            the weighted accuracy
+        challenge_cost: float,
+            the challenge cost
+        task_score: float,
+            the task score, which equals
+            `weighted_accuracy` if `classes` equals `BaseCfg.classes`;
+            `challenge_cost` if `classes` equals `BaseCfg.outcomes`
 
     """
-    (
-        auroc,
-        auprc,
-        _,
-        _,
-        accuracy,
-        f_measure,
-        _,
-        challenge_score,
-    ) = compute_metrics_detailed(labels, scalar_outputs, binary_outputs, classes)
-    return auroc, auprc, accuracy, f_measure, challenge_score
+    detailed_metrics = compute_metrics_detailed(
+        labels, scalar_outputs, binary_outputs, classes
+    )
+    metrics = {
+        k: v
+        for k, v in detailed_metrics.items()
+        if k
+        in [
+            "auroc",
+            "auprc",
+            "f_measure",
+            "accuracy",
+            "weighted_accuracy",
+            "challenge_cost",
+        ]
+    }
+    metrics["task_score"] = (
+        metrics["weighted_accuracy"]
+        if list(classes) == BaseCfg.classes
+        else metrics["challenge_cost"]
+    )
+    return metrics
 
 
 def compute_metrics_detailed(
@@ -74,7 +92,7 @@ def compute_metrics_detailed(
     scalar_outputs: np.ndarray,
     binary_outputs: np.ndarray,
     classes: Sequence[str] = BaseCfg.classes,
-) -> Tuple[float, float, np.ndarray, np.ndarray, float, float, np.ndarray, float]:
+) -> Dict[str, Union[float, np.ndarray]]:
     """
     Compute detailed metrics, modified from the function `evaluate_model`
     in `evaluate_model.py` in the official scoring repository.
@@ -88,47 +106,62 @@ def compute_metrics_detailed(
     binary_outputs: np.ndarray,
         binary outputs, of shape: (n_samples, n_classes)
     classes: sequence of str, default `BaseCfg.classes`,
-        class names
+        class names, can be one of `BaseCfg.classes` or `BaseCfg.outcomes`
 
     Returns
     -------
-    auroc: float,
-        the macro-averaged area under the receiver operating characteristic curve
-    auprc: float,
-        the macro-averaged area under the precision-recall curve
-    auroc_classes: np.ndarray,
-        the area under the receiver operating characteristic curve for each class
-    auprc_classes: np.ndarray,
-        the area under the precision-recall curve for each class
-    accuracy: float,
-        the accuracy
-    f_measure: float,
-        the macro-averaged F-measure
-    f_measure_classes: np.ndarray,
-        the F-measure for each class
-    challenge_score: float,
-        the challenge score
+    dict, a dict of the following metrics:
+        auroc: float,
+            the macro-averaged area under the receiver operating characteristic curve
+        auprc: float,
+            the macro-averaged area under the precision-recall curve
+        auroc_classes: np.ndarray,
+            the area under the receiver operating characteristic curve for each class
+        auprc_classes: np.ndarray,
+            the area under the precision-recall curve for each class
+        f_measure: float,
+            the macro-averaged F-measure
+        f_measure_classes: np.ndarray,
+            the F-measure for each class
+        accuracy: float,
+            the accuracy
+        accuracy_classes: np.ndarray,
+            the accuracy for each class
+        weighted_accuracy: float,
+            the weighted accuracy
+        challenge_cost: float,
+            the challenge cost
 
     """
     # For each patient, set the 'Unknown' class to positive if no class is positive or if multiple classes are positive.
-    labels = enforce_positives(labels, classes, "Unknown")
-    binary_outputs = enforce_positives(binary_outputs, classes, "Unknown")
+    if list(classes) == BaseCfg.classes:
+        positive_class = "Present"
+    elif list(classes) == BaseCfg.outcomes:
+        positive_class = "Unknown"
+    else:
+        raise ValueError(f"Illegal sequence of classes: {classes}")
+    labels = enforce_positives(labels, classes, positive_class)
+    binary_outputs = enforce_positives(binary_outputs, classes, positive_class)
 
     # Evaluate the model by comparing the labels and outputs.
     auroc, auprc, auroc_classes, auprc_classes = compute_auc(labels, scalar_outputs)
-    accuracy = compute_accuracy(labels, binary_outputs)
     f_measure, f_measure_classes = compute_f_measure(labels, binary_outputs)
-    challenge_score = compute_challenge_score(labels, binary_outputs, classes)
+    accuracy, accuracy_classes = compute_accuracy(labels, binary_outputs)
+    weighted_accuracy = compute_weighted_accuracy(labels, binary_outputs, list(classes))
+    # challenge_score = compute_challenge_score(labels, binary_outputs, classes)
+    challenge_cost = compute_cost(labels, binary_outputs, BaseCfg.outcomes, classes)
 
-    return (
-        auroc,
-        auprc,
-        auroc_classes,
-        auprc_classes,
-        accuracy,
-        f_measure,
-        f_measure_classes,
-        challenge_score,
+    return dict(
+        auroc=auroc,
+        auprc=auprc,
+        auroc_classes=auroc_classes,
+        auprc_classes=auprc_classes,
+        f_measure=f_measure,
+        f_measure_classes=f_measure_classes,
+        accuracy=accuracy,
+        accuracy_classes=accuracy_classes,
+        weighted_accuracy=weighted_accuracy,
+        challenge_cost=challenge_cost,
     )
 
 
@@ -186,17 +219,20 @@ def compute_confusion_matrix(labels: np.ndarray, outputs: np.ndarray) -> np.ndar
         confusion matrix, of shape: (n_classes, n_classes)
 
     """
-    assert np.shape(labels) == np.shape(outputs)
-    assert all(value in (0, 1) for value in np.unique(labels))
-    assert all(value in (0, 1) for value in np.unique(outputs))
+    assert np.shape(labels)[0] == np.shape(outputs)[0]
+    assert all(value in (0, 1, True, False) for value in np.unique(labels))
+    assert all(value in (0, 1, True, False) for value in np.unique(outputs))
 
-    num_patients, num_classes = np.shape(labels)
+    num_patients = np.shape(labels)[0]
+    num_label_classes = np.shape(labels)[1]
+    num_output_classes = np.shape(outputs)[1]
 
-    A = np.zeros((num_classes, num_classes))
+    A = np.zeros((num_output_classes, num_label_classes))
     for k in range(num_patients):
-        i = np.argmax(outputs[k, :])
-        j = np.argmax(labels[k, :])
-        A[i, j] += 1
+        for i in range(num_output_classes):
+            for j in range(num_label_classes):
+                if outputs[k, i] == 1 and labels[k, j] == 1:
+                    A[i, j] += 1
 
     return A
 
@@ -221,8 +257,8 @@ def compute_one_vs_rest_confusion_matrix(
 
     """
     assert np.shape(labels) == np.shape(outputs)
-    assert all(value in (0, 1) for value in np.unique(labels))
-    assert all(value in (0, 1) for value in np.unique(outputs))
+    assert all(value in (0, 1, True, False) for value in np.unique(labels))
+    assert all(value in (0, 1, True, False) for value in np.unique(outputs))
 
     num_patients, num_classes = np.shape(labels)
 
@@ -352,7 +388,9 @@ def compute_auc(
     return macro_auroc, macro_auprc, auroc, auprc
 
 
-def compute_accuracy(labels: np.ndarray, outputs: np.ndarray) -> float:
+def compute_accuracy(
+    labels: np.ndarray, outputs: np.ndarray
+) -> Tuple[float, np.ndarray]:
     """
     Compute accuracy.
 
@@ -367,15 +405,28 @@ def compute_accuracy(labels: np.ndarray, outputs: np.ndarray) -> float:
     -------
     accuracy: float,
         the accuracy
+    accuracy_classes: np.ndarray,
+        the accuracy for each class, of shape: (n_classes,)
     """
+    assert np.shape(labels) == np.shape(outputs)
+    num_patients, num_classes = np.shape(labels)
     A = compute_confusion_matrix(labels, outputs)
 
+    # Compute accuracy.
     if np.sum(A) > 0:
-        accuracy = np.sum(np.diag(A)) / np.sum(A)
+        accuracy = np.trace(A) / np.sum(A)
     else:
         accuracy = float("nan")
 
-    return accuracy
+    # Compute per-class accuracy.
+    accuracy_classes = np.zeros(num_classes)
+    for i in range(num_classes):
+        if np.sum(A[:, i]) > 0:
+            accuracy_classes[i] = A[i, i] / np.sum(A[:, i])
+        else:
+            accuracy_classes[i] = float("nan")
+
+    return accuracy, accuracy_classes
 
 
 def compute_f_measure(
@@ -397,6 +448,7 @@ def compute_f_measure(
         macro F-measure
     f_measure: np.ndarray,
         F-measures for each class, of shape: (n_classes,)
+
     """
     num_patients, num_classes = np.shape(labels)
 
@@ -416,6 +468,150 @@ def compute_f_measure(
         macro_f_measure = float("nan")
 
     return macro_f_measure, f_measure
+
+
+def compute_weighted_accuracy(
+    labels: np.ndarray, outputs: np.ndarray, classes: List[str]
+) -> float:
+    """
+    compute weighted accuracy
+
+    Parameters
+    ----------
+    labels: np.ndarray,
+        binary labels, of shape: (n_samples, n_classes)
+    outputs: np.ndarray,
+        binary outputs, of shape: (n_samples, n_classes)
+    classes: List[str],
+        list of class names, can be one of the following:
+        ['Present', 'Unknown', 'Absent'],
+        ['Abnormal', 'Normal'],
+        cases and ordering must match
+
+    Returns
+    -------
+    weighted_accuracy: float,
+        weighted accuracy
+
+    """
+    # Define constants.
+    if classes == ["Present", "Unknown", "Absent"]:
+        weights = np.array([[5, 3, 1], [5, 3, 1], [5, 3, 1]])
+    elif classes == ["Abnormal", "Normal"]:
+        weights = np.array([[5, 1], [5, 1]])
+    else:
+        raise NotImplementedError(
+            "Weighted accuracy undefined for classes {}".format(", ".join(classes))
+        )
+
+    # Compute confusion matrix.
+    assert np.shape(labels) == np.shape(outputs)
+    A = compute_confusion_matrix(labels, outputs)
+
+    # Multiply the confusion matrix by the weight matrix.
+    assert np.shape(A) == np.shape(weights)
+    B = weights * A
+
+    # Compute weighted_accuracy.
+    if np.sum(B) > 0:
+        weighted_accuracy = np.trace(B) / np.sum(B)
+    else:
+        weighted_accuracy = float("nan")
+
+    return weighted_accuracy
+
+
+def cost_algorithm(m: int) -> int:
+    return 10 * m
+
+
+# Define total cost for expert screening of m patients out of a total of n total patients.
+def cost_expert(m: int, n: int) -> float:
+    return (25 + 397 * (m / n) - 1718 * (m / n) ** 2 + 11296 * (m / n) ** 4) * n
+
+
+# Define total cost for treatment of m patients.
+def cost_treatment(m: int) -> int:
+    return 10000 * m
+
+
+# Define total cost for missed/late treatement of m patients.
+def cost_error(m: int) -> int:
+    return 50000 * m
+
+
+def compute_cost(
+    labels: np.ndarray,
+    outputs: np.ndarray,
+    label_classes: Sequence[str],
+    output_classes: Sequence[str],
+) -> float:
+    """
+    Compute Challenge cost metric.
+
+    Parameters
+    ----------
+    labels: np.ndarray,
+        binary labels, of shape: (n_samples, n_classes)
+    outputs: np.ndarray,
+        binary outputs, of shape: (n_samples, n_classes)
+    label_classes: Sequence[str],
+        list of label class names, can one of the following:
+        ['Present', 'Unknown', 'Absent'],
+        ['Abnormal', 'Normal'],
+        cases and ordering must match
+        case sensitive
+    output_classes: Sequence[str],
+        list of predicted class names, can one of the following:
+        ['Present', 'Unknown', 'Absent'],
+        ['Abnormal', 'Normal'],
+        cases and ordering must match
+        case sensitive
+
+    """
+    # Define positive and negative classes for referral and treatment.
+    positive_classes = ["Present", "Unknown", "Abnormal"]
+    negative_classes = ["Absent", "Normal"]
+
+    # Compute confusion matrix.
+    A = compute_confusion_matrix(labels, outputs)
+
+    # Identify positive and negative classes for referral.
+    idx_label_positive = [
+        i for i, x in enumerate(label_classes) if x in positive_classes
+    ]
+    idx_label_negative = [
+        i for i, x in enumerate(label_classes) if x in negative_classes
+    ]
+    idx_output_positive = [
+        i for i, x in enumerate(output_classes) if x in positive_classes
+    ]
+    idx_output_negative = [
+        i for i, x in enumerate(output_classes) if x in negative_classes
+    ]
+
+    # Identify true positives, false positives, false negatives, and true negatives.
+    tp = np.sum(A[np.ix_(idx_output_positive, idx_label_positive)])
+    fp = np.sum(A[np.ix_(idx_output_positive, idx_label_negative)])
+    fn = np.sum(A[np.ix_(idx_output_negative, idx_label_positive)])
+    tn = np.sum(A[np.ix_(idx_output_negative, idx_label_negative)])
+    total_patients = tp + fp + fn + tn
+
+    # Compute total cost for all patients.
+    total_cost = (
+        cost_algorithm(total_patients)
+        + cost_expert(tp + fp, total_patients)
+        + cost_treatment(tp)
+        + cost_error(fn)
+    )
+
+    # Compute mean cost per patient.
+    if total_patients > 0:
+        mean_cost = total_cost / total_patients
+    else:
+        mean_cost = float("nan")
+
+    return mean_cost
 
 
 def compute_challenge_score(
