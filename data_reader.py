@@ -255,7 +255,8 @@ _CINC2022_INFO = DataBaseInfo(
     2. segmentation annotations (.tsv format) regarding the location of fundamental heart sounds (S1 and S2) in the recordings have been obtained using a semi-supervised scheme
     """,
     usage=[
-        "Heart murmur detection", "Heart sound segmentation",
+        "Heart murmur detection",
+        "Heart sound segmentation",
     ],
     note="""
     1. the "Murmur" column (records whether heart murmur can be heard or not) and the "Outcome" column (the expert cardiologist's overall diagnosis using **clinical history, physical examination, analog auscultation, echocardiogram, etc.**) are **NOT RELATED**. All of the 6 combinations (["Present", "Absent", "Unknown"] × ["Abnormal", "Normal"]) occur in the dataset.
@@ -854,7 +855,6 @@ class CINC2022Reader(PCGDataBase):
 
     def get_fs(self, rec: Union[str, int]) -> int:
         """
-
         get the original sampling frequency of the record `rec`
 
         Parameters
@@ -872,7 +872,6 @@ class CINC2022Reader(PCGDataBase):
 
     def get_subject(self, rec: Union[str, int]) -> str:
         """
-
         get the subject id (Patient ID) of the record `rec`
 
         Parameters
@@ -910,7 +909,6 @@ class CINC2022Reader(PCGDataBase):
 
     def play(self, rec: Union[str, int], **kwargs) -> IPython.display.Audio:
         """
-
         play the record `rec` in a Juptyer Notebook
 
         Parameters
@@ -1149,7 +1147,8 @@ _EPHNOGRAM_INFO = DataBaseInfo(  # NOT finished yet
     to write
     """,
     usage=[
-        "PCG model pretraining", "ECG model pretraining",
+        "PCG model pretraining",
+        "ECG model pretraining",
     ],
     references=[
         "https://physionet.org/content/ephnogram/1.0.0/",
@@ -1377,6 +1376,9 @@ class EPHNOGRAMReader(PCGDataBase):
         return self._df_stats
 
 
+add_docstring(_HeartMurmurInfo, mode="append")
+
+
 class CompositeReader(ReprMixin):
     """
     Database reader that combines multiple readers,
@@ -1422,14 +1424,12 @@ class CompositeReader(ReprMixin):
     def __len__(self) -> int:
         """
         number of records in the database
-
         """
         return len(self.all_records)
 
     def __getitem__(self, index: int) -> str:
         """
         get the record name by index
-
         """
         return self.all_records[index]
 
@@ -1441,7 +1441,6 @@ class CompositeReader(ReprMixin):
         data_type: str = "np",
     ) -> np.ndarray:
         """
-
         load data from the record `rec`
 
         Parameters
