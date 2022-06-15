@@ -47,8 +47,8 @@ BaseCfg.outcomes = [
 ]
 BaseCfg.classes = [
     "Present",
-    "Absent",
     "Unknown",
+    "Absent",
 ]
 BaseCfg.states = [
     "unannotated",
