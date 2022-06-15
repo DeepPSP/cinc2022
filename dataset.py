@@ -141,7 +141,8 @@ class CinC2022Dataset(Dataset, ReprMixin):
                 if len(labels) == 2:
                     self._masks.append(labels[1])
                 else:
-                    raise ValueError("incorrect number of types of labels")
+                    # raise ValueError("incorrect number of types of labels")
+                    assert self.task in ["classification", "segmentation"]
 
         self._signals = np.concatenate(self._signals, axis=0)
         if self.config[self.task].loss != "CrossEntropyLoss":
@@ -150,6 +151,8 @@ class CinC2022Dataset(Dataset, ReprMixin):
             self._labels = np.array(sum(self._labels)).astype(int)
         if len(self._masks) > 0:
             self._masks = np.concatenate(self._masks, axis=0)
+        else:
+            self._masks = np.array(self._masks, dtype=self.dtype)
 
     def _load_all_data(self) -> NoReturn:
         """ """
@@ -216,6 +219,10 @@ class CinC2022Dataset(Dataset, ReprMixin):
     @property
     def labels(self) -> np.ndarray:
         return self._labels
+
+    @property
+    def masks(self) -> np.ndarray:
+        return self._masks
 
 
 class FastDataReader(ReprMixin, Dataset):
