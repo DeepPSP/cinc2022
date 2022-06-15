@@ -4,6 +4,7 @@
 import pathlib
 from copy import deepcopy
 
+import numpy as np
 import torch
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
@@ -36,6 +37,7 @@ BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 1000
 BaseCfg.torch_dtype = torch.float32  # "double"
+BaseCfg.np_dtype = np.float32
 BaseCfg.ignore_index = -100
 BaseCfg.ignore_unannotated = True
 

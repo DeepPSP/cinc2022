@@ -17,7 +17,6 @@ def schmidt_spike_removal(
     eps: float = 1e-4,
 ) -> np.ndarray:
     """
-
     spike removal using Schmidt algorithm
 
     Parameters

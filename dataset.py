@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 
-class CinC2022Dataset(ReprMixin, Dataset):
+class CinC2022Dataset(Dataset, ReprMixin):
     """ """
 
     __name__ = "CinC2022Dataset"
@@ -172,15 +172,15 @@ class CinC2022Dataset(ReprMixin, Dataset):
 
         if not force_recompute and train_file.exists() and test_file.exists():
             if self.training:
-                return json.load(open(train_file, "r"))
+                return json.loads(train_file.read_text())
             else:
-                return json.load(open(test_file, "r"))
+                return json.loads(test_file.read_text())
 
         if not force_recompute and aux_train_file.exists() and aux_test_file.exists():
             if self.training:
-                return json.load(open(aux_train_file, "r"))
+                return json.loads(aux_train_file.read_text())
             else:
-                return json.load(open(aux_test_file, "r"))
+                return json.loads(aux_test_file.read_text())
 
         df_train, df_test = stratified_train_test_split(
             self.reader.df_stats,
@@ -196,10 +196,10 @@ class CinC2022Dataset(ReprMixin, Dataset):
         train_set = df_train["Patient ID"].tolist()
         test_set = df_test["Patient ID"].tolist()
 
-        json.dump(train_set, open(train_file, "w"))
-        json.dump(test_set, open(test_file, "w"))
-        json.dump(train_set, open(aux_train_file, "w"))
-        json.dump(test_set, open(aux_test_file, "w"))
+        train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+        aux_train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+        test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+        aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
         shuffle(train_set)
         shuffle(test_set)
@@ -262,28 +262,33 @@ class FastDataReader(ReprMixin, Dataset):
         if values.ndim == 2:
             values = values[np.newaxis, ...]
 
-        labels = self.reader.load_ann(rec)
-        masks = self.reader.load_segmentation(rec, seg_format="binary")
-        masks = ensure_siglen(
-            masks,
-            siglen=self.config[self.task].input_len,
-            fmt=self.config[self.task].data_format,
-            tolerance=self.config[self.task].sig_slice_tol,
-        ).astype(self.dtype)
-        if self.config[self.task].loss != "CrossEntropyLoss":
-            labels = (
-                np.isin(self.config[self.task].classes, labels)
-                .astype(self.dtype)[np.newaxis, ...]
-                .repeat(values.shape[0], axis=0)
-            )
-        else:
-            labels = np.array(
-                [
-                    self.config[self.task].class_map[labels]
-                    for _ in range(values.shape[0])
-                ],
-                dtype=int,
-            )
+        if self.task in ["classification", "multi_task"]:
+            labels = self.reader.load_ann(rec)
+            if self.config[self.task].loss != "CrossEntropyLoss":
+                labels = (
+                    np.isin(self.config[self.task].classes, labels)
+                    .astype(self.dtype)[np.newaxis, ...]
+                    .repeat(values.shape[0], axis=0)
+                )
+            else:
+                labels = np.array(
+                    [
+                        self.config[self.task].class_map[labels]
+                        for _ in range(values.shape[0])
+                    ],
+                    dtype=int,
+                )
+
+        if self.task in ["segmentation", "multi_task"]:
+            masks = self.reader.load_segmentation(rec, seg_format="binary")
+            masks = ensure_siglen(
+                masks,
+                siglen=self.config[self.task].input_len,
+                fmt="channel_last",
+                tolerance=self.config[self.task].sig_slice_tol,
+            ).astype(self.dtype)
+            if self.task == "segmentation":
+                labels = masks
 
         if self.task == "multi_task":
             return values, labels, masks

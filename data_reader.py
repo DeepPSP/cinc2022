@@ -168,7 +168,7 @@ class PCGDataBase(PhysioNetDataBase):
         """
         super().__init__(db_name, db_dir, working_dir, verbose, **kwargs)
         self.fs = fs
-        self.dtype = kwargs.get("dtype", np.float32)
+        self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
         self.audio_backend = audio_backend.lower()
         if self.audio_backend not in self.available_backends():
             self.audio_backend = self.available_backends()[0]
