@@ -303,12 +303,16 @@ class CINC2022Trainer(BaseTrainer):
     def _setup_optimizer(self) -> NoReturn:
         """ """
         # TODO: adjust for multi-task
-        raise NotImplementedError
+        if self.train_config.task == "multi_task":
+            raise NotImplementedError
+        super()._setup_optimizer()
 
     def _setup_criterion(self) -> NoReturn:
         """ """
         # TODO: adjust for multi-task
-        raise NotImplementedError
+        if self.train_config.task == "multi_task":
+            raise NotImplementedError
+        super()._setup_criterion()
 
     @property
     def batch_dim(self) -> int:
