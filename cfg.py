@@ -341,6 +341,7 @@ if ModelCfg.classification.outcomes is not None:
     )
 else:
     ModelCfg.classification.outcome_head = None
+ModelCfg.classification.states = None
 
 
 # multi-task model segmentation head

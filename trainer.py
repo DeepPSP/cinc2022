@@ -166,9 +166,7 @@ class CINC2022Trainer(BaseTrainer):
             collate_fn=collate_fn,
         )
 
-    def run_one_step(
-        self, *data: Tuple[torch.Tensor, torch.Tensor]
-    ) -> Tuple[torch.Tensor, ...]:
+    def run_one_step(self, *data: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
         """
 
         Parameters
@@ -192,9 +190,12 @@ class CINC2022Trainer(BaseTrainer):
         signals = signals.to(device=self.device, dtype=self.dtype)
         labels = (lb.to(device=self.device, dtype=self.dtype) for lb in labels)
         # print(f"signals: {signals.shape}")
-        # print(f"labels: {labels.shape}")
+        # print(f"labels: {list(lb.shape for lb in labels)}")
         preds = self.model(signals)
-        return (preds, *labels)
+        if isinstance(preds, torch.Tensor):
+            return (preds, *labels)
+        else:
+            return (*preds, *labels)
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:

@@ -141,7 +141,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         super().__init__(cnn, encoder, aux)
 
-        if _config.get("outcomes", None) is not None:
+        if _config.get("outcome_head", None) is not None:
             self.outcome_head = torch.nn.Sequential(
                 Rearrange("batch seqlen chan -> batch chan seqlen"),
                 pool,
@@ -394,14 +394,14 @@ class CRNN_CINC2022(ECG_CRNN):
         ````
 
         """
-        _config = CFG(deepcopy(ModelCfg.multi_task))
+        _config = CFG(deepcopy(ModelCfg.classification))
         _config.update(deepcopy(config) or {})
         super().__init__(
             _config.classes,
             _config.num_channels,
             _config[_config.model_name],
         )
-        if _config.get("outcomes", None) is not None:
+        if _config.get("outcome_head", None) is not None:
             self.outcome_head = MLP(
                 in_channels=self.clf.in_channels,
                 skip_last_activation=True,
