@@ -1,8 +1,19 @@
 """
 """
 
+import json
+import warnings
+from copy import deepcopy
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from random import shuffle
+from typing import Dict, List, Tuple, Sequence, Optional, Union, NoReturn
+
+import numpy as np
+
+# try:
+#     from tqdm.auto import tqdm
+# except ModuleNotFoundError:
+#     from tqdm import tqdm
 
 import torch
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Config
@@ -12,8 +23,12 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _sample_negative_indices,
 )
 from torch_ecg.cfg import CFG
+from torch_ecg.utils.misc import ReprMixin
+from torch_ecg.utils.utils_data import ensure_siglen, stratified_train_test_split
+from torch_ecg._preprocessors import PreprocManager
 
 from .pretraining_cfg import PreTrainModelCfg
+from data_reader import CINC2022Reader, CINC2016Reader, EPHNOGRAMReader, CompositeReader
 
 
 __all__ = [
@@ -203,3 +218,246 @@ def get_pretraining_datacollator(
         cfg.get_Wav2Vec2FeatureExtractor(),
         **extra_options,
     )
+
+
+class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
+    """ """
+
+    __name__ = "Wav2Vec2PretrainingDataset"
+
+    def __init__(
+        self,
+        config: CFG,
+        feature_extractor: Wav2Vec2FeatureExtractor,
+        training: bool = True,
+        lazy: bool = True,
+    ) -> NoReturn:
+        """ """
+        self.config = deepcopy(config)
+        self.feature_extractor = feature_extractor
+        self.training = training
+        self.lazy = lazy
+
+        data_readers = []
+        self.records = []
+        if self.config.get("cinc2022_dir", None) is not None:
+            data_readers.append(CINC2022Reader(db_dir=self.config.cinc2022_dir))
+            train_set, val_set = self._train_test_split_cinc2022(data_readers[-1])
+            if self.training:
+                self.records.append(train_set)
+            else:
+                self.records.append(val_set)
+        if self.config.get("cinc2016_dir", None) is not None:
+            data_readers.append(CINC2016Reader(db_dir=self.config.cinc2016_dir))
+            train_set, val_set = self._train_test_split_cinc2016(data_readers[-1])
+            if self.training:
+                self.records.append(train_set)
+            else:
+                self.records.append(val_set)
+        if self.config.get("ephnogram_dir", None) is not None:
+            data_readers.append(EPHNOGRAMReader(db_dir=self.config.ephnogram_dir))
+            train_set, val_set = self._train_test_split_ephnogram(data_readers[-1])
+            if self.training:
+                self.records.append(train_set)
+            else:
+                self.records.append(val_set)
+        assert len(data_readers) > 0 and len(self.records), "No training data!"
+
+        self.reader = CompositeReader(data_readers, fs=self.config.fs)
+        self.records = [
+            self.reader.get_composite_record_name(dr, rec)
+            for dr, l_rec in zip(data_readers, self.records)
+            for rec in l_rec
+        ]
+
+        if self.training:
+            shuffle(self.records)
+
+        if self.config.torch_dtype == torch.float64:
+            self.dtype = np.float64
+        else:
+            self.dtype = np.float32
+
+        self._signals = None
+        if not self.lazy:
+            self._load_all_data()
+
+    def __len__(self) -> int:
+        """ """
+        if self._signals is None:
+            return 0
+        return self._signals.shape[0]
+
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
+        """ """
+        if self.signals is None:
+            # self._load_all_data()
+            raise Exception("call _load_all_data() before iterating over the dataset")
+        return self.feature_extractor(self.signals[index], sampling_rate=self.config.fs, max_length=self.config.input_len, truncation=True)
+
+    def _load_all_data(self) -> NoReturn:
+        """ """
+        raise NotImplementedError
+
+    def _train_test_split_cinc2022(
+        self,
+        reader: CINC2022Reader,
+        train_ratio: float = 0.8,
+        force_recompute: bool = False,
+    ) -> List[str]:
+        """ """
+        _train_ratio = int(train_ratio * 100)
+        _test_ratio = 100 - _train_ratio
+        assert _train_ratio * _test_ratio > 0
+
+        train_file = reader.db_dir / f"train_ratio_{_train_ratio}.json"
+        test_file = reader.db_dir / f"test_ratio_{_test_ratio}.json"
+
+        if not force_recompute and train_file.exists() and test_file.exists():
+            if self.training:
+                train_subjects = json.loads(train_file.read_text())
+            else:
+                test_subjects = json.loads(test_file.read_text())
+        else:
+            df_train, df_test = stratified_train_test_split(
+                reader.df_stats,
+                [
+                    "Murmur",
+                    "Age",
+                    "Sex",
+                    "Pregnancy status",
+                ],
+                test_ratio=1 - train_ratio,
+            )
+            train_subjects = df_train["Patient ID"].tolist()
+            test_subjects = df_test["Patient ID"].tolist()
+
+            train_file.write_text(json.dumps(train_subjects, ensure_ascii=False))
+            test_file.write_text(json.dumps(test_subjects, ensure_ascii=False))
+
+        if self.training:
+            subjects = train_subjects
+        else:
+            subjects = test_subjects
+
+        df = reader.df_stats[
+            reader.df_stats["Patient ID"].isin(subjects)
+        ]
+        records = list_sum(
+            [reader.subject_records[row["Patient ID"]] for _, row in df.iterrows()]
+        )
+
+        if self.training:
+            shuffle(records)
+
+        return records
+
+    def _train_test_split_cinc2016(self, reader: CINC2016Reader, **kwargs) -> List[str]:
+        """ """
+        if kwargs:
+            warnings.warn("CinC2016 has officially prefixed validation set, keyword arguments are ignored.")
+        if self.training:
+            records = [rec for rec in reader if rec not in reader.validation_set]
+            shuffle(records)
+        else:
+            records = reader.validation_set
+        return records
+
+    def _train_test_split_ephnogram(
+        self,
+        reader: EPHNOGRAMReader,
+        train_ratio: float = 0.8,
+        force_recompute: bool = False,
+    ) -> List[str]:
+        """ """
+        _train_ratio = int(train_ratio * 100)
+        _test_ratio = 100 - _train_ratio
+        assert _train_ratio * _test_ratio > 0
+
+        train_file = reader.db_dir / f"train_ratio_{_train_ratio}.json"
+        test_file = reader.db_dir / f"test_ratio_{_test_ratio}.json"
+
+        if not force_recompute and train_file.exists() and test_file.exists():
+            if self.training:
+                return json.loads(train_file.read_text())
+            else:
+                return json.loads(test_file.read_text())
+        else:
+            # TODO: should one split by subject or not?
+            df = reader.df_stats.drop_duplicates(subset=["Subject ID"])
+            df_train, df_test = stratified_train_test_split(
+                df,
+                [
+                    # "Age (years)", shoule be categorized before used for stratified split
+                    "Gender",
+                ],
+                test_ratio=1 - train_ratio,
+            )
+            train_set = reader.df_stats[reader.df_stats["Subject ID"].isin(df_train["Subject ID"])]["Record Name"].tolist()
+            test_set = reader.df_stats[reader.df_stats["Subject ID"].isin(df_test["Subject ID"])]["Record Name"].tolist()
+
+            train_file.write_text(json.dumps(train_subjects, ensure_ascii=False))
+            test_file.write_text(json.dumps(test_subjects, ensure_ascii=False))
+
+        if self.training:
+            shuffle(train_set)
+            return train_set
+        else:
+            return test_set
+
+    @property
+    def signals(self) -> np.ndarray:
+        return self._signals
+
+
+class FastDataReader(ReprMixin, torch.utils.data.Dataset):
+    """ """
+
+    def __init__(
+        self,
+        reader: CompositeReader,
+        records: Sequence[str],
+        config: CFG,
+        task: str,
+        ppm: Optional[PreprocManager] = None,
+    ) -> NoReturn:
+        """ """
+        self.reader = reader
+        self.records = records
+        self.config = config
+        self.task = task
+        self.ppm = ppm
+        if self.config.torch_dtype == torch.float64:
+            self.dtype = np.float64
+        else:
+            self.dtype = np.float32
+
+    def __len__(self) -> int:
+        """ """
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+        """ """
+        rec = self.records[index]
+        values = self.reader.load_data(
+            rec,
+            data_format=self.config[self.task].data_format,
+        )
+        if self.ppm:
+            values, _ = self.ppm(values, self.reader.fs)
+        values = ensure_siglen(
+            values,
+            siglen=self.config[self.task].input_len,
+            fmt=self.config[self.task].data_format,
+            tolerance=self.config[self.task].sig_slice_tol,
+        ).astype(self.dtype)
+        if values.ndim == 2:
+            values = values[np.newaxis, ...]
+
+        raise NotImplementedError
+
+    def extra_repr_keys(self) -> List[str]:
+        return [
+            "reader",
+            "ppm",
+        ]

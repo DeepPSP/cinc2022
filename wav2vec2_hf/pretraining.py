@@ -74,7 +74,6 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         val_dataset: Optional[Dataset] = None,
     ) -> NoReturn:
         """
-
         setup the dataloaders for training and validation
 
         Parameters

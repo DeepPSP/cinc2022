@@ -21,7 +21,6 @@ for t in PreTrainCfg.tasks:
     PreTrainCfg.pop(t)
 PreTrainCfg.pop("tasks")
 
-
 PreTrainCfg.update(
     CFG(
         max_gumbel_temperature=2.0,
@@ -32,6 +31,11 @@ PreTrainCfg.update(
         pad_to_multiple_of=None,
     )
 )
+
+# data directories
+PreTrainCfg.cinc2022_dir = None
+PreTrainCfg.cinc2016_dir = None
+PreTrainCfg.ephnogram_dir = None
 
 
 _DefaultFeatureExtractorCfg = CFG(
