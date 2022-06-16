@@ -1270,7 +1270,7 @@ class EPHNOGRAMReader(PCGDataBase):
 
     def _ls_rec_local(self) -> NoReturn:
         """ """
-        self._df_records = pd.DataFrame()
+        self._df_records = pd.DataFrame(columns=["record", "path", "aux_path"])
         records_file = self.db_dir / "RECORDS"
         write_file = False
         if records_file.exists():
@@ -1281,6 +1281,7 @@ class EPHNOGRAMReader(PCGDataBase):
             self._df_records["path"] = self._df_records["record"].apply(
                 lambda x: self.db_dir / x
             )
+            self._df_records = self._df_records[self._df_records["path"].apply(lambda x: x.is_file())]
         else:
             write_file = True
         if len(self._df_records) == 0:
@@ -1359,6 +1360,8 @@ class EPHNOGRAMReader(PCGDataBase):
         """
         load data from the record `rec`
         """
+        assert data_format in ["channel_first", "channel_last"]
+        assert data_type in ["np", "pt"]
         if isinstance(rec, int):
             rec = self[rec]
         fs = fs or self.fs
@@ -1369,12 +1372,13 @@ class EPHNOGRAMReader(PCGDataBase):
         channels = channels or self._channels
         if isinstance(channels, str):
             channels = [channels]
+        assert set(channels).issubset(self._channels), "invalid channels"
         data = {
-            k: v.astype(np.float32)
+            k: data[k].astype(np.float32)
             if data_format.lower() == "channel_first"
-            else v.astype(np.float32).T
-            for k, v in data.items()
-            if k in channels
+            else data[k].astype(np.float32).T
+            for k in channels
+            if k in data
         }
         if fs is not None and fs != data_fs:
             for k in data:
@@ -1391,7 +1395,13 @@ class EPHNOGRAMReader(PCGDataBase):
         data_type: str = "np",
     ) -> np.ndarray:
         """ """
-        return self.load_data(rec, fs, data_format, data_type, "PCG")["PCG"]
+        concat_dim = -1 if data_format.lower() == "channel_last" else 0
+        pcg = self.load_data(rec, fs, data_format, data_type, ["PCG", "PCG2"])
+        if data_type.lower() == "pt":
+            pcg = torch.cat(list(pcg.values()), dim=concat_dim)
+        else:
+            pcg = np.concatenate(list(pcg.values()), axis=concat_dim)
+        return pcg
 
     def load_ann(self, rec: str) -> str:
         """
