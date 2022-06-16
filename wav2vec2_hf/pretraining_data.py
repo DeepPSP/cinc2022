@@ -23,7 +23,7 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _sample_negative_indices,
 )
 from torch_ecg.cfg import CFG
-from torch_ecg.utils.misc import ReprMixin
+from torch_ecg.utils.misc import ReprMixin, list_sum
 from torch_ecg.utils.utils_data import ensure_siglen, stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
 
@@ -293,7 +293,12 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         if self.signals is None:
             # self._load_all_data()
             raise Exception("call _load_all_data() before iterating over the dataset")
-        return self.feature_extractor(self.signals[index], sampling_rate=self.config.fs, max_length=self.config.input_len, truncation=True)
+        return self.feature_extractor(
+            self.signals[index],
+            sampling_rate=self.config.fs,
+            max_length=self.config.input_len,
+            truncation=True,
+        )
 
     def _load_all_data(self) -> NoReturn:
         """ """
@@ -340,9 +345,7 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         else:
             subjects = test_subjects
 
-        df = reader.df_stats[
-            reader.df_stats["Patient ID"].isin(subjects)
-        ]
+        df = reader.df_stats[reader.df_stats["Patient ID"].isin(subjects)]
         records = list_sum(
             [reader.subject_records[row["Patient ID"]] for _, row in df.iterrows()]
         )
@@ -355,7 +358,9 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
     def _train_test_split_cinc2016(self, reader: CINC2016Reader, **kwargs) -> List[str]:
         """ """
         if kwargs:
-            warnings.warn("CinC2016 has officially prefixed validation set, keyword arguments are ignored.")
+            warnings.warn(
+                "CinC2016 has officially prefixed validation set, keyword arguments are ignored."
+            )
         if self.training:
             records = [rec for rec in reader if rec not in reader.validation_set]
             shuffle(records)
@@ -393,11 +398,15 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
                 ],
                 test_ratio=1 - train_ratio,
             )
-            train_set = reader.df_stats[reader.df_stats["Subject ID"].isin(df_train["Subject ID"])]["Record Name"].tolist()
-            test_set = reader.df_stats[reader.df_stats["Subject ID"].isin(df_test["Subject ID"])]["Record Name"].tolist()
+            train_set = reader.df_stats[
+                reader.df_stats["Subject ID"].isin(df_train["Subject ID"])
+            ]["Record Name"].tolist()
+            test_set = reader.df_stats[
+                reader.df_stats["Subject ID"].isin(df_test["Subject ID"])
+            ]["Record Name"].tolist()
 
-            train_file.write_text(json.dumps(train_subjects, ensure_ascii=False))
-            test_file.write_text(json.dumps(test_subjects, ensure_ascii=False))
+            train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+            test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
         if self.training:
             shuffle(train_set)

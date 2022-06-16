@@ -1281,7 +1281,9 @@ class EPHNOGRAMReader(PCGDataBase):
             self._df_records["path"] = self._df_records["record"].apply(
                 lambda x: self.db_dir / x
             )
-            self._df_records = self._df_records[self._df_records["path"].apply(lambda x: x.is_file())]
+            self._df_records = self._df_records[
+                self._df_records["path"].apply(lambda x: x.is_file())
+            ]
         else:
             write_file = True
         if len(self._df_records) == 0:
