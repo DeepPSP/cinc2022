@@ -7,7 +7,7 @@ from typing import List, NoReturn
 from transformers import Wav2Vec2Config, Wav2Vec2FeatureExtractor
 from torch_ecg.cfg import CFG
 
-from cfg import BaseCfg
+from cfg import BaseCfg, TrainCfg
 
 
 __all__ = [
@@ -16,9 +16,22 @@ __all__ = [
 ]
 
 
-PreTrainCfg = CFG()
+PreTrainCfg = deepcopy(TrainCfg)
+for t in PreTrainCfg.tasks:
+    PreTrainCfg.pop(t)
+PreTrainCfg.pop("tasks")
 
-# TODO: add args for PreTrainCfg
+
+PreTrainCfg.update(
+    CFG(
+        max_gumbel_temperature=2.0,
+        min_gumbel_temperature=0.5,
+        gumbel_temperature_decay=0.999995,
+        max_duration_in_seconds=30.0,
+        min_duration_in_seconds=5.0,
+        pad_to_multiple_of=None,
+    )
+)
 
 
 _DefaultFeatureExtractorCfg = CFG(
@@ -46,6 +59,13 @@ def register_model(model_name: str, model_cfg: dict) -> NoReturn:
     if "feature_extractor" not in model_cfg:
         model_cfg["feature_extractor"] = deepcopy(_DefaultFeatureExtractorCfg)
 
+    assert (
+        model_cfg["feature_extractor"]["sampling_rate"] == BaseCfg.fs
+    ), "sampling_rate must be equal to BaseCfg.fs"
+    assert (
+        model_cfg["feature_extractor"]["do_normalize"] is True
+    ), "do_normalize must be True"
+    # adjust "return_attention_mask" according to "feat_extract_norm" of "model_config_args"
     if model_cfg["model_config_args"]["feat_extract_norm"] == "layer":
         model_cfg["feature_extractor"]["return_attention_mask"] = True
     elif model_cfg["model_config_args"]["feat_extract_norm"] == "group":

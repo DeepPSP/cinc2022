@@ -5,18 +5,20 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 import torch
-from transformers import Wav2Vec2ForPreTraining, Wav2Vec2FeatureExtractor
+from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Config
+from transformers.pytorch_utils import torch_int_div
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _compute_mask_indices,
     _sample_negative_indices,
 )
 from torch_ecg.cfg import CFG
 
-from .pretraining_cfg import PretrainingConfig, PreTrainModelCfg  # noqa: F401
+from .pretraining_cfg import PreTrainModelCfg
 
 
 __all__ = [
     "DataCollatorForWav2Vec2Pretraining",
+    "get_pretraining_datacollator",
 ]
 
 
@@ -48,15 +50,27 @@ class DataCollatorForWav2Vec2Pretraining:
             7.5 (Volta).
     """
 
-    model: Wav2Vec2ForPreTraining
+    config: Wav2Vec2Config
     feature_extractor: Wav2Vec2FeatureExtractor
     padding: Union[bool, str] = "longest"
+    max_length: Optional[int] = None
     pad_to_multiple_of: Optional[int] = None
 
     def __call__(
         self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
-        # reformat list to dict and set to pytorch format
+        """
+        reformat list to dict and set to pytorch format
+
+        Parameters
+        ----------
+        features : List[Dict[str, Union[List[int], torch.Tensor]]]
+            List of features to be processed.
+            features are dicts with the following keys:
+                - "input_values": List (Tensor) of input values.
+                - "attention_mask": Optional (List or Tensor) of attention mask.
+
+        """
         batch = self.feature_extractor.pad(
             features,
             padding=self.padding,
@@ -67,7 +81,7 @@ class DataCollatorForWav2Vec2Pretraining:
         device = batch["input_values"].device
         batch_size = batch["input_values"].shape[0]
 
-        mask_indices_seq_length = self.model._get_feat_extract_output_lengths(
+        mask_indices_seq_length = self._get_feat_extract_output_lengths(
             batch["input_values"].shape[-1]
         )
         # make sure masked sequence length is a Python scalar
@@ -76,7 +90,7 @@ class DataCollatorForWav2Vec2Pretraining:
         # make sure that no loss is computed on padded inputs
         if batch.get("attention_mask") is not None:
             # compute real output lengths according to convolution formula
-            batch["sub_attention_mask"] = self.model._get_feature_vector_attention_mask(
+            batch["sub_attention_mask"] = self._get_feature_vector_attention_mask(
                 mask_indices_seq_length, batch["attention_mask"]
             )
 
@@ -85,15 +99,15 @@ class DataCollatorForWav2Vec2Pretraining:
         # sample randomly masked indices
         mask_time_indices = _compute_mask_indices(
             features_shape,
-            self.model.config.mask_time_prob,
-            self.model.config.mask_time_length,
+            self.config.mask_time_prob,
+            self.config.mask_time_length,
             attention_mask=batch.get("sub_attention_mask"),
         )
 
         # sample negative indices
         sampled_negative_indices = _sample_negative_indices(
             features_shape,
-            self.model.config.num_negatives,
+            self.config.num_negatives,
             mask_time_indices=mask_time_indices,
         )
         batch["mask_time_indices"] = torch.tensor(
@@ -105,9 +119,87 @@ class DataCollatorForWav2Vec2Pretraining:
 
         return batch
 
+    def _get_feature_vector_attention_mask(
+        self,
+        feature_vector_length: int,
+        attention_mask: torch.LongTensor,
+        add_adapter: Optional[bool] = None,
+    ) -> torch.LongTensor:
+        # Effectively attention_mask.sum(-1), but not inplace to be able to run
+        # on inference mode.
+        non_padded_lengths = attention_mask.cumsum(dim=-1)[:, -1]
+
+        output_lengths = self._get_feat_extract_output_lengths(
+            non_padded_lengths, add_adapter=add_adapter
+        )
+        output_lengths = output_lengths.to(torch.long)
+
+        batch_size = attention_mask.shape[0]
+
+        attention_mask = torch.zeros(
+            (batch_size, feature_vector_length),
+            dtype=attention_mask.dtype,
+            device=attention_mask.device,
+        )
+        # these two operations makes sure that all values before the output lengths idxs are attended to
+        attention_mask[
+            (
+                torch.arange(attention_mask.shape[0], device=attention_mask.device),
+                output_lengths - 1,
+            )
+        ] = 1
+        attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
+        return attention_mask
+
+    def _get_feat_extract_output_lengths(
+        self,
+        input_lengths: Union[torch.LongTensor, int],
+        add_adapter: Optional[bool] = None,
+    ) -> int:
+        """
+        Computes the output length of the convolutional layers
+        """
+
+        add_adapter = self.config.add_adapter if add_adapter is None else add_adapter
+
+        def _conv_out_length(input_length: int, kernel_size: int, stride: int) -> int:
+            # 1D convolutional layer output length formula taken
+            # from https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
+            return torch_int_div(input_length - kernel_size, stride) + 1
+
+        for kernel_size, stride in zip(
+            self.config.conv_kernel, self.config.conv_stride
+        ):
+            input_lengths = _conv_out_length(input_lengths, kernel_size, stride)
+
+        if add_adapter:
+            for _ in range(self.config.num_adapter_layers):
+                input_lengths = _conv_out_length(
+                    input_lengths, 1, self.config.adapter_stride
+                )
+
+        return input_lengths
+
 
 def get_pretraining_datacollator(
     cfg: Optional[CFG] = None,
 ) -> DataCollatorForWav2Vec2Pretraining:
     """ """
-    pass
+    if cfg is None:
+        cfg = PreTrainModelCfg
+    assert hasattr(cfg, "get_Wav2Vec2Config"), "cfg must have get_Wav2Vec2Config method"
+    assert hasattr(
+        cfg, "get_Wav2Vec2FeatureExtractor"
+    ), "cfg must have get_Wav2Vec2FeatureExtractor method"
+
+    extra_options = {
+        "padding": cfg.get("padding", None),
+        "max_length": cfg.get("max_length", None),
+        "pad_to_multiple_of": cfg.get("pad_to_multiple_of", None),
+    }
+    extra_options = {k: v for k, v in extra_options.items() if v is not None}
+    return DataCollatorForWav2Vec2Pretraining(
+        cfg.get_Wav2Vec2Config(),
+        cfg.get_Wav2Vec2FeatureExtractor(),
+        **extra_options,
+    )
