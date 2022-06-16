@@ -4,7 +4,7 @@
 from copy import deepcopy
 from typing import List, NoReturn
 
-from transformers.models.wav2vec2.configuration_wav2vec2 import Wav2Vec2Config
+from transformers import Wav2Vec2Config, Wav2Vec2FeatureExtractor
 from torch_ecg.cfg import CFG
 
 from cfg import BaseCfg
@@ -39,8 +39,18 @@ def register_model(model_name: str, model_cfg: dict) -> NoReturn:
     """register a new model configuration"""
     if model_name in [k for k in _PreTrainModelCfg if k != "model_name"]:
         raise ValueError(f"Model {model_name} already exists, choose another name.")
+    assert hasattr(
+        model_cfg, "model_config_args"
+    ), "`model_config_args` must be defined in `model_cfg`"
+
     if "feature_extractor" not in model_cfg:
         model_cfg["feature_extractor"] = deepcopy(_DefaultFeatureExtractorCfg)
+
+    if model_cfg["model_config_args"]["feat_extract_norm"] == "layer":
+        model_cfg["feature_extractor"]["return_attention_mask"] = True
+    elif model_cfg["model_config_args"]["feat_extract_norm"] == "group":
+        model_cfg["feature_extractor"]["return_attention_mask"] = False
+
     _PreTrainModelCfg[model_name] = model_cfg
 
 
@@ -134,22 +144,16 @@ def change_model(model_name: str) -> NoReturn:
 
 
 def get_Wav2Vec2Config() -> Wav2Vec2Config:
-    return Wav2Vec2Config(
-        **{
-            k: v
-            for k, v in PreTrainModelCfg.items()
-            if k
-            not in [
-                "change_model",
-                "register_model",
-                "list_models",
-                "get_Wav2Vec2Config",
-            ]
-        }
-    )
+    return Wav2Vec2Config(**(PreTrainModelCfg.model_config_args))
+
+
+def get_Wav2Vec2FeatureExtractor() -> Wav2Vec2FeatureExtractor:
+    """ """
+    return Wav2Vec2FeatureExtractor(**(PreTrainModelCfg.feature_extractor))
 
 
 PreTrainModelCfg.change_model = change_model
 PreTrainModelCfg.register_model = register_model
 PreTrainModelCfg.list_models = list_models
 PreTrainModelCfg.get_Wav2Vec2Config = get_Wav2Vec2Config
+PreTrainModelCfg.get_Wav2Vec2FeatureExtractor = get_Wav2Vec2FeatureExtractor
