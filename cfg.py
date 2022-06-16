@@ -165,6 +165,11 @@ TrainCfg.classification.bandpass = CFG(
     filter_type="butter",
     filter_order=BaseCfg.filter_order,
 )
+TrainCfg.classification.normalize = CFG(  # None or False for no normalization
+    method="z-score",
+    mean=0.0,
+    std=1.0,
+)
 
 # model choices
 TrainCfg.classification.model_name = "crnn"
@@ -220,6 +225,11 @@ TrainCfg.segmentation.bandpass = CFG(
     filter_type="butter",
     filter_order=BaseCfg.filter_order,
 )
+TrainCfg.segmentation.normalize = CFG(  # None or False for no normalization
+    method="z-score",
+    mean=0.0,
+    std=1.0,
+)
 
 # model choices
 TrainCfg.segmentation.model_name = "seq_lab"  # unet
@@ -273,6 +283,11 @@ TrainCfg.multi_task.bandpass = CFG(
     highcut=BaseCfg.passband[1],
     filter_type="butter",
     filter_order=BaseCfg.filter_order,
+)
+TrainCfg.multi_task.normalize = CFG(  # None or False for no normalization
+    method="z-score",
+    mean=0.0,
+    std=1.0,
 )
 
 # model choices
