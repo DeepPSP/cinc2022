@@ -400,6 +400,8 @@ class CINC2022Reader(PCGDataBase):
             self._df_records["path"] = self._df_records["record"].apply(
                 lambda x: self.db_dir / x
             )
+        else:
+            write_file = True
 
         # self._all_records = wfdb.get_record_list(self.db_name)
 
@@ -410,8 +412,9 @@ class CINC2022Reader(PCGDataBase):
             )
 
         data_dir = self._df_records["path"].apply(lambda x: x.parent).unique()
-        assert len(data_dir) == 1, "data_dir should be a single directory"
-        self.data_dir = data_dir[0]
+        assert len(data_dir) <= 1, "data_dir should be a single directory"
+        if len(data_dir) == 1:  # in case no data found
+            self.data_dir = data_dir[0]
 
         self._df_records["record"] = self._df_records["path"].apply(lambda x: x.name)
         self._df_records = self._df_records[
