@@ -28,8 +28,7 @@ from inputs import (  # noqa: F401
     MFCCInput,
     SpectralInput,
 )  # noqa: F401
-from data_reader import PCGDataBase, CINC2022Reader, CINC2016Reader  # noqa: F401
-from utils.springer_features import get_springer_features  # noqa: F401
+from data_reader import PCGDataBase, CINC2022Reader
 
 
 __all__ = [

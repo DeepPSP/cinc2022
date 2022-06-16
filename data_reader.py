@@ -392,34 +392,37 @@ class CINC2022Reader(PCGDataBase):
         """
         list all records in the database
         """
-        try:
-            print("Reading the list of records from local file...")
-            records_file = self.db_dir / "RECORDS"
-            if records_file.exists():
-                self._all_records = records_file.read_text().splitlines()
-            else:
-                self._all_records = sorted(
-                    [
-                        f"{item.name}".replace(".hea", "")
-                        for item in (self.data_dir).glob("*.hea")
-                    ]
-                )
-                # records_file.write_text("\n".join(self._all_records))
-        except Exception:
-            print("Reading the list of records from PhysioNet...")
-            try:
-                self._all_records = wfdb.get_record_list(self.db_name)
-            except Exception:
-                self._all_records = []
-        if len(self._all_records) == 0:
-            self._all_records = get_record_list_recursive3(
-                self.data_dir, self._rec_pattern
+        write_file = False
+        self._df_records = pd.DataFrame(columns=["record", "path"])
+        records_file = self.db_dir / "RECORDS"
+        if records_file.exists():
+            self._df_records["record"] = records_file.read_text().splitlines()
+            self._df_records["path"] = self._df_records["record"].apply(
+                lambda x: self.db_dir / x
             )
+
+        # self._all_records = wfdb.get_record_list(self.db_name)
+
+        if len(self._df_records) == 0:
+            write_file = True
+            self._df_records["path"] = get_record_list_recursive3(
+                self.db_dir, self._rec_pattern, relative=False
+            )
+
+        data_dir = self._df_records["path"].apply(lambda x: x.parent).unique()
+        assert len(data_dir) == 1, "data_dir should be a single directory"
+        self.data_dir = data_dir[0]
+
+        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.name)
+        self._df_records = self._df_records[
+            ~self._df_records["record"].isin(self._exceptional_records)
+        ]
+        self._df_records.set_index("record", inplace=True)
+
         self._all_records = [
-            item.replace("training_data/", "")
-            for item in self._all_records
-            if (self.db_dir / item).with_suffix(".hea").exists()
-            and item.replace("training_data/", "") not in self._exceptional_records
+            item
+            for item in self._df_records.index.tolist()
+            if item not in self._exceptional_records
         ]
         self._all_subjects = sorted(
             set([item.split("_")[0] for item in self._all_records]),
@@ -429,6 +432,15 @@ class CINC2022Reader(PCGDataBase):
         for rec in self._all_records:
             self._subject_records[self.get_subject(rec)].append(rec)
         self._subject_records = dict(self._subject_records)
+
+        if write_file:
+            records_file.write_text(
+                "\n".join(
+                    self._df_records["path"]
+                    .apply(lambda x: x.relative_to(self.db_dir).as_posix())
+                    .tolist()
+                )
+            )
 
     def _load_stats(self) -> NoReturn:
         """
@@ -568,9 +580,10 @@ class CINC2022Reader(PCGDataBase):
         """
         if isinstance(rec, int):
             rec = self[rec]
+        path = self._df_records.loc[rec, "path"]
         if extension is not None and not extension.startswith("."):
             extension = f".{extension}"
-        return self.data_dir / f"{rec}{extension or ''}"
+        return path.with_suffix(extension or "").resolve()
 
     def load_data(
         self,
@@ -925,13 +938,11 @@ class CINC2022Reader(PCGDataBase):
             the audio object of the record
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
         if "data" in kwargs:
             return IPython.display.Audio(
                 kwargs["data"], rate=kwargs.get("fs", self.get_fs(rec))
             )
-        audio_file = self.data_dir / f"{rec}.{self.data_ext}"
+        audio_file = self.get_absolute_path(rec)
         return IPython.display.Audio(filename=str(audio_file))
 
     def plot(self, rec: str, **kwargs) -> NoReturn:
@@ -1410,11 +1421,31 @@ class CompositeReader(ReprMixin):
             + 1
         )
         self._all_records = [
-            f"{dr.db_name}{self._sep}{rec}"
+            self.get_composite_record_name(dr, rec)
             for dr in databases
             for rec in dr.all_records
         ]
         self._db_name_map = {dr.db_name: dr for dr in self.databases}
+
+    def get_composite_record_name(self, database: PCGDataBase, rec: str) -> str:
+        """
+        get the composite record name of the record `rec` in the database `database`
+
+        Parameters
+        ----------
+        database: PCGDataBase,
+            database reader
+        rec: str,
+            record name
+
+        Returns
+        -------
+        str,
+            composite record name
+
+        """
+        assert rec in database.all_records
+        return f"{database.db_name}{self._sep}{rec}"
 
     @property
     def all_records(self) -> List[str]:
