@@ -262,7 +262,7 @@ _CINC2022_INFO = DataBaseInfo(
     1. the "Murmur" column (records whether heart murmur can be heard or not) and the "Outcome" column (the expert cardiologist's overall diagnosis using **clinical history, physical examination, analog auscultation, echocardiogram, etc.**) are **NOT RELATED**. All of the 6 combinations (["Present", "Absent", "Unknown"] × ["Abnormal", "Normal"]) occur in the dataset.
     """,
     issues="""
-    1. the segmentation file `50782_MV_1.tsv` (version 1.0.2, 1.0.3) is broken.
+    1. the segmentation file `50782_MV_1.tsv` (versions 1.0.2, 1.0.3) is broken.
     """,
     references=[
         "https://moody-challenge.physionet.org/2022/",
@@ -408,7 +408,7 @@ class CINC2022Reader(PCGDataBase):
         if len(self._df_records) == 0:
             write_file = True
             self._df_records["path"] = get_record_list_recursive3(
-                self.db_dir, self._rec_pattern, relative=False
+                self.db_dir, f"{self._rec_pattern}\\.{self.data_ext}", relative=False
             )
             self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
 
