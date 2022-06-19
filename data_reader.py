@@ -410,13 +410,14 @@ class CINC2022Reader(PCGDataBase):
             self._df_records["path"] = get_record_list_recursive3(
                 self.db_dir, self._rec_pattern, relative=False
             )
+            self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
 
         data_dir = self._df_records["path"].apply(lambda x: x.parent).unique()
         assert len(data_dir) <= 1, "data_dir should be a single directory"
         if len(data_dir) == 1:  # in case no data found
             self.data_dir = data_dir[0]
 
-        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.name)
+        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
         self._df_records = self._df_records[
             ~self._df_records["record"].isin(self._exceptional_records)
         ]
