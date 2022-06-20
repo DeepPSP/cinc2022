@@ -29,6 +29,7 @@ WORKDIR /physionet
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
 RUN apt update
+RUN apt install build-essential -y
 RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 
 # RUN apt update && apt install -y --no-install-recommends \

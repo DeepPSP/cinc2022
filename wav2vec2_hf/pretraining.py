@@ -16,14 +16,14 @@ from transformers import (  # noqa: F401
     SchedulerType,
     Wav2Vec2Config,
     Wav2Vec2FeatureExtractor,
-    Wav2Vec2ForPreTraining,
     get_scheduler,
     is_wandb_available,
     set_seed,
 )
 from torch_ecg.components.trainer import BaseTrainer
 
-from .pretraining_cfg import PreTrainCfg, PreTrainModelCfg  # noqa: F401
+from .pretraining_cfg import PreTrainCfg, PreTrainModelCfg
+from .pretraining_models import Wav2Vec2ForPreTraining
 
 
 __all__ = [
@@ -66,6 +66,7 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         **kwargs: Any,
     ) -> NoReturn:
         """ """
+        super().__init__(model, model_config, train_config, device, lazy, **kwargs)
         raise NotImplementedError
 
     def _setup_dataloaders(
@@ -283,3 +284,19 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
 
     def extra_log_suffix(self) -> str:
         raise NotImplementedError
+
+
+def parse_args() -> dict:
+    """ """
+    raise NotImplementedError
+
+
+if __name__ == "__main__":
+    model_config = PreTrainModelCfg.get_Wav2Vec2Config()
+    model = Wav2Vec2ForPreTraining(model_config)
+
+    trainer = Wav2Vec2PreTrainingTrainer(
+        model,
+        {k: v for k, v in PreTrainModelCfg.items() if not callable(v)},
+        PreTrainCfg,
+    )
