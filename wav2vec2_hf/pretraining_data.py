@@ -6,17 +6,17 @@ import warnings
 from copy import deepcopy
 from dataclasses import dataclass
 from random import shuffle
-from typing import Dict, List, Tuple, Sequence, Optional, Union, NoReturn
+from typing import Dict, List, Sequence, Optional, Union, NoReturn
 
 import numpy as np
 
-# try:
-#     from tqdm.auto import tqdm
-# except ModuleNotFoundError:
-#     from tqdm import tqdm
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    from tqdm import tqdm
 
 import torch
-from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Config
+from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Config, BatchFeature
 from transformers.pytorch_utils import torch_int_div
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _compute_mask_indices,
@@ -24,7 +24,7 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
 )
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import ReprMixin, list_sum
-from torch_ecg.utils.utils_data import ensure_siglen, stratified_train_test_split
+from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
 
 from .pretraining_cfg import PreTrainModelCfg
@@ -279,6 +279,12 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         else:
             self.dtype = np.float32
 
+        ppm_config = CFG(random=False)
+        ppm_config.update(deepcopy(self.config))
+        self.ppm = PreprocManager.from_config(ppm_config)
+
+        self.fdr = FastDataReader(self.reader, self.records, self.config, self.ppm)
+
         self._signals = None
         if not self.lazy:
             self._load_all_data()
@@ -287,23 +293,23 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         """ """
         if self._signals is None:
             return 0
-        return self._signals.shape[0]
+        return len(self._signals)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         """ """
         if self.signals is None:
             # self._load_all_data()
             raise Exception("call _load_all_data() before iterating over the dataset")
-        return self.feature_extractor(
-            self.signals[index],
-            sampling_rate=self.config.fs,
-            max_length=self.config.input_len,
-            truncation=True,
-        )
+        return self.signals[index]
 
     def _load_all_data(self) -> NoReturn:
         """ """
-        raise NotImplementedError
+        if self._signals is not None and len(self._signals) > 0:
+            return
+        self._signals = []
+        with tqdm(range(len(self.fdr)), desc="Loading data", unit="records") as pbar:
+            for idx in pbar:
+                self._signals.extend(self.fdr[idx])
 
     def _train_test_split_cinc2022(
         self,
@@ -428,14 +434,14 @@ class FastDataReader(ReprMixin, torch.utils.data.Dataset):
         reader: CompositeReader,
         records: Sequence[str],
         config: CFG,
-        task: str,
+        feature_extractor: Wav2Vec2FeatureExtractor,
         ppm: Optional[PreprocManager] = None,
     ) -> NoReturn:
         """ """
         self.reader = reader
         self.records = records
         self.config = config
-        self.task = task
+        self.feature_extractor = feature_extractor
         self.ppm = ppm
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -446,25 +452,40 @@ class FastDataReader(ReprMixin, torch.utils.data.Dataset):
         """ """
         return len(self.records)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> List[BatchFeature]:
         """ """
         rec = self.records[index]
-        values = self.reader.load_data(
-            rec,
-            data_format=self.config[self.task].data_format,
-        )
+        values = self.reader.load_data(rec, data_format="channel_first")
         if self.ppm:
             values, _ = self.ppm(values, self.reader.fs)
-        values = ensure_siglen(
-            values,
-            siglen=self.config[self.task].input_len,
-            fmt=self.config[self.task].data_format,
-            tolerance=self.config[self.task].sig_slice_tol,
-        ).astype(self.dtype)
-        if values.ndim == 2:
+        if values.shape[-1] > self.config.input_len:
+            n_segments, res = divmod(values.shape[-1], self.config.input_len)
+            if res != 0:
+                values = np.vstack(
+                    (values[..., :-res].reshape(n_segments, -1), values[..., -res:])
+                )
+            else:
+                values = values.reshape(n_segments, -1)
+        if values.ndim == 1:
             values = values[np.newaxis, ...]
 
-        raise NotImplementedError
+        values = self.feature_extractor(
+            values,
+            sampling_rate=self.config.fs,
+            max_length=self.config.input_len,
+            truncation=True,
+        )
+        values = [
+            BatchFeature(
+                dict(
+                    input_values=values.input_values[0][idx],
+                    input_length=values.input_values[0].shape[-1],
+                )
+            )
+            for idx in range(values.input_values[0].shape[0])
+        ]
+
+        return values
 
     def extra_repr_keys(self) -> List[str]:
         return [
