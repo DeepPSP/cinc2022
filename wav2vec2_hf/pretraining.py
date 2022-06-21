@@ -5,7 +5,12 @@ https://github.com/huggingface/transformers/blob/main/examples/pytorch/speech-pr
 """
 
 import re
-from typing import Dict, List, Tuple, Optional, Any, NoReturn
+from typing import Dict, List, Optional, Any, NoReturn
+
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    from tqdm import tqdm
 
 import torch
 from torch import nn
@@ -193,134 +198,122 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
 
     def _setup_criterion(self) -> NoReturn:
         """ """
-        raise NotImplementedError
+        # the loss is computed in the model's forward function
+        # and stored in the model's output's loss attribute
+        pass
 
-    def run_one_step(
-        self, *data: Tuple[torch.Tensor, torch.Tensor]
-    ) -> Tuple[torch.Tensor, ...]:
+    def train_one_epoch(self, pbar: tqdm) -> NoReturn:
         """
+        train one epoch, and update the progress bar
 
         Parameters
         ----------
-        data: tuple of Tensors,
-            the data to be processed for training one step (batch),
-            should be of the following order:
-            signals, labels, *extra_tensors
+        pbar: tqdm,
+            the progress bar for training
+
+        """
+        for epoch_step, batch in enumerate(self.train_loader):
+            self.model.train()
+            # compute num of losses
+            num_losses = batch["mask_time_indices"].sum()
+            sub_attention_mask = batch.pop("sub_attention_mask", None)
+            sub_attention_mask = (
+                sub_attention_mask
+                if sub_attention_mask is not None
+                else torch.ones_like(batch["mask_time_indices"])
+            )
+            percent_masked = num_losses / sub_attention_mask.sum()
+
+            # forward
+            outputs = self.run_one_step(**batch)
+
+            # divide loss by gradient accumulation steps since gradients
+            # are accumulated for multiple backward passes in PyTorch
+            loss = outputs.loss / self.train_config.gradient_accumulation_steps
+            loss.backward()
+
+            multiply_grads(self.model.parameters(), 1 / num_losses)
+
+            # update step
+            if (
+                (epoch_step + 1) % self.train_config.gradient_accumulation_steps == 0
+                or epoch_step == len(self.train_loader) - 1
+            ):
+
+                # compute grad norm for monitoring
+                scale = 1
+                grad_norm = get_grad_norm(self.model.parameters(), scale)
+
+                # update parameters
+                if self.train_config.flooding_level > 0:
+                    flood = (
+                        loss - self.train_config.flooding_level
+                    ).abs() + self.train_config.flooding_level
+                    self.epoch_loss += loss.item()
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    flood.backward()
+                else:
+                    self.epoch_loss += loss.item()
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    loss.backward()
+
+                if self.scheduler is not None:
+                    self.scheduler.step()
+
+                # update gumbel temperature
+                gumbel_temperature = max(
+                    self.train_config.max_gumbel_temperature
+                    * self.train_config.gumbel_temperature_decay**self.global_step,
+                    self.train_config.min_gumbel_temperature,
+                )
+                self._model.set_gumbel_temperature(gumbel_temperature)
+
+                self.global_step += 1
+
+            if self.global_step % self.train_config.log_step == 0:
+                train_step_metrics = {"loss": loss.item()}
+                if self.scheduler:
+                    train_step_metrics.update({"lr": self.scheduler.get_last_lr()[0]})
+                    pbar.set_postfix(
+                        **{
+                            "loss (batch)": loss.item(),
+                            "lr": self.scheduler.get_last_lr()[0],
+                        }
+                    )
+                else:
+                    pbar.set_postfix(
+                        **{
+                            "loss (batch)": loss.item(),
+                        }
+                    )
+                if self.train_config.flooding_level > 0:
+                    train_step_metrics.update({"flood": flood.item()})
+                self.log_manager.log_metrics(
+                    metrics=train_step_metrics,
+                    step=self.global_step,
+                    epoch=self.epoch,
+                    part="train",
+                )
+            pbar.update(batch[self._model.main_input_name].shape[self.batch_dim])
+
+    def run_one_step(self, **batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """
+        Parameters
+        ----------
+        batch: dict of Tensors,
+            the data to be processed for training one step (batch)
 
         Returns
         -------
-        preds: Tensor,
-            the predictions of the model for the given data
-        labels: Tensor,
-            the labels of the given data
-        masks: Tensor, optional,
-            the state masks of the given data, if available
+        outputs: dict of Tensors,
+            the outputs of the model
 
         """
-        raise NotImplementedError
-
-        # compute num of losses
-        # num_losses = batch["mask_time_indices"].sum()
-        # sub_attention_mask = batch.pop("sub_attention_mask", None)
-        # sub_attention_mask = (
-        #     sub_attention_mask if sub_attention_mask is not None else torch.ones_like(batch["mask_time_indices"])
-        # )
-        # percent_masked = num_losses / sub_attention_mask.sum()
-
-        # # forward
-        # outputs = model(**batch)
-
-        # # divide loss by gradient accumulation steps since gradients
-        # # are accumulated for multiple backward passes in PyTorch
-        # loss = outputs.loss / args.gradient_accumulation_steps
-        # accelerator.backward(loss)
-
-        # # make sure that `num_losses` is summed for distributed training
-        # # and average gradients over losses of all devices
-        # if accelerator.state.num_processes > 1:
-        #     num_losses = accelerator.gather(num_losses).sum()
-        #     gradient_multiplier = accelerator.state.num_processes / num_losses
-        #     multiply_grads(model.module.parameters(), gradient_multiplier)
-        # else:
-        #     multiply_grads(model.parameters(), 1 / num_losses)
-
-        # # update step
-        # if (step + 1) % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
-
-        #     # compute grad norm for monitoring
-        #     scale = (
-        #         accelerator.scaler._scale.item()
-        #         if hasattr(accelerator, "scaler") and accelerator.scaler is not None
-        #         else 1
-        #     )
-        #     if accelerator.state.num_processes > 1:
-        #         grad_norm = get_grad_norm(model.module.parameters(), scale)
-        #     else:
-        #         grad_norm = get_grad_norm(model.parameters(), scale)
-
-        #     # update parameters
-        #     optimizer.step()
-        #     optimizer.zero_grad()
-
-        #     if not accelerator.optimizer_step_was_skipped:
-        #         lr_scheduler.step()
-        #     elif accelerator.is_local_main_process:
-        #         progress_bar.write(
-        #             f"Gradients have overflown - skipping update step... Updating gradient scale to {scale}..."
-        #         )
-
-        #     # update gumbel temperature
-        #     gumbel_temperature = max(
-        #         args.max_gumbel_temperature * args.gumbel_temperature_decay**completed_steps,
-        #         args.min_gumbel_temperature,
-        #     )
-        #     if hasattr(model, "module"):
-        #         model.module.set_gumbel_temperature(gumbel_temperature)
-        #     else:
-        #         model.set_gumbel_temperature(gumbel_temperature)
-
-        #     progress_bar.update(1)
-        #     completed_steps += 1
-
-        # # 6. Log all results
-        # if (step + 1) % (args.gradient_accumulation_steps * args.logging_steps) == 0:
-        #     loss.detach()
-        #     outputs.contrastive_loss.detach()
-        #     outputs.diversity_loss.detach()
-
-        #     if accelerator.state.num_processes > 1:
-        #         loss = accelerator.gather(loss).sum()
-        #         outputs.contrastive_loss = accelerator.gather(outputs.contrastive_loss).sum()
-        #         outputs.diversity_loss = accelerator.gather(outputs.diversity_loss).sum()
-        #         percent_masked = accelerator.gather(percent_masked).sum()
-
-        #     train_logs = {
-        #         "loss": (loss * args.gradient_accumulation_steps) / num_losses,
-        #         "constrast_loss": outputs.contrastive_loss / num_losses,
-        #         "div_loss": outputs.diversity_loss / num_losses,
-        #         "%_mask_idx": percent_masked / accelerator.num_processes,
-        #         "ppl": outputs.codevector_perplexity,
-        #         "lr": torch.tensor(optimizer.param_groups[0]["lr"]),
-        #         "temp": torch.tensor(gumbel_temperature),
-        #         "grad_norm": torch.tensor(grad_norm),
-        #     }
-        #     log_str = ""
-        #     for k, v in train_logs.items():
-        #         log_str += "| {}: {:.3e}".format(k, v.item())
-
-        #     if accelerator.is_local_main_process:
-        #         progress_bar.write(log_str)
-        #         if is_wandb_available():
-        #             wandb.log(train_logs)
-
-        # # save model every `args.saving_steps` steps
-        # if (step + 1) % (args.gradient_accumulation_steps * args.saving_steps) == 0:
-        #     if (args.push_to_hub and epoch < args.num_train_epochs - 1) or args.output_dir is not None:
-        #         accelerator.wait_for_everyone()
-        #         unwrapped_model = accelerator.unwrap_model(model)
-        #         unwrapped_model.save_pretrained(
-        #             args.output_dir, is_main_process=accelerator.is_main_process, save_function=accelerator.save
-        #         )
+        # forward
+        outputs = self.model(**batch)
+        return outputs
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
