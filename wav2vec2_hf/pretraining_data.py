@@ -34,6 +34,7 @@ from data_reader import CINC2022Reader, CINC2016Reader, EPHNOGRAMReader, Composi
 __all__ = [
     "DataCollatorForWav2Vec2Pretraining",
     "get_pretraining_datacollator",
+    "Wav2Vec2PretrainingDataset",
 ]
 
 

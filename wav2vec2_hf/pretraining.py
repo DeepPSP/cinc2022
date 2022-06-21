@@ -4,6 +4,7 @@ modified from:
 https://github.com/huggingface/transformers/blob/main/examples/pytorch/speech-pretraining/run_wav2vec2_pretraining_no_trainer.py
 """
 
+import re
 from typing import Dict, List, Tuple, Optional, Any, NoReturn
 
 import torch
@@ -22,7 +23,13 @@ from transformers import (  # noqa: F401
 )
 from torch_ecg.components.trainer import BaseTrainer
 
+try:
+    from torch_ecg.utils import get_kwargs
+except ImportError:
+    from .utils import get_kwargs
+
 from .pretraining_cfg import PreTrainCfg, PreTrainModelCfg
+from .pretraining_data import get_pretraining_datacollator, Wav2Vec2PretrainingDataset
 from .pretraining_models import Wav2Vec2ForPreTraining
 
 
@@ -66,8 +73,15 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         **kwargs: Any,
     ) -> NoReturn:
         """ """
-        super().__init__(model, model_config, train_config, device, lazy, **kwargs)
-        raise NotImplementedError
+        super().__init__(
+            model,
+            Wav2Vec2PretrainingDataset,
+            model_config,
+            train_config,
+            device,
+            lazy,
+            **kwargs,
+        )
 
     def _setup_dataloaders(
         self,
@@ -85,6 +99,100 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
             the validation dataset
 
         """
+        data_collator = get_pretraining_datacollator(self.model_config)
+
+        if train_dataset is None:
+            train_dataset = self.dataset_cls(
+                config=self.train_config,
+                feature_extractor=self.model_config.get_Wav2Vec2FeatureExtractor(),
+                training=True,
+                lazy=False,
+            )
+
+        if self.train_config.debug:
+            val_train_dataset = train_dataset
+        else:
+            val_train_dataset = None
+        if val_dataset is None:
+            val_dataset = self.dataset_cls(
+                config=self.train_config,
+                feature_extractor=self.model_config.get_Wav2Vec2FeatureExtractor(),
+                training=False,
+                lazy=False,
+            )
+
+        # https://discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/4
+        num_workers = 4
+
+        self.train_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=False,
+            collate_fn=data_collator,
+        )
+
+        if self.train_config.debug:
+            self.val_train_loader = DataLoader(
+                dataset=val_train_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=num_workers,
+                pin_memory=True,
+                drop_last=False,
+                collate_fn=data_collator,
+            )
+        else:
+            self.val_train_loader = None
+        self.val_loader = DataLoader(
+            dataset=val_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=False,
+            collate_fn=data_collator,
+        )
+
+    def _setup_optimizer(self) -> NoReturn:
+        """ """
+        if re.sub("[\\-_]*", "", self.train_config.optimizer.lower()) == "hf_adamw":
+            # AdamW from huggingface
+            optimizer_kwargs = get_kwargs(AdamW)
+            optimizer_kwargs.update(
+                {k: self.train_config.get(k, v) for k, v in optimizer_kwargs.items()}
+            )
+            optimizer_kwargs.update(dict(lr=self.lr))
+            self.optimizer = AdamW(
+                params=self.model.parameters(),
+                **optimizer_kwargs,
+            )
+        else:
+            super()._setup_optimizer()
+
+    def _setup_scheduler(self) -> NoReturn:
+        """ """
+        if (
+            self.train_config.lr_scheduler is not None
+            and self.train_config.lr_scheduler.upper() in SchedulerType.__members__
+        ):
+            scheduler_type = SchedulerType[self.train_config.lr_scheduler.upper()]
+            scheduler_kwargs = get_kwargs(get_scheduler)
+            scheduler_kwargs.update(
+                {k: self.train_config.get(k, v) for k, v in scheduler_kwargs.items()}
+            )
+            self.lr_scheduler = get_scheduler(
+                scheduler_type,
+                self.optimizer,
+                **scheduler_kwargs,
+            )
+        else:
+            super()._setup_scheduler()
+
+    def _setup_criterion(self) -> NoReturn:
+        """ """
         raise NotImplementedError
 
     def run_one_step(
@@ -257,14 +365,6 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         #         args.output_dir, is_main_process=accelerator.is_main_process, save_function=accelerator.save
         #     )
 
-    def _setup_optimizer(self) -> NoReturn:
-        """ """
-        raise NotImplementedError
-
-    def _setup_criterion(self) -> NoReturn:
-        """ """
-        raise NotImplementedError
-
     @property
     def batch_dim(self) -> int:
         """
@@ -297,6 +397,7 @@ if __name__ == "__main__":
 
     trainer = Wav2Vec2PreTrainingTrainer(
         model,
-        {k: v for k, v in PreTrainModelCfg.items() if not callable(v)},
+        # {k: v for k, v in PreTrainModelCfg.items() if not callable(v)},
+        PreTrainModelCfg,
         PreTrainCfg,
     )
