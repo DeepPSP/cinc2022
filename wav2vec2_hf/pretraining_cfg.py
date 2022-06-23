@@ -2,6 +2,7 @@
 """
 
 from copy import deepcopy
+from pathlib import Path
 from typing import List, NoReturn
 
 from transformers import Wav2Vec2Config, Wav2Vec2FeatureExtractor
@@ -16,21 +17,48 @@ __all__ = [
 ]
 
 
+_cwd = Path(__file__).resolve().parent
+
+
 PreTrainCfg = deepcopy(TrainCfg)
-for t in PreTrainCfg.tasks:
+for t in PreTrainCfg.tasks + [
+    "tasks",
+    "db_dir",
+    "loss",
+    "loss_kw",
+    "outcomes",
+    "classes",
+    "states",
+    "ignore_unannotated",
+    "merge_rule",
+    "early_stopping",
+]:
     PreTrainCfg.pop(t)
-PreTrainCfg.pop("tasks")
 
 PreTrainCfg.update(
     CFG(
+        # new attributes
         max_gumbel_temperature=2.0,
         min_gumbel_temperature=0.5,
         gumbel_temperature_decay=0.999995,
         max_duration_in_seconds=30.0,
         min_duration_in_seconds=5.0,
         pad_to_multiple_of=None,
+        # old attributes
+        optimizer="hf-adamw",
+        lr_scheduler="linear",
+        log_dir=_cwd / "log",
+        checkpoints=_cwd / "checkpoints",
+        model_dir=_cwd / "saved_models",
+        input_len=int(30 * PreTrainCfg.fs),  # 30seconds, to adjust
     )
 )
+PreTrainCfg.log_dir.mkdir(parents=True, exist_ok=True)
+PreTrainCfg.checkpoints.mkdir(parents=True, exist_ok=True)
+PreTrainCfg.model_dir.mkdir(parents=True, exist_ok=True)
+
+# PreTrainCfg.resample = CFG(fs=PreTrainCfg.fs)
+
 
 # data directories
 PreTrainCfg.cinc2022_dir = None

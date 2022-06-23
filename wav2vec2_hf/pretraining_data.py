@@ -16,6 +16,7 @@ except ModuleNotFoundError:
     from tqdm import tqdm
 
 import torch
+from torch.utils.data import Dataset
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Config, BatchFeature
 from transformers.pytorch_utils import torch_int_div
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
@@ -221,7 +222,7 @@ def get_pretraining_datacollator(
     )
 
 
-class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
+class Wav2Vec2PretrainingDataset(Dataset, ReprMixin):
     """ """
 
     __name__ = "Wav2Vec2PretrainingDataset"
@@ -243,25 +244,16 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         self.records = []
         if self.config.get("cinc2022_dir", None) is not None:
             data_readers.append(CINC2022Reader(db_dir=self.config.cinc2022_dir))
-            train_set, val_set = self._train_test_split_cinc2022(data_readers[-1])
-            if self.training:
-                self.records.append(train_set)
-            else:
-                self.records.append(val_set)
+            record_subset = self._train_test_split_cinc2022(data_readers[-1])
+            self.records.append(record_subset)
         if self.config.get("cinc2016_dir", None) is not None:
             data_readers.append(CINC2016Reader(db_dir=self.config.cinc2016_dir))
-            train_set, val_set = self._train_test_split_cinc2016(data_readers[-1])
-            if self.training:
-                self.records.append(train_set)
-            else:
-                self.records.append(val_set)
+            record_subset = self._train_test_split_cinc2016(data_readers[-1])
+            self.records.append(record_subset)
         if self.config.get("ephnogram_dir", None) is not None:
             data_readers.append(EPHNOGRAMReader(db_dir=self.config.ephnogram_dir))
-            train_set, val_set = self._train_test_split_ephnogram(data_readers[-1])
-            if self.training:
-                self.records.append(train_set)
-            else:
-                self.records.append(val_set)
+            record_subset = self._train_test_split_ephnogram(data_readers[-1])
+            self.records.append(record_subset)
         assert len(data_readers) > 0 and len(self.records), "No training data!"
 
         self.reader = CompositeReader(data_readers, fs=self.config.fs)
@@ -283,7 +275,9 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         ppm_config.update(deepcopy(self.config))
         self.ppm = PreprocManager.from_config(ppm_config)
 
-        self.fdr = FastDataReader(self.reader, self.records, self.config, self.ppm)
+        self.fdr = FastDataReader(
+            self.reader, self.records, self.config, self.feature_extractor, self.ppm
+        )
 
         self._signals = None
         if not self.lazy:
@@ -426,7 +420,7 @@ class Wav2Vec2PretrainingDataset(ReprMixin, torch.utils.data.Dataset):
         return self._signals
 
 
-class FastDataReader(ReprMixin, torch.utils.data.Dataset):
+class FastDataReader(Dataset, ReprMixin):
     """ """
 
     def __init__(
@@ -462,7 +456,10 @@ class FastDataReader(ReprMixin, torch.utils.data.Dataset):
             n_segments, res = divmod(values.shape[-1], self.config.input_len)
             if res != 0:
                 values = np.vstack(
-                    (values[..., :-res].reshape(n_segments, -1), values[..., -res:])
+                    (
+                        values[..., :-res].reshape(n_segments, -1),
+                        values[..., -self.config.input_len :],
+                    )
                 )
             else:
                 values = values.reshape(n_segments, -1)
