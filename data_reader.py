@@ -1089,14 +1089,19 @@ class CINC2016Reader(PCGDataBase):
         fs = fs or self.fs
         if fs == -1:
             fs = None
-        pcg, _ = librosa.load(
-            self.get_absolute_path(rec, self.data_ext), sr=fs, mono=False
-        )
-        pcg = np.atleast_2d(pcg)
+        data_file = self.get_absolute_path(rec, self.data_ext)
+        pcg, pcg_fs = self._audio_load_func(data_file, fs)
+        # data of shape (n_channels, n_samples), of type torch.Tensor
+        if fs is not None and pcg_fs != fs:
+            pcg = torchaudio.transforms.Resample(pcg_fs, fs)(pcg)
         if data_format.lower() == "channel_last":
             pcg = pcg.T
-        if data_type.lower() == "pt":
-            pcg = torch.from_numpy(pcg).float()
+        elif data_format.lower() == "flat":
+            pcg = pcg.reshape(-1)
+        if data_type.lower() == "np":
+            pcg = pcg.numpy()
+        elif data_type.lower() != "pt":
+            raise ValueError(f"Unsupported data type: {data_type}")
         return pcg
 
     def load_ecg(
@@ -1380,17 +1385,20 @@ class EPHNOGRAMReader(PCGDataBase):
             channels = [channels]
         assert set(channels).issubset(self._channels), "invalid channels"
         data = {
-            k: data[k].astype(np.float32)
+            k: torch.from_numpy(data[k].astype(np.float32))
             if data_format.lower() == "channel_first"
-            else data[k].astype(np.float32).T
+            else torch.from_numpy(data[k].astype(np.float32).T)
             for k in channels
             if k in data
         }
         if fs is not None and fs != data_fs:
+            resampler = torchaudio.transforms.Resample(data_fs, fs)
             for k in data:
-                data[k] = librosa.resample(data[k], data_fs, fs, res_type="kaiser_best")
-        if data_type.lower() == "pt":
-            data = {k: torch.from_numpy(v).float() for k, v in data.items()}
+                data[k] = resampler(data[k])
+        if data_type.lower() == "np":
+            data = {k: v.numpy() for k, v in data.items()}
+        elif data_type.lower() != "pt":
+            raise ValueError(f"Unsupported data type: {data_type}")
         return data
 
     def load_pcg(
@@ -1443,7 +1451,9 @@ class CompositeReader(ReprMixin):
 
     __name__ = "CompositeReader"
 
-    def __init__(self, databases: Sequence[PCGDataBase], fs: int = 1000) -> NoReturn:
+    def __init__(
+        self, databases: Sequence[PCGDataBase], fs: Optional[int] = None
+    ) -> NoReturn:
         """ """
         self.databases = databases
         self.fs = fs
