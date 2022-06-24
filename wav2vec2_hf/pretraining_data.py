@@ -419,6 +419,10 @@ class Wav2Vec2PretrainingDataset(Dataset, ReprMixin):
     def signals(self) -> np.ndarray:
         return self._signals
 
+    def extra_repr_keys(self) -> List[str]:
+        """ """
+        return ["training", "feature_extractor", "config"]
+
 
 class FastDataReader(Dataset, ReprMixin):
     """ """

@@ -223,6 +223,10 @@ class CinC2022Dataset(Dataset, ReprMixin):
     def masks(self) -> np.ndarray:
         return self._masks
 
+    def extra_repr_keys(self) -> List[str]:
+        """ """
+        return ["task", "training"]
+
 
 class FastDataReader(ReprMixin, Dataset):
     """ """
