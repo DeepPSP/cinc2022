@@ -466,9 +466,9 @@ class FastDataReader(Dataset, ReprMixin):
                     )
                 )
             else:
-                values = values.reshape(n_segments, -1)
-        if values.ndim == 1:
-            values = values[np.newaxis, ...]
+                values = values.reshape(n_segments * values.shape[0], -1)
+        # if values.ndim == 1:
+        #     values = values[np.newaxis, ...]
 
         values = self.feature_extractor(
             values,
