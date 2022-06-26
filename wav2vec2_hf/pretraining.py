@@ -318,45 +318,27 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
         """ """
-        raise NotImplementedError
-        # init logs
-        # val_logs = {
-        #     "val_loss": 0,
-        #     "val_contrastive_loss": 0,
-        #     "val_diversity_loss": 0,
-        #     "val_num_losses": 0,
-        # }
-        # for step, batch in enumerate(eval_dataloader):
-        #     with torch.no_grad():
-        #         batch.pop("sub_attention_mask", None)
-        #         outputs = model(**batch)
+        self.model.eval()
+        eval_res = {
+            "loss": 0,
+            "contrastive_loss": 0,
+            "diversity_loss": 0,
+            "num_losses": 0,
+        }
+        for step, batch in enumerate(data_loader):
+            batch.pop("sub_attention_mask", None)
+            outputs = self.model(**batch)
 
-        #     val_logs["val_loss"] += outputs.loss
-        #     val_logs["val_contrastive_loss"] += outputs.contrastive_loss
-        #     val_logs["val_diversity_loss"] += outputs.diversity_loss
-        #     val_logs["val_num_losses"] += batch["mask_time_indices"].sum()
+            eval_res["loss"] += outputs.loss
+            eval_res["contrastive_loss"] += outputs.contrastive_loss
+            eval_res["diversity_loss"] += outputs.diversity_loss
+            eval_res["num_losses"] += batch["mask_time_indices"].sum()
 
-        # # sum over devices in multi-processing
-        # if accelerator.num_processes > 1:
-        #     val_logs = {k: accelerator.gather(v).sum() for k, v in val_logs.items()}
+        eval_res = {k: v / eval_res["num_losses"] for k, v in eval_res.items()}
 
-        # val_logs = {k: v / val_logs["val_num_losses"] for k, v in val_logs.items()}
+        self.model.train()
 
-        # log_str = ""
-        # for k, v in val_logs.items():
-        #     log_str += "| {}: {:.3e}".format(k, v.item())
-
-        # if accelerator.is_local_main_process:
-        #     progress_bar.write(log_str)
-        #     if is_wandb_available():
-        #         wandb.log(val_logs)
-
-        # if args.output_dir is not None:
-        #     accelerator.wait_for_everyone()
-        #     unwrapped_model = accelerator.unwrap_model(model)
-        #     unwrapped_model.save_pretrained(
-        #         args.output_dir, is_main_process=accelerator.is_main_process, save_function=accelerator.save
-        #     )
+        return eval_res
 
     @property
     def batch_dim(self) -> int:
@@ -364,19 +346,22 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         batch dimension, usually 0,
         but can be 1 for some models, e.g. RR_LSTM
         """
-        raise NotImplementedError
+        return 0
 
     @property
     def extra_required_train_config_fields(self) -> List[str]:
         """ """
-        raise NotImplementedError
+        return []
 
     @property
     def save_prefix(self) -> str:
-        raise NotImplementedError
+        return f"HF-Wav2Vec2-Pretrain-{self.model_config.model_name}"
 
     def extra_log_suffix(self) -> str:
-        raise NotImplementedError
+        return (
+            super().extra_log_suffix()
+            + f"-HF-Wav2Vec2-Pretrain-{self.model_config.model_name}"
+        )
 
 
 def parse_args() -> dict:
