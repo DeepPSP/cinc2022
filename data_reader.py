@@ -484,7 +484,7 @@ class CINC2022Reader(PCGDataBase):
         else:
             print("No data found locally!")
             return
-        self._df_stats = self._df_stats.fillna("")
+        self._df_stats = self._df_stats.fillna(self.stats_fillna_val)
         try:
             # the column "Locations" is changed to "Recording locations:" in version 1.0.2
             self._df_stats.Locations = self._df_stats.Locations.apply(
@@ -542,7 +542,7 @@ class CINC2022Reader(PCGDataBase):
                             ignore_index=True,
                         )
             self._df_stats_records.to_csv(stats_file, index=False)
-        self._df_stats_records = self._df_stats_records.fillna("")
+        self._df_stats_records = self._df_stats_records.fillna(self.stats_fillna_val)
 
     def _decompose_rec(self, rec: Union[str, int]) -> Dict[str, str]:
         """
@@ -811,6 +811,8 @@ class CINC2022Reader(PCGDataBase):
             one of `Normal`, `Abnormal`
 
         """
+        if isinstance(subject, int) or subject in self.all_records:
+            raise ValueError("subject should be chosen from `self.all_subjects`")
         row = self._df_stats[self._df_stats["Patient ID"] == subject].iloc[0]
         return row.Outcome
 
@@ -924,6 +926,25 @@ class CINC2022Reader(PCGDataBase):
             self._load_stats()
         return self._df_stats_records
 
+    @property
+    def stats_fillna_val(self) -> str:
+        return ""
+
+    @property
+    def murmur_feature_cols(self) -> List[str]:
+        return [
+            "Systolic murmur timing",
+            "Systolic murmur shape",
+            "Systolic murmur grading",
+            "Systolic murmur pitch",
+            "Systolic murmur quality",
+            "Diastolic murmur timing",
+            "Diastolic murmur shape",
+            "Diastolic murmur grading",
+            "Diastolic murmur pitch",
+            "Diastolic murmur quality",
+        ]
+
     def play(self, rec: Union[str, int], **kwargs) -> IPython.display.Audio:
         """
         play the record `rec` in a Juptyer Notebook
@@ -952,6 +973,17 @@ class CINC2022Reader(PCGDataBase):
     def plot(self, rec: str, **kwargs) -> NoReturn:
         """ """
         raise NotImplementedError
+
+    def plot_outcome_correlation(self, col: str = "Murmur", **kwargs) -> NoReturn:
+        """ """
+        assert col in ["Murmur", "Age", "Sex", "Pregnancy status"]
+        df_dummies = pd.get_dummies(self.df_stats[col], prefix=col)
+        df_stats = pd.concat((self.df_stats, df_dummies), axis=1)
+        plot_kw = dict(kind="bar", figsize=(10, 5), stacked=True, rot=0)
+        plot_kw.update(kwargs)
+        df_stats.groupby("Outcome").agg("sum")[df_dummies.columns.tolist()].plot(
+            **plot_kw
+        )
 
 
 _CINC2016_INFO = DataBaseInfo(  # NOT finished yet
