@@ -161,7 +161,7 @@ _multi_task_segmentation_head.kernel_initializer = "he_normal"
 _multi_task_segmentation_head.dropouts = [0.2, 0.2, 0.0]
 _multi_task_segmentation_head.recover_length = True
 
-ModelArchCfg.multi_task = deepcopy(ECG_CRNN_CONFIG)
+ModelArchCfg.multi_task = CFG()
 ModelArchCfg.multi_task.crnn = deepcopy(ECG_CRNN_CONFIG)
 ModelArchCfg.multi_task.crnn.segmentation_head = deepcopy(_multi_task_segmentation_head)
 

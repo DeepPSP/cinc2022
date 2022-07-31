@@ -342,7 +342,7 @@ for t in TrainCfg.tasks:
     ]:
         if mn not in ModelCfg[t]:
             continue
-        adjust_cnn_filter_lengths(ModelCfg[t][mn], ModelCfg[t].fs)
+        ModelCfg[t][mn] = adjust_cnn_filter_lengths(ModelCfg[t][mn], ModelCfg[t].fs)
         ModelCfg[t][mn].cnn_name = ModelCfg[t].cnn_name
         ModelCfg[t][mn].rnn_name = ModelCfg[t].rnn_name
         ModelCfg[t][mn].attn_name = ModelCfg[t].attn_name

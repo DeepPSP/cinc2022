@@ -979,7 +979,7 @@ class CINC2022Reader(PCGDataBase):
         assert col in ["Murmur", "Age", "Sex", "Pregnancy status"]
         df_dummies = pd.get_dummies(self.df_stats[col], prefix=col)
         df_stats = pd.concat((self.df_stats, df_dummies), axis=1)
-        plot_kw = dict(kind="bar", figsize=(10, 5), stacked=True, rot=0)
+        plot_kw = dict(kind="bar", figsize=(8, 5), stacked=True, rot=0, ylim=(0,600))
         plot_kw.update(kwargs)
         df_stats.groupby("Outcome").agg("sum")[df_dummies.columns.tolist()].plot(
             **plot_kw
