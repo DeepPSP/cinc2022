@@ -29,7 +29,7 @@ from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 
 from data_reader import CINC2022Reader, CINC2016Reader, EPHNOGRAMReader  # noqa: F401
 from dataset import CinC2022Dataset
-from model import CRNN_CINC2022, SEQ_LAB_NET_CINC2022, UNET_CINC2022
+from models import CRNN_CINC2022, SEQ_LAB_NET_CINC2022, UNET_CINC2022
 from cfg import TrainCfg, ModelCfg, _BASE_DIR
 from trainer import CINC2022Trainer, _set_task, _MODEL_MAP
 

@@ -35,7 +35,7 @@ from inputs import (  # noqa: F401
     MFCCInput,
     SpectralInput,
 )  # noqa: F401
-from model import (  # noqa: F401
+from models import (  # noqa: F401
     CRNN_CINC2022,
     SEQ_LAB_NET_CINC2022,
     UNET_CINC2022,
