@@ -25,7 +25,7 @@ from torch_ecg.models.ecg_seq_lab_net import ECG_SEQ_LAB_NET
 from torch_ecg.models.unets.ecg_unet import ECG_UNET
 from torch_ecg.components.outputs import (
     ClassificationOutput,
-    SequenceLabelingOutput,
+    SequenceLabellingOutput,
 )
 from torch_ecg.utils import add_docstring, CkptMixin
 
@@ -229,7 +229,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
     ) -> Union[
         ClassificationOutput,
         Tuple[ClassificationOutput, ClassificationOutput],
-        Tuple[ClassificationOutput, SequenceLabelingOutput],
+        Tuple[ClassificationOutput, SequenceLabellingOutput],
     ]:
         """
 
@@ -269,7 +269,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                 scalar (probability) predictions,
             - pred: ndarray,
                 the array of outcome class number predictions
-        seg_output: SequenceLabelingOutput, optional, with items:
+        seg_output: SequenceLabellingOutput, optional, with items:
             - classes: list of str,
                 list of the state class names
             - prob: ndarray,
@@ -343,7 +343,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                 ).int()
             prob = prob.cpu().detach().numpy()
             pred = pred.cpu().detach().numpy()
-            seg_output = SequenceLabelingOutput(
+            seg_output = SequenceLabellingOutput(
                 classes=self.states,
                 prob=prob,
                 pred=pred,
@@ -361,7 +361,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
     ) -> Union[
         ClassificationOutput,
         Tuple[ClassificationOutput, ClassificationOutput],
-        Tuple[ClassificationOutput, SequenceLabelingOutput],
+        Tuple[ClassificationOutput, SequenceLabellingOutput],
     ]:
         """
         alias for `self.inference`
@@ -484,7 +484,7 @@ class CRNN_CINC2022(ECG_CRNN):
     ) -> Union[
         ClassificationOutput,
         Tuple[ClassificationOutput, ClassificationOutput],
-        Tuple[ClassificationOutput, SequenceLabelingOutput],
+        Tuple[ClassificationOutput, SequenceLabellingOutput],
     ]:
         """
 
@@ -524,7 +524,7 @@ class CRNN_CINC2022(ECG_CRNN):
                 scalar (probability) predictions,
             - pred: ndarray,
                 the array of outcome class number predictions
-        seg_output: SequenceLabelingOutput, optional, with items:
+        seg_output: SequenceLabellingOutput, optional, with items:
             - classes: list of str,
                 list of the state class names
             - prob: ndarray,
@@ -598,7 +598,7 @@ class CRNN_CINC2022(ECG_CRNN):
                 ).int()
             prob = prob.cpu().detach().numpy()
             pred = pred.cpu().detach().numpy()
-            seg_output = SequenceLabelingOutput(
+            seg_output = SequenceLabellingOutput(
                 classes=self.states,
                 prob=prob,
                 pred=pred,
@@ -616,7 +616,7 @@ class CRNN_CINC2022(ECG_CRNN):
     ) -> Union[
         ClassificationOutput,
         Tuple[ClassificationOutput, ClassificationOutput],
-        Tuple[ClassificationOutput, SequenceLabelingOutput],
+        Tuple[ClassificationOutput, SequenceLabellingOutput],
     ]:
         """
         alias for `self.inference`
@@ -664,7 +664,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         self,
         input: Union[np.ndarray, Tensor],
         bin_pred_threshold: float = 0.5,
-    ) -> SequenceLabelingOutput:
+    ) -> SequenceLabellingOutput:
         """
 
         auxiliary function to `forward`, for CINC2022,
@@ -679,7 +679,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
 
         Returns
         -------
-        output: SequenceLabelingOutput, with items:
+        output: SequenceLabellingOutput, with items:
             - classes: list of str,
                 list of the class names
             - prob: ndarray or DataFrame,
@@ -704,7 +704,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
-        return SequenceLabelingOutput(
+        return SequenceLabellingOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
@@ -714,7 +714,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
-    ) -> SequenceLabelingOutput:
+    ) -> SequenceLabellingOutput:
         """
         alias for `self.inference`
         """
@@ -758,7 +758,7 @@ class UNET_CINC2022(ECG_UNET):
     def inference(
         self,
         input: Union[np.ndarray, Tensor],
-    ) -> SequenceLabelingOutput:
+    ) -> SequenceLabellingOutput:
         """
 
         auxiliary function to `forward`, for CINC2022,
@@ -770,7 +770,7 @@ class UNET_CINC2022(ECG_UNET):
 
         Returns
         -------
-        output: SequenceLabelingOutput, with items:
+        output: SequenceLabellingOutput, with items:
             - classes: list of str,
                 list of the class names
             - prob: ndarray or DataFrame,
@@ -789,7 +789,7 @@ class UNET_CINC2022(ECG_UNET):
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
-        return SequenceLabelingOutput(
+        return SequenceLabellingOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
@@ -799,7 +799,7 @@ class UNET_CINC2022(ECG_UNET):
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
-    ) -> SequenceLabelingOutput:
+    ) -> SequenceLabellingOutput:
         """
         alias for `self.inference`
         """
@@ -840,7 +840,7 @@ class OutComeMLP(MLP, CkptMixin):
     def inference_CINC2022(
         self,
         input: Union[np.ndarray, Tensor],
-    ) -> SequenceLabelingOutput:
+    ) -> SequenceLabellingOutput:
         """
         alias for `self.inference`
         """
