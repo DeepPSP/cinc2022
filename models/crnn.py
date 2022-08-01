@@ -186,7 +186,7 @@ class CRNN_CINC2022(ECG_CRNN):
             forward_output=forward_output["murmur"].cpu().detach().numpy(),
         )
 
-        if forward_output["outcome"] is not None:
+        if forward_output.get("outcome", None) is not None:
             prob = self.softmax(forward_output["outcome"])
             pred = torch.argmax(prob, dim=-1)
             bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
@@ -203,7 +203,7 @@ class CRNN_CINC2022(ECG_CRNN):
         else:
             outcome_output = None
 
-        if forward_output["segmentation"] is not None:
+        if forward_output.get("segmentation", None) is not None:
             # if "unannotated" in self.states, use softmax
             # else use sigmoid
             if "unannotated" in self.states:

@@ -208,7 +208,7 @@ TrainCfg.segmentation.input_len = int(
 )  # 30seconds, to adjust
 TrainCfg.segmentation.siglen = TrainCfg.segmentation.input_len  # alias
 TrainCfg.segmentation.sig_slice_tol = 0.4  # None, do no slicing
-TrainCfg.segmentation.classes = BaseCfg.states
+TrainCfg.segmentation.classes = deepcopy(BaseCfg.states)
 if TrainCfg.ignore_unannotated:
     TrainCfg.segmentation.classes = [
         s for s in TrainCfg.segmentation.classes if s != "unannotated"
@@ -265,11 +265,12 @@ TrainCfg.multi_task.num_channels = TrainCfg.multi_task.input_config.n_channels
 TrainCfg.multi_task.input_len = int(30 * TrainCfg.multi_task.fs)  # 30seconds, to adjust
 TrainCfg.multi_task.siglen = TrainCfg.multi_task.input_len  # alias
 TrainCfg.multi_task.sig_slice_tol = 0.4  # None, do no slicing
-TrainCfg.multi_task.classes = BaseCfg.classes
+TrainCfg.multi_task.classes = deepcopy(BaseCfg.classes)
 TrainCfg.multi_task.class_map = {
     c: i for i, c in enumerate(TrainCfg.multi_task.classes)
 }
-TrainCfg.multi_task.states = BaseCfg.states
+TrainCfg.multi_task.outcomes = deepcopy(BaseCfg.outcomes)
+TrainCfg.multi_task.states = deepcopy(BaseCfg.states)
 if TrainCfg.ignore_unannotated:
     TrainCfg.multi_task.states = [
         s for s in TrainCfg.multi_task.states if s != "unannotated"
@@ -350,17 +351,24 @@ for t in TrainCfg.tasks:
 
 # classification model aux. output
 ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
-if ModelCfg.classification.outcomes is not None:
-    ModelCfg.classification.outcome_head.out_channels.append(
-        len(ModelCfg.classification.outcomes)
-    )
-else:
+if ModelCfg.classification.outcomes is None:
     ModelCfg.classification.outcome_head = None
 ModelCfg.classification.states = None
 
 
 # multi-task model segmentation head
+ModelCfg.multi_task.outcomes = deepcopy(TrainCfg.multi_task.outcomes)
+ModelCfg.multi_task.outcome_head.loss = (
+    "CrossEntropyLoss"  # "FocalLoss", "AsymmetricLoss"
+)
+ModelCfg.multi_task.outcome_head.loss_kw = {}
 ModelCfg.multi_task.states = deepcopy(TrainCfg.multi_task.states)
+ModelCfg.multi_task.segmentation_head.loss = (
+    "AsymmetricLoss"  # "FocalLoss", "CrossEntropyLoss"
+)
+ModelCfg.multi_task.segmentation_head.loss_kw = CFG(
+    gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
+)
 
 
 # model for the outcome (final diagnosis)
@@ -368,7 +376,7 @@ ModelCfg.multi_task.states = deepcopy(TrainCfg.multi_task.states)
 ModelCfg.outcome = CFG()
 ModelCfg.outcome.name = "mlp"  # "xgboost"
 ModelCfg.outcome = deepcopy(_BASE_MODEL_CONFIG)
-ModelCfg.outcome.classes = BaseCfg.outcomes
+ModelCfg.outcome.classes = deepcopy(BaseCfg.outcomes)
 
 # mlp for outcome prediction (classification)
 ModelCfg.outcome.mlp = CFG()
