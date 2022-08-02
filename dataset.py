@@ -4,7 +4,7 @@
 import json
 from random import shuffle, sample
 from copy import deepcopy
-from typing import Optional, List, Tuple, Sequence, NoReturn
+from typing import Optional, List, Sequence, NoReturn, Dict
 
 import numpy as np
 
@@ -80,24 +80,20 @@ class CinC2022Dataset(Dataset, ReprMixin):
         self.ppm = PreprocManager.from_config(ppm_config)
         self.seg_ppm = PreprocManager.from_config(seg_ppm_config)
 
-        self._signals = None
-        self._labels = None
-        self._masks = None
+        self.__cache = None
         self.__set_task(task, lazy)
 
     def __len__(self) -> int:
         """ """
-        if self.lazy:
-            return len(self.fdr)
-        return self._signals.shape[0]
+        if self.cache is None:
+            self._load_all_data()
+        return self.cache["values"].shape[0]
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
+    def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         """ """
-        if self.lazy:
-            return self.fdr[index]
-        if self.task in ["multi_task"]:
-            return self._signals[index], self._labels[index], self._masks[index]
-        return self._signals[index], self._labels[index]
+        if self.cache is None:
+            self._load_all_data()
+        return {k: v[index] for k, v in self.cache.items()}
 
     def __set_task(self, task: str, lazy: bool) -> NoReturn:
         """ """
@@ -115,43 +111,33 @@ class CinC2022Dataset(Dataset, ReprMixin):
         self.n_classes = len(self.config[task].classes)
         self.lazy = lazy
 
-        if self.task in ["classification", "multi_task"]:
+        if self.task in ["classification"]:
             self.fdr = FastDataReader(
                 self.reader, self.records, self.config, self.task, self.ppm
             )
-        elif self.task in [
-            "segmentation",
-        ]:
+        elif self.task in ["segmentation"]:
             self.fdr = FastDataReader(
                 self.reader, self.records, self.config, self.task, self.seg_ppm
             )
+        elif self.task in ["multi_task"]:
+            self.fdr = MutiTaskFastDataReader(
+                self.reader, self.records, self.config, self.task, self.ppm
+            )
         else:
-            raise ValueError("illegal task")
+            raise ValueError("Illegal task")
 
         if self.lazy:
             return
 
-        self._signals, self._labels, self._masks = [], [], []
+        tmp_cache = []
         with tqdm(range(len(self.fdr)), desc="Loading data", unit="records") as pbar:
             for idx in pbar:
-                values, *labels = self.fdr[idx]
-                self._signals.append(values)
-                self._labels.append(labels[0])
-                if len(labels) == 2:
-                    self._masks.append(labels[1])
-                else:
-                    # raise ValueError("incorrect number of types of labels")
-                    assert self.task in ["classification", "segmentation"]
-
-        self._signals = np.concatenate(self._signals, axis=0)
-        if self.config[self.task].loss != "CrossEntropyLoss":
-            self._labels = np.concatenate(self._labels, axis=0)
-        else:
-            self._labels = np.array(sum(self._labels)).astype(int)
-        if len(self._masks) > 0:
-            self._masks = np.concatenate(self._masks, axis=0)
-        else:
-            self._masks = np.array(self._masks, dtype=self.dtype)
+                tmp_cache.append(self.fdr[idx])
+        keys = tmp_cache[0].keys()
+        self.__cache = {k: np.concatenate([v[k] for v in tmp_cache]) for k in keys}
+        for k in keys:
+            if self.__cache[k].ndim == 1:
+                self.__cache[k] = self.__cache[k].reshape(-1, 1)
 
     def _load_all_data(self) -> NoReturn:
         """ """
@@ -191,6 +177,7 @@ class CinC2022Dataset(Dataset, ReprMixin):
                 "Age",
                 "Sex",
                 "Pregnancy status",
+                "Outcome",
             ],
             test_ratio=1 - train_ratio,
         )
@@ -212,16 +199,8 @@ class CinC2022Dataset(Dataset, ReprMixin):
             return test_set
 
     @property
-    def signals(self) -> np.ndarray:
-        return self._signals
-
-    @property
-    def labels(self) -> np.ndarray:
-        return self._labels
-
-    @property
-    def masks(self) -> np.ndarray:
-        return self._masks
+    def cache(self) -> List[Dict[str, np.ndarray]]:
+        return self.__cache
 
     def extra_repr_keys(self) -> List[str]:
         """ """
@@ -254,7 +233,7 @@ class FastDataReader(ReprMixin, Dataset):
         """ """
         return len(self.records)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         """ """
         rec = self.records[index]
         values = self.reader.load_data(
@@ -272,38 +251,157 @@ class FastDataReader(ReprMixin, Dataset):
         if values.ndim == 2:
             values = values[np.newaxis, ...]
 
-        if self.task in ["classification", "multi_task"]:
-            labels = self.reader.load_ann(rec)
+        n_segments = values.shape[0]
+
+        if self.task in ["classification"]:
+            label = self.reader.load_ann(rec)
             if self.config[self.task].loss != "CrossEntropyLoss":
-                labels = (
-                    np.isin(self.config[self.task].classes, labels)
+                label = (
+                    np.isin(self.config[self.task].classes, label)
                     .astype(self.dtype)[np.newaxis, ...]
-                    .repeat(values.shape[0], axis=0)
+                    .repeat(n_segments, axis=0)
                 )
             else:
-                labels = np.array(
+                label = np.array(
                     [
-                        self.config[self.task].class_map[labels]
-                        for _ in range(values.shape[0])
+                        self.config[self.task].class_map[label]
+                        for _ in range(n_segments)
                     ],
                     dtype=int,
                 )
+            out = {"values": values, "murmur": label}
+            if self.config[self.task].outcomes is not None:
+                outcome = self.reader.load_outcome(rec)
+                if self.config[self.task].outcome_loss != "CrossEntropyLoss":
+                    outcome = (
+                        np.isin(self.config[self.task].outcomes, outcome)
+                        .astype(self.dtype)[np.newaxis, ...]
+                        .repeat(n_segments, axis=0)
+                    )
+                else:
+                    outcome = np.array(
+                        [
+                            self.config[self.task].outcome_map[outcome]
+                            for _ in range(n_segments)
+                        ],
+                        dtype=int,
+                    )
+                out["outcome"] = outcome
+            return out
 
-        if self.task in ["segmentation", "multi_task"]:
-            masks = self.reader.load_segmentation(rec, seg_format="binary")
-            masks = ensure_siglen(
-                masks,
+        elif self.task in ["segmentation"]:
+            label = self.reader.load_segmentation(
+                rec, seg_format="binary", fs=self.config[self.task].fs
+            )
+            label = ensure_siglen(
+                label,
                 siglen=self.config[self.task].input_len,
                 fmt="channel_last",
                 tolerance=self.config[self.task].sig_slice_tol,
             ).astype(self.dtype)
-            if self.task == "segmentation":
-                labels = masks
+            return {"values": values, "segmentation": label}
+        else:
+            raise ValueError(f"Illegal task: {self.task}")
 
-        if self.task == "multi_task":
-            return values, labels, masks
+    def extra_repr_keys(self) -> List[str]:
+        return [
+            "reader",
+            "ppm",
+        ]
 
-        return values, labels
+
+class MutiTaskFastDataReader(ReprMixin, Dataset):
+    """ """
+
+    def __init__(
+        self,
+        reader: PCGDataBase,
+        records: Sequence[str],
+        config: CFG,
+        task: str = "multi_task",
+        ppm: Optional[PreprocManager] = None,
+    ) -> NoReturn:
+        """ """
+        self.reader = reader
+        self.records = records
+        self.config = config
+        self.task = task
+        assert self.task == "multi_task"
+        self.ppm = ppm
+        if self.config.torch_dtype == torch.float64:
+            self.dtype = np.float64
+        else:
+            self.dtype = np.float32
+
+    def __len__(self) -> int:
+        """ """
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
+        """ """
+        rec = self.records[index]
+        values = self.reader.load_data(
+            rec,
+            data_format=self.config[self.task].data_format,
+        )
+        if self.ppm:
+            values, _ = self.ppm(values, self.reader.fs)
+        values = ensure_siglen(
+            values,
+            siglen=self.config[self.task].input_len,
+            fmt=self.config[self.task].data_format,
+            tolerance=self.config[self.task].sig_slice_tol,
+        ).astype(self.dtype)
+        if values.ndim == 2:
+            values = values[np.newaxis, ...]
+
+        n_segments = values.shape[0]
+
+        label = self.reader.load_ann(rec)
+        if self.config[self.task].loss["murmur"] != "CrossEntropyLoss":
+            label = (
+                np.isin(self.config[self.task].classes, label)
+                .astype(self.dtype)[np.newaxis, ...]
+                .repeat(n_segments, axis=0)
+            )
+        else:
+            label = np.array(
+                [self.config[self.task].class_map[label] for _ in range(n_segments)],
+                dtype=int,
+            )
+
+        outcome = self.reader.load_outcome(rec)
+        if self.config[self.task].loss["outcome"] != "CrossEntropyLoss":
+            outcome = (
+                np.isin(self.config[self.task].outcomes, outcome)
+                .astype(self.dtype)[np.newaxis, ...]
+                .repeat(n_segments, axis=0)
+            )
+        else:
+            outcome = np.array(
+                [
+                    self.config[self.task].outcome_map[outcome]
+                    for _ in range(n_segments)
+                ],
+                dtype=int,
+            )
+
+        mask = self.reader.load_segmentation(
+            rec, seg_format="binary", fs=self.config[self.task].fs
+        )
+        mask = ensure_siglen(
+            mask,
+            siglen=self.config[self.task].input_len,
+            fmt="channel_last",
+            tolerance=self.config[self.task].sig_slice_tol,
+        ).astype(self.dtype)
+
+        return {
+            "values": values,
+            "murmur": label,
+            "outcome": outcome,
+            "segmentation": mask,
+        }
 
     def extra_repr_keys(self) -> List[str]:
         return [
