@@ -323,7 +323,7 @@ TrainCfg.multi_task.loss_kw = CFG(
 )
 
 # monitor choices
-# TrainCfg.multi_task.monitor = "jaccard"  # TODO: chose a monitor
+TrainCfg.multi_task.monitor = "val_loss"  # TODO: adjust monitor
 
 
 def set_entry_test_flag(test_flag: bool):

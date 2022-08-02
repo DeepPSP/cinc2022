@@ -101,8 +101,8 @@ class CinC2022Dataset(Dataset, ReprMixin):
         if (
             hasattr(self, "task")
             and self.task == task.lower()
-            and self._signals is not None
-            and len(self._signals) > 0
+            and self.cache is not None
+            and len(self.cache["values"]) > 0
         ):
             return
         self.task = task.lower()
