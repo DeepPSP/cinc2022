@@ -18,6 +18,11 @@ from torch.nn.parallel import (  # noqa: F401
     DataParallel as DP,
 )  # noqa: F401
 
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    from tqdm import tqdm
+
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import str2bool
@@ -166,7 +171,67 @@ class CINC2022Trainer(BaseTrainer):
             collate_fn=collate_fn,
         )
 
-    def run_one_step(self, *data: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
+    def train_one_epoch(self, pbar: tqdm) -> NoReturn:
+        """
+        train one epoch, and update the progress bar
+
+        Parameters
+        ----------
+        pbar: tqdm,
+            the progress bar for training
+
+        """
+        for epoch_step, data_dict in enumerate(self.train_loader):
+            self.global_step += 1
+            # data is assumed to be a tuple of tensors, of the following order:
+            # signals, labels, *extra_tensors
+            # data = self.augmenter_manager(*data)
+
+            out_tensors = self.run_one_step(data_dict)
+
+            # TODO: correct the following code
+            loss = self.criterion(*out_tensors).to(self.dtype)
+            if self.train_config.flooding_level > 0:
+                flood = (
+                    loss - self.train_config.flooding_level
+                ).abs() + self.train_config.flooding_level
+                self.epoch_loss += loss.item()
+                self.optimizer.zero_grad()
+                flood.backward()
+            else:
+                self.epoch_loss += loss.item()
+                self.optimizer.zero_grad()
+                loss.backward()
+            self.optimizer.step()
+            self._update_lr()
+
+            if self.global_step % self.train_config.log_step == 0:
+                train_step_metrics = {"loss": loss.item()}
+                if self.scheduler:
+                    train_step_metrics.update({"lr": self.scheduler.get_last_lr()[0]})
+                    pbar.set_postfix(
+                        **{
+                            "loss (batch)": loss.item(),
+                            "lr": self.scheduler.get_last_lr()[0],
+                        }
+                    )
+                else:
+                    pbar.set_postfix(
+                        **{
+                            "loss (batch)": loss.item(),
+                        }
+                    )
+                if self.train_config.flooding_level > 0:
+                    train_step_metrics.update({"flood": flood.item()})
+                self.log_manager.log_metrics(
+                    metrics=train_step_metrics,
+                    step=self.global_step,
+                    epoch=self.epoch,
+                    part="train",
+                )
+            pbar.update(data_dict["values"].shape[self.batch_dim])
+
+    def run_one_step(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
 
         Parameters
@@ -186,16 +251,17 @@ class CINC2022Trainer(BaseTrainer):
             the state masks of the given data, if available
 
         """
-        signals, *labels = data
-        signals = signals.to(device=self.device, dtype=self.dtype)
-        labels = (lb.to(device=self.device, dtype=self.dtype) for lb in labels)
-        # print(f"signals: {signals.shape}")
-        # print(f"labels: {list(lb.shape for lb in labels)}")
-        preds = self.model(signals)
-        if isinstance(preds, torch.Tensor):
-            return (preds, *labels)
-        else:
-            return (*preds, *labels)
+        raise NotImplementedError
+        # signals, *labels = data
+        # signals = signals.to(device=self.device, dtype=self.dtype)
+        # labels = (lb.to(device=self.device, dtype=self.dtype) for lb in labels)
+        # # print(f"signals: {signals.shape}")
+        # # print(f"labels: {list(lb.shape for lb in labels)}")
+        # preds = self.model(signals)
+        # if isinstance(preds, torch.Tensor):
+        #     return (preds, *labels)
+        # else:
+        #     return (*preds, *labels)
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
