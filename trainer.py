@@ -7,7 +7,7 @@ import argparse
 import logging
 import textwrap
 from copy import deepcopy
-from typing import Any, Optional, Tuple, NoReturn, Dict, List
+from typing import Any, Optional, Tuple, NoReturn, Dict, List, Sequence, Union
 
 import numpy as np
 import torch
@@ -21,7 +21,7 @@ from torch.nn.parallel import (  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import str2bool
-from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
+from torch_ecg.utils.utils_nn import default_collate_fn
 from torch_ecg.utils.utils_data import mask_to_intervals  # noqa: F401
 
 from models import (  # noqa: F401
@@ -336,6 +336,18 @@ class CINC2022Trainer(BaseTrainer):
 
     def extra_log_suffix(self) -> str:
         return f"task-{self.train_config.task}_{super().extra_log_suffix()}_{self.model_config.cnn_name}"
+
+
+def collate_fn(
+    batch: Sequence[Union[Tuple[np.ndarray, ...], Dict[str, np.ndarray]]]
+) -> Union[Tuple[torch.Tensor, ...], Dict[str, torch.Tensor]]:
+    """ """
+    if isinstance(batch[0], dict):
+        keys = batch[0].keys()
+        collated = default_collate_fn([tuple(b[k] for k in keys) for b in batch])
+        return {k: collated[i] for i, k in enumerate(keys)}
+    else:
+        return default_collate_fn(batch)
 
 
 def get_args(**kwargs: Any):
