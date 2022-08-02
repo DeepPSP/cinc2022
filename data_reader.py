@@ -556,7 +556,8 @@ class CINC2022Reader(PCGDataBase):
         Returns
         -------
         dict,
-            the components (subject, location, and number) of the record
+            the components (subject, location, and number) of the record,
+            with keys "sid", "loc", and "num" respectively
 
         """
         if isinstance(rec, int):
@@ -795,7 +796,35 @@ class CINC2022Reader(PCGDataBase):
                 return {k: v for k, v in meta_data.items() if k.lower() in _keys}
         return meta_data
 
-    def load_outcome(self, subject: str) -> str:
+    def load_outcome(self, rec_or_subject: Union[str, int]) -> str:
+        """
+        load the outcome of the subject or the subject related to the record
+
+        Parameters
+        ----------
+        rec_or_subject : str or int,
+            the record name or the index of the record in `self.all_records`,
+            or the subject id (Patient ID)
+
+        Returns
+        -------
+        outcome : str,
+            the outcome of the record
+
+        """
+        if isinstance(rec_or_subject, int):
+            rec_or_subject = self[rec_or_subject]
+        if rec_or_subject in self.all_subjects:
+            pass
+        elif rec_or_subject in self.all_records:
+            decom = self._decompose_rec(rec_or_subject)
+            rec_or_subject = decom["sid"]
+        else:
+            raise ValueError(f"{rec_or_subject} is not a valid record or patient ID")
+        outcome = self.load_outcome_(rec_or_subject)
+        return outcome
+
+    def load_outcome_(self, subject: str) -> str:
         """
         load the expert cardiologist's overall diagnosis of  of the subject `subject`
 
