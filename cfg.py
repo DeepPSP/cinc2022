@@ -151,8 +151,18 @@ TrainCfg.classification.input_len = int(
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = 0.2  # None, do no slicing
 TrainCfg.classification.classes = deepcopy(BaseCfg.classes)
-# TrainCfg.classification.outcomes = deepcopy(BaseCfg.outcomes)
-TrainCfg.classification.outcomes = None
+TrainCfg.classification.outcomes = deepcopy(BaseCfg.outcomes)
+# TrainCfg.classification.outcomes = None
+if TrainCfg.classification.outcomes is not None:
+    TrainCfg.classification.outcome_map = {
+        c: i for i, c in enumerate(TrainCfg.classification.outcomes)
+    }
+else:
+    TrainCfg.classification.outcome_map = None
+TrainCfg.classification.outcome_loss = (
+    "CrossEntropyLoss"  # valid only if outcomes is not None
+)
+TrainCfg.classification.outcome_loss_kw = CFG()
 TrainCfg.classification.class_map = {
     c: i for i, c in enumerate(TrainCfg.classification.classes)
 }
@@ -270,6 +280,9 @@ TrainCfg.multi_task.class_map = {
     c: i for i, c in enumerate(TrainCfg.multi_task.classes)
 }
 TrainCfg.multi_task.outcomes = deepcopy(BaseCfg.outcomes)
+TrainCfg.multi_task.outcome_map = {
+    c: i for i, c in enumerate(TrainCfg.multi_task.outcomes)
+}
 TrainCfg.multi_task.states = deepcopy(BaseCfg.states)
 if TrainCfg.ignore_unannotated:
     TrainCfg.multi_task.states = [
@@ -298,8 +311,16 @@ TrainCfg.multi_task.rnn_name = "lstm"  # "none", "lstm"
 TrainCfg.multi_task.attn_name = "se"  # "none", "se", "gc", "nl"
 
 # loss function choices
-TrainCfg.multi_task.loss = "AsymmetricLoss"  # "FocalLoss"
-TrainCfg.multi_task.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+TrainCfg.multi_task.loss = CFG(
+    murmur="AsymmetricLoss",  # "FocalLoss"
+    outcome="CrossEntropyLoss",  # "FocalLoss", "AsymmetricLoss"
+    segmentation="AsymmetricLoss",  # "FocalLoss", "CrossEntropyLoss"
+)
+TrainCfg.multi_task.loss_kw = CFG(
+    murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
+    outcome={},  # "FocalLoss", "AsymmetricLoss"
+    segmentation=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
+)
 
 # monitor choices
 # TrainCfg.multi_task.monitor = "jaccard"  # TODO: chose a monitor
@@ -353,21 +374,22 @@ for t in TrainCfg.tasks:
 ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
 if ModelCfg.classification.outcomes is None:
     ModelCfg.classification.outcome_head = None
+else:
+    ModelCfg.classification.outcome_head.loss = TrainCfg.classification.outcome_loss
+    ModelCfg.classification.outcome_head.loss_kw = deepcopy(
+        TrainCfg.classification.outcome_loss_kw
+    )
 ModelCfg.classification.states = None
 
 
 # multi-task model segmentation head
 ModelCfg.multi_task.outcomes = deepcopy(TrainCfg.multi_task.outcomes)
-ModelCfg.multi_task.outcome_head.loss = (
-    "CrossEntropyLoss"  # "FocalLoss", "AsymmetricLoss"
-)
-ModelCfg.multi_task.outcome_head.loss_kw = {}
+ModelCfg.multi_task.outcome_head.loss = TrainCfg.multi_task.loss.outcome
+ModelCfg.multi_task.outcome_head.loss_kw = deepcopy(TrainCfg.multi_task.loss_kw.outcome)
 ModelCfg.multi_task.states = deepcopy(TrainCfg.multi_task.states)
-ModelCfg.multi_task.segmentation_head.loss = (
-    "AsymmetricLoss"  # "FocalLoss", "CrossEntropyLoss"
-)
-ModelCfg.multi_task.segmentation_head.loss_kw = CFG(
-    gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
+ModelCfg.multi_task.segmentation_head.loss = TrainCfg.multi_task.loss.segmentation
+ModelCfg.multi_task.segmentation_head.loss_kw = deepcopy(
+    TrainCfg.multi_task.loss_kw.segmentation
 )
 
 
