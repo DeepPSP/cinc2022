@@ -181,6 +181,44 @@ TrainCfg.classification.normalize = CFG(  # None or False for no normalization
     std=1.0,
 )
 
+# augmentations configurations via `from_dict` of `torch-audiomentations`
+TrainCfg.classification.augmentations = [
+    dict(
+        transform="AddColoredNoise",
+        params=dict(
+            min_snr_in_db=1.0,
+            max_snr_in_db=5.0,
+            min_f_decay=-2.0,
+            max_f_decay=2.0,
+            mode="per_example",
+            p=0.5,
+            sample_rate=TrainCfg.classification.fs,
+        ),
+    ),
+    dict(
+        transform="PitchShift",
+        params=dict(
+            sample_rate=TrainCfg.classification.fs,
+            min_transpose_semitones=-2.0,
+            max_transpose_semitones=2.0,
+            mode="per_example",
+            p=0.4,
+        ),
+    ),
+    dict(
+        transform="PolarityInversion",
+        params=dict(
+            mode="per_example",
+            p=0.6,
+            sample_rate=TrainCfg.classification.fs,
+        ),
+    ),
+]
+TrainCfg.classification.augmentations_kw = CFG(
+    p=0.7,
+    mode="per_batch",
+)
+
 # model choices
 TrainCfg.classification.model_name = "crnn"
 TrainCfg.classification.cnn_name = "resnet_nature_comm_bottle_neck_se"
@@ -239,6 +277,44 @@ TrainCfg.segmentation.normalize = CFG(  # None or False for no normalization
     method="z-score",
     mean=0.0,
     std=1.0,
+)
+
+# augmentations configurations via `from_dict` of `torch-audiomentations`
+TrainCfg.segmentation.augmentations = [
+    dict(
+        transform="AddColoredNoise",
+        params=dict(
+            min_snr_in_db=1.0,
+            max_snr_in_db=5.0,
+            min_f_decay=-2.0,
+            max_f_decay=2.0,
+            mode="per_example",
+            p=0.5,
+            sample_rate=TrainCfg.classification.fs,
+        ),
+    ),
+    dict(
+        transform="PitchShift",
+        params=dict(
+            sample_rate=TrainCfg.classification.fs,
+            min_transpose_semitones=-2.0,
+            max_transpose_semitones=2.0,
+            mode="per_example",
+            p=0.4,
+        ),
+    ),
+    dict(
+        transform="PolarityInversion",
+        params=dict(
+            mode="per_example",
+            p=0.6,
+            sample_rate=TrainCfg.classification.fs,
+        ),
+    ),
+]
+TrainCfg.segmentation.augmentations_kw = CFG(
+    p=0.7,
+    mode="per_batch",
 )
 
 # model choices
@@ -302,6 +378,44 @@ TrainCfg.multi_task.normalize = CFG(  # None or False for no normalization
     method="z-score",
     mean=0.0,
     std=1.0,
+)
+
+# augmentations configurations via `from_dict` of `torch-audiomentations`
+TrainCfg.multi_task.augmentations = [
+    dict(
+        transform="AddColoredNoise",
+        params=dict(
+            min_snr_in_db=1.0,
+            max_snr_in_db=5.0,
+            min_f_decay=-2.0,
+            max_f_decay=2.0,
+            mode="per_example",
+            p=0.5,
+            sample_rate=TrainCfg.classification.fs,
+        ),
+    ),
+    dict(
+        transform="PitchShift",
+        params=dict(
+            sample_rate=TrainCfg.classification.fs,
+            min_transpose_semitones=-2.0,
+            max_transpose_semitones=2.0,
+            mode="per_example",
+            p=0.4,
+        ),
+    ),
+    dict(
+        transform="PolarityInversion",
+        params=dict(
+            mode="per_example",
+            p=0.6,
+            sample_rate=TrainCfg.classification.fs,
+        ),
+    ),
+]
+TrainCfg.multi_task.augmentations_kw = CFG(
+    p=0.7,
+    mode="per_batch",
 )
 
 # model choices
