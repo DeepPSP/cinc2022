@@ -195,16 +195,16 @@ TrainCfg.classification.augmentations = [
             sample_rate=TrainCfg.classification.fs,
         ),
     ),
-    dict(
-        transform="PitchShift",
-        params=dict(
-            sample_rate=TrainCfg.classification.fs,
-            min_transpose_semitones=-2.0,
-            max_transpose_semitones=2.0,
-            mode="per_example",
-            p=0.4,
-        ),
-    ),
+    # dict(
+    #     transform="PitchShift",
+    #     params=dict(
+    #         sample_rate=TrainCfg.classification.fs,
+    #         min_transpose_semitones=-4.0,
+    #         max_transpose_semitones=4.0,
+    #         mode="per_example",
+    #         p=0.4,
+    #     ),
+    # ),
     dict(
         transform="PolarityInversion",
         params=dict(
@@ -216,7 +216,7 @@ TrainCfg.classification.augmentations = [
 ]
 TrainCfg.classification.augmentations_kw = CFG(
     p=0.7,
-    mode="per_batch",
+    p_mode="per_batch",
 )
 
 # model choices
@@ -293,16 +293,16 @@ TrainCfg.segmentation.augmentations = [
             sample_rate=TrainCfg.classification.fs,
         ),
     ),
-    dict(
-        transform="PitchShift",
-        params=dict(
-            sample_rate=TrainCfg.classification.fs,
-            min_transpose_semitones=-2.0,
-            max_transpose_semitones=2.0,
-            mode="per_example",
-            p=0.4,
-        ),
-    ),
+    # dict(
+    #     transform="PitchShift",
+    #     params=dict(
+    #         sample_rate=TrainCfg.classification.fs,
+    #         min_transpose_semitones=-4.0,
+    #         max_transpose_semitones=4.0,
+    #         mode="per_example",
+    #         p=0.4,
+    #     ),
+    # ),
     dict(
         transform="PolarityInversion",
         params=dict(
@@ -394,16 +394,16 @@ TrainCfg.multi_task.augmentations = [
             sample_rate=TrainCfg.classification.fs,
         ),
     ),
-    dict(
-        transform="PitchShift",
-        params=dict(
-            sample_rate=TrainCfg.classification.fs,
-            min_transpose_semitones=-2.0,
-            max_transpose_semitones=2.0,
-            mode="per_example",
-            p=0.4,
-        ),
-    ),
+    # dict(
+    #     transform="PitchShift",
+    #     params=dict(
+    #         sample_rate=TrainCfg.classification.fs,
+    #         min_transpose_semitones=-4.0,
+    #         max_transpose_semitones=4.0,
+    #         mode="per_example",
+    #         p=0.4,
+    #     ),
+    # ),
     dict(
         transform="PolarityInversion",
         params=dict(

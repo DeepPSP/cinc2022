@@ -1,5 +1,10 @@
 """
 Audio data augmentation using `torch_audiomentations`
+
+The drawbacks of this approach:
+1. the forward function only accepts the input tensor and the sample rate, without the labels.
+If labels contains segmentation masks, the forward function will not be able to process them,
+which is needed for example for `Shift`, `TimeInversion`, etc.
 """
 
 from typing import Sequence, NoReturn
