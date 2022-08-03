@@ -8,17 +8,23 @@ import torch_audiomentations as TA
 from torch_audiomentations.core.transforms_interface import BaseWaveformTransform
 
 
-class Augmenter(TA.SomeOf):
-    """
+__all__ = ["AugmenterManager"]
 
-    Audio data augmenters
 
-    """
+class AugmenterManager(TA.SomeOf):
+    """Audio data augmenters"""
 
     def __init__(
         self,
         transforms: Sequence[BaseWaveformTransform],
         p: float = 1.0,
+        p_mode="per_batch",
     ) -> NoReturn:
         """ """
-        super().__init__((1, None), transforms, p=p)
+        super().__init__((1, None), transforms, p=p, p_mode=p_mode)
+
+    @classmethod
+    def from_config(cls, config: dict) -> "AugmenterManager":
+        """ """
+        transforms = [TA.from_dict(item) for item in config["augmentations"]]
+        return cls(transforms, **config["augmentations_kw"])
