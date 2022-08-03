@@ -26,11 +26,14 @@ from torch.nn.parallel import (  # noqa: F401
     DataParallel as DP,
 )  # noqa: F401
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
+from torch_ecg.components.outputs import ClassificationOutput
 
+from cfg import TrainCfg, ModelCfg, _BASE_DIR
+from utils.scoring_metrics import compute_challenge_metrics
 from data_reader import CINC2022Reader, CINC2016Reader, EPHNOGRAMReader  # noqa: F401
 from dataset import CinC2022Dataset
 from models import CRNN_CINC2022, SEQ_LAB_NET_CINC2022, UNET_CINC2022
-from cfg import TrainCfg, ModelCfg, _BASE_DIR
+from models.outputs import CINC2022Outputs
 from trainer import CINC2022Trainer, _set_task, _MODEL_MAP
 
 
@@ -56,7 +59,7 @@ dr.download(compressed=True)
 dr._ls_rec()
 del dr
 
-TASK = "classification"
+TASK = "classification"  # "multi_task"
 
 
 def test_dataset() -> NoReturn:
@@ -97,6 +100,56 @@ def test_models() -> NoReturn:
             break
 
     print("models test passed")
+
+
+def test_challenge_metrics() -> NoReturn:
+    """ """
+    outputs = [
+        CINC2022Outputs(
+            murmur_output=ClassificationOutput(
+                classes=["Present", "Unknown", "Absent"],
+                prob=np.array([[0.75, 0.15, 0.1]]),
+                pred=np.array([0]),
+                bin_pred=np.array([[1, 0, 0]]),
+            ),
+            outcome_output=ClassificationOutput(
+                classes=["Abnormal", "Normal"],
+                prob=np.array([[0.6, 0.4]]),
+                pred=np.array([0]),
+                bin_pred=np.array([[1, 0]]),
+            ),
+            segmentation_output=None,
+        ),
+        CINC2022Outputs(
+            murmur_output=ClassificationOutput(
+                classes=["Present", "Unknown", "Absent"],
+                prob=np.array([[0.3443752, 0.32366553, 0.33195925]]),
+                pred=np.array([0]),
+                bin_pred=np.array([[1, 0, 0]]),
+            ),
+            outcome_output=ClassificationOutput(
+                classes=["Abnormal", "Normal"],
+                prob=np.array([[0.5230, 0.0202]]),
+                pred=np.array([0]),
+                bin_pred=np.array([[1, 0]]),
+            ),
+            segmentation_output=None,
+        ),
+    ]
+    labels = [
+        {
+            "murmur": np.array([0.0, 0.0, 1.0]),
+            "outcome": np.array([0]),
+        },
+        {
+            "murmur": np.array([0.0, 1.0, 0.0]),
+            "outcome": np.array([1]),
+        },
+    ]
+
+    compute_challenge_metrics(labels, outputs)
+
+    print("challenge metrics test passed")
 
 
 def test_trainer() -> NoReturn:
@@ -179,5 +232,6 @@ if __name__ == "__main__":
     # test_dataset()  # passed
     # test_models()  # passed
     # test_trainer()  # directly run test_entry
+    test_challenge_metrics()
     test_entry()
     set_entry_test_flag(False)
