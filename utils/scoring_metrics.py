@@ -5,14 +5,15 @@ metrics from the official scoring repository
 from typing import Tuple, Sequence, Dict, List, Union
 
 import numpy as np
-from torch_ecg.components.outputs import ClassificationOutput  # noqa: F401
+from deprecated import deprecated
+from torch_ecg.utils.utils_metrics import _cls_to_bin
 
 from cfg import BaseCfg
+from models.outputs import CINC2022Outputs
 
 
 __all__ = [
-    "compute_metrics",
-    "compute_metrics_detailed",
+    "compute_challenge_metrics",
 ]
 
 
@@ -21,14 +22,92 @@ __all__ = [
 ######################################
 
 
-def compute_metrics(
+def compute_challenge_metrics(
+    labels: Sequence[Dict[str, np.ndarray]],
+    outputs: Sequence[CINC2022Outputs],
+    require_both: bool = False,
+) -> Dict[str, float]:
+    """ """
+    metrics = {}
+    if require_both:
+        assert all([set(lb.keys()) <= set(["murmur", "outcome"]) for lb in labels])
+        assert all(
+            [
+                item.murmur_output is not None and item.outcome_output is not None
+                for item in outputs
+            ]
+        )
+    # metrics for murmurs
+    if outputs[0].murmur_output is not None:
+        murmur_labels = np.concatenate(
+            [
+                lb["murmur"]
+                if lb["murmur"].shape[-1] == 1
+                else np.atleast_2d(lb["murmur"])
+                for lb in labels
+            ]
+        )
+        murmur_scalar_outputs = np.concatenate(
+            [np.atleast_2d(item.murmur_output.prob) for item in outputs]
+        )
+        murmur_binary_outputs = np.concatenate(
+            [np.atleast_2d(item.murmur_output.bin_pred) for item in outputs]
+        )
+        murmur_classes = outputs[0].murmur_output.classes
+        if murmur_labels.ndim == 1:
+            murmur_labels = _cls_to_bin(
+                murmur_labels, shape=(len(murmur_labels), len(murmur_classes))
+            )
+        metrics.update(
+            _compute_challenge_metrics(
+                murmur_labels,
+                murmur_scalar_outputs,
+                murmur_binary_outputs,
+                murmur_classes,
+            )
+        )
+    # metrics for outcomes
+    if outputs[0].outcome_output is not None:
+        outcome_labels = np.concatenate(
+            [
+                lb["outcome"]
+                if lb["outcome"].shape[-1] == 1
+                else np.atleast_2d(lb["outcome"])
+                for lb in labels
+            ]
+        )
+        outcome_scalar_outputs = np.concatenate(
+            [np.atleast_2d(item.outcome_output.prob) for item in outputs]
+        )
+        outcome_binary_outputs = np.concatenate(
+            [np.atleast_2d(item.outcome_output.bin_pred) for item in outputs]
+        )
+        outcome_classes = outputs[0].outcome_output.classes
+        if outcome_labels.ndim == 1:
+            outcome_labels = _cls_to_bin(
+                outcome_labels, shape=(len(outcome_labels), len(outcome_classes))
+            )
+        metrics.update(
+            _compute_challenge_metrics(
+                outcome_labels,
+                outcome_scalar_outputs,
+                outcome_binary_outputs,
+                outcome_classes,
+            )
+        )
+
+    return metrics
+
+
+def _compute_challenge_metrics(
     labels: np.ndarray,
     scalar_outputs: np.ndarray,
     binary_outputs: np.ndarray,
-    classes: Sequence[str] = BaseCfg.classes,
+    classes: Sequence[str],
 ) -> Dict[str, float]:
     """
-    Compute detailed metrics, modified from the function `evaluate_model`
+    Compute macro-averaged metrics,
+    modified from the function `evaluate_model`
     in `evaluate_model.py` in the official scoring repository.
 
     Parameters
@@ -39,8 +118,9 @@ def compute_metrics(
         scalar outputs (probabilities), of shape: (n_samples, n_classes)
     binary_outputs: np.ndarray,
         binary outputs, of shape: (n_samples, n_classes)
-    classes: sequence of str, default `BaseCfg.classes`,
-        class names
+    classes: sequence of str,
+        class names for murmurs or outcomes,
+        e.g. `BaseCfg.classes` or `BaseCfg.outcomes`
 
     Returns
     -------
@@ -63,11 +143,11 @@ def compute_metrics(
             `challenge_cost` if `classes` equals `BaseCfg.outcomes`
 
     """
-    detailed_metrics = compute_metrics_detailed(
+    detailed_metrics = _compute_challenge_metrics_detailed(
         labels, scalar_outputs, binary_outputs, classes
     )
     metrics = {
-        k: v
+        f"""{detailed_metrics["prefix"]}_{k}""": v
         for k, v in detailed_metrics.items()
         if k
         in [
@@ -76,23 +156,23 @@ def compute_metrics(
             "f_measure",
             "accuracy",
             "weighted_accuracy",
-            "challenge_cost",
+            "cost",
         ]
     }
-    metrics["task_score"] = (
-        metrics["weighted_accuracy"]
-        if list(classes) == BaseCfg.classes
-        else metrics["challenge_cost"]
-    )
+    # metrics["task_score"] = (
+    #     metrics["weighted_accuracy"]
+    #     if list(classes) == BaseCfg.classes
+    #     else metrics["cost"]
+    # )
     return metrics
 
 
-def compute_metrics_detailed(
+def _compute_challenge_metrics_detailed(
     labels: np.ndarray,
     scalar_outputs: np.ndarray,
     binary_outputs: np.ndarray,
-    classes: Sequence[str] = BaseCfg.classes,
-) -> Dict[str, Union[float, np.ndarray]]:
+    classes: Sequence[str],
+) -> Dict[str, Union[float, np.ndarray, str]]:
     """
     Compute detailed metrics, modified from the function `evaluate_model`
     in `evaluate_model.py` in the official scoring repository.
@@ -105,8 +185,9 @@ def compute_metrics_detailed(
         scalar outputs (probabilities), of shape: (n_samples, n_classes)
     binary_outputs: np.ndarray,
         binary outputs, of shape: (n_samples, n_classes)
-    classes: sequence of str, default `BaseCfg.classes`,
-        class names, can be one of `BaseCfg.classes` or `BaseCfg.outcomes`
+    classes: sequence of str,
+        class names for murmurs or outcomes,
+        e.g. `BaseCfg.classes` or `BaseCfg.outcomes`
 
     Returns
     -------
@@ -129,15 +210,19 @@ def compute_metrics_detailed(
             the accuracy for each class
         weighted_accuracy: float,
             the weighted accuracy
-        challenge_cost: float,
+        cost: float,
             the challenge cost
+        prefix: str,
+            the prefix of the metrics, one of `"murmur"` or `"outcome"`
 
     """
     # For each patient, set the 'Unknown' class to positive if no class is positive or if multiple classes are positive.
     if list(classes) == BaseCfg.classes:
         positive_class = "Present"
+        prefix = "murmur"
     elif list(classes) == BaseCfg.outcomes:
-        positive_class = "Unknown"
+        positive_class = "Abnormal"
+        prefix = "outcome"
     else:
         raise ValueError(f"Illegal sequence of classes: {classes}")
     labels = enforce_positives(labels, classes, positive_class)
@@ -149,7 +234,7 @@ def compute_metrics_detailed(
     accuracy, accuracy_classes = compute_accuracy(labels, binary_outputs)
     weighted_accuracy = compute_weighted_accuracy(labels, binary_outputs, list(classes))
     # challenge_score = compute_challenge_score(labels, binary_outputs, classes)
-    challenge_cost = compute_cost(labels, binary_outputs, BaseCfg.outcomes, classes)
+    cost = compute_cost(labels, binary_outputs, BaseCfg.outcomes, classes)
 
     return dict(
         auroc=auroc,
@@ -161,7 +246,8 @@ def compute_metrics_detailed(
         accuracy=accuracy,
         accuracy_classes=accuracy_classes,
         weighted_accuracy=weighted_accuracy,
-        challenge_cost=challenge_cost,
+        cost=cost,
+        prefix=prefix,
     )
 
 
@@ -522,21 +608,22 @@ def compute_weighted_accuracy(
 
 
 def cost_algorithm(m: int) -> int:
+    """total cost for algorithmic prescreening of m patients."""
     return 10 * m
 
 
-# Define total cost for expert screening of m patients out of a total of n total patients.
 def cost_expert(m: int, n: int) -> float:
+    """total cost for expert screening of m patients out of a total of n total patients."""
     return (25 + 397 * (m / n) - 1718 * (m / n) ** 2 + 11296 * (m / n) ** 4) * n
 
 
-# Define total cost for treatment of m patients.
 def cost_treatment(m: int) -> int:
+    """total cost for treatment of m patients."""
     return 10000 * m
 
 
-# Define total cost for missed/late treatement of m patients.
 def cost_error(m: int) -> int:
+    """total cost for missed/late treatement of m patients."""
     return 50000 * m
 
 
@@ -614,6 +701,7 @@ def compute_cost(
     return mean_cost
 
 
+@deprecated(reason="only used in the unofficial phase of the Challenge")
 def compute_challenge_score(
     labels: np.ndarray, outputs: np.ndarray, classes: Sequence[str]
 ) -> float:
