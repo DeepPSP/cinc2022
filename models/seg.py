@@ -59,6 +59,28 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
             _config[_config.model_name],
         )
 
+    def forward(
+        self,
+        waveforms: Tensor,
+        labels: Optional[Dict[str, Tensor]] = None,
+    ) -> Dict[str, Tensor]:
+        """
+
+        Parameters
+        ----------
+        waveforms: Tensor,
+            of shape (batch_size, channels, seq_len)
+        labels: dict of Tensor, optional,
+            not used in this model
+
+        Returns
+        -------
+        dict of Tensor, with items:
+            - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
+
+        """
+        return {"segmentation": super().forward(waveforms)}
+
     @torch.no_grad()
     def inference(
         self,
@@ -93,10 +115,10 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
         if "unannotated" in self.classes:
-            prob = self.softmax(self.forward(_input))
+            prob = self.softmax(self.forward(_input)["segmentation"])
             pred = torch.argmax(prob, dim=-1)
         else:
-            prob = self.sigmoid(self.forward(_input))
+            prob = self.sigmoid(self.forward(_input)["segmentation"])
             pred = (prob > bin_pred_threshold).int() * (
                 prob == prob.max(dim=-1, keepdim=True).values
             ).int()
@@ -154,6 +176,28 @@ class UNET_CINC2022(ECG_UNET):
             _config[_config.model_name],
         )
 
+    def forward(
+        self,
+        waveforms: Tensor,
+        labels: Optional[Dict[str, Tensor]] = None,
+    ) -> Dict[str, Tensor]:
+        """
+
+        Parameters
+        ----------
+        waveforms: Tensor,
+            of shape (batch_size, channels, seq_len)
+        labels: dict of Tensor, optional,
+            not used in this model
+
+        Returns
+        -------
+        dict of Tensor, with items:
+            - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
+
+        """
+        return {"segmentation": super().forward(waveforms)}
+
     @torch.no_grad()
     def inference(
         self,
@@ -161,7 +205,6 @@ class UNET_CINC2022(ECG_UNET):
         bin_pred_threshold: float = 0.5,
     ) -> SequenceLabellingOutput:
         """
-
         auxiliary function to `forward`, for CINC2022,
 
         Parameters
@@ -189,10 +232,10 @@ class UNET_CINC2022(ECG_UNET):
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
         if "unannotated" in self.classes:
-            prob = self.softmax(self.forward(_input))
+            prob = self.softmax(self.forward(_input)["segmentation"])
             pred = torch.argmax(prob, dim=-1)
         else:
-            prob = self.sigmoid(self.forward(_input))
+            prob = self.sigmoid(self.forward(_input)["segmentation"])
             pred = (prob > bin_pred_threshold).int() * (
                 prob == prob.max(dim=-1, keepdim=True).values
             ).int()
