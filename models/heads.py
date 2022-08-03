@@ -91,7 +91,7 @@ class MultiTaskHead(nn.Module, SizeMixin):
             used when segmentation head's `recover_length` config is set `True`
         labels: dict of Tensor, optional,
             the labels of the input data, including:
-            - "outcome": the outcome labels, of shape (batch_size, n_outcomes)
+            - "outcome": the outcome labels, of shape (batch_size, n_outcomes) or (batch_size,)
             - "segmentation": the segmentation labels, of shape (batch_size, seq_len, n_states)
 
         Returns
@@ -102,9 +102,10 @@ class MultiTaskHead(nn.Module, SizeMixin):
             - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
             - "outcome_loss": loss of the outcome predictions
             - "segmentation_loss": loss of the segmentation predictions
+            - "total_extra_loss": total loss of the extra heads
 
         """
-        out = dict()
+        out = dict(total_extra_loss=0.0)
         if "segmentation" in self.heads:
             out["segmentation"] = self.heads["segmentation"](features.permute(0, 2, 1))
             if self.config.segmentation_head.get("recover_length", True):
@@ -119,12 +120,14 @@ class MultiTaskHead(nn.Module, SizeMixin):
                     out["segmentation"].reshape(-1, out["segmentation"].shape[0]),
                     labels["segmentation"].reshape(-1, labels["segmentation"].shape[0]),
                 )
+                out["total_extra_loss"] += out["segmentation_loss"]
         if "outcome" in self.heads:
             out["outcome"] = self.heads["outcome"](pooled_features)
             if labels is not None and labels.get("outcome", None) is not None:
                 out["outcome_loss"] = self.criteria["outcome"](
                     out["outcome"], labels["outcome"]
                 )
+                out["total_extra_loss"] += out["outcome_loss"]
         return out
 
     def _setup_criterion(self, loss: str, loss_kw: Optional[dict] = None) -> NoReturn:

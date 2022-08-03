@@ -87,7 +87,7 @@ class CinC2022Dataset(Dataset, ReprMixin):
         """ """
         if self.cache is None:
             self._load_all_data()
-        return self.cache["values"].shape[0]
+        return self.cache["waveforms"].shape[0]
 
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         """ """
@@ -102,7 +102,7 @@ class CinC2022Dataset(Dataset, ReprMixin):
             hasattr(self, "task")
             and self.task == task.lower()
             and self.cache is not None
-            and len(self.cache["values"]) > 0
+            and len(self.cache["waveforms"]) > 0
         ):
             return
         self.task = task.lower()
@@ -236,22 +236,22 @@ class FastDataReader(ReprMixin, Dataset):
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         """ """
         rec = self.records[index]
-        values = self.reader.load_data(
+        waveforms = self.reader.load_data(
             rec,
             data_format=self.config[self.task].data_format,
         )
         if self.ppm:
-            values, _ = self.ppm(values, self.reader.fs)
-        values = ensure_siglen(
-            values,
+            waveforms, _ = self.ppm(waveforms, self.reader.fs)
+        waveforms = ensure_siglen(
+            waveforms,
             siglen=self.config[self.task].input_len,
             fmt=self.config[self.task].data_format,
             tolerance=self.config[self.task].sig_slice_tol,
         ).astype(self.dtype)
-        if values.ndim == 2:
-            values = values[np.newaxis, ...]
+        if waveforms.ndim == 2:
+            waveforms = waveforms[np.newaxis, ...]
 
-        n_segments = values.shape[0]
+        n_segments = waveforms.shape[0]
 
         if self.task in ["classification"]:
             label = self.reader.load_ann(rec)
@@ -269,7 +269,7 @@ class FastDataReader(ReprMixin, Dataset):
                     ],
                     dtype=int,
                 )
-            out = {"values": values, "murmur": label}
+            out = {"waveforms": waveforms, "murmur": label}
             if self.config[self.task].outcomes is not None:
                 outcome = self.reader.load_outcome(rec)
                 if self.config[self.task].outcome_loss != "CrossEntropyLoss":
@@ -299,7 +299,7 @@ class FastDataReader(ReprMixin, Dataset):
                 fmt="channel_last",
                 tolerance=self.config[self.task].sig_slice_tol,
             ).astype(self.dtype)
-            return {"values": values, "segmentation": label}
+            return {"waveforms": waveforms, "segmentation": label}
         else:
             raise ValueError(f"Illegal task: {self.task}")
 
@@ -340,22 +340,22 @@ class MutiTaskFastDataReader(ReprMixin, Dataset):
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         """ """
         rec = self.records[index]
-        values = self.reader.load_data(
+        waveforms = self.reader.load_data(
             rec,
             data_format=self.config[self.task].data_format,
         )
         if self.ppm:
-            values, _ = self.ppm(values, self.reader.fs)
-        values = ensure_siglen(
-            values,
+            waveforms, _ = self.ppm(waveforms, self.reader.fs)
+        waveforms = ensure_siglen(
+            waveforms,
             siglen=self.config[self.task].input_len,
             fmt=self.config[self.task].data_format,
             tolerance=self.config[self.task].sig_slice_tol,
         ).astype(self.dtype)
-        if values.ndim == 2:
-            values = values[np.newaxis, ...]
+        if waveforms.ndim == 2:
+            waveforms = waveforms[np.newaxis, ...]
 
-        n_segments = values.shape[0]
+        n_segments = waveforms.shape[0]
 
         label = self.reader.load_ann(rec)
         if self.config[self.task].loss["murmur"] != "CrossEntropyLoss":
@@ -397,7 +397,7 @@ class MutiTaskFastDataReader(ReprMixin, Dataset):
         ).astype(self.dtype)
 
         return {
-            "values": values,
+            "waveforms": waveforms,
             "murmur": label,
             "outcome": outcome,
             "segmentation": mask,

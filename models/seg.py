@@ -62,17 +62,16 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
     @torch.no_grad()
     def inference(
         self,
-        input: Union[np.ndarray, Tensor],
+        waveforms: Union[np.ndarray, Tensor],
         bin_pred_threshold: float = 0.5,
     ) -> SequenceLabellingOutput:
         """
-
         auxiliary function to `forward`, for CINC2022,
 
         Parameters
         ----------
-        input: ndarray or Tensor,
-            input tensor, of shape (batch_size, channels, seq_len)
+        waveforms: ndarray or Tensor,
+            waveforms tensor, of shape (batch_size, channels, seq_len)
         bin_pred_threshold: float, default 0.5,
             threshold for binary predictions,
             works only if "unannotated" not in `self.classes`
@@ -89,7 +88,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
                 the array of binary predictions
         """
         self.eval()
-        _input = torch.as_tensor(input, dtype=self.dtype, device=self.device)
+        _input = torch.as_tensor(waveforms, dtype=self.dtype, device=self.device)
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
@@ -113,12 +112,13 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
-        input: Union[np.ndarray, Tensor],
+        waveforms: Union[np.ndarray, Tensor],
+        bin_pred_threshold: float = 0.5,
     ) -> SequenceLabellingOutput:
         """
         alias for `self.inference`
         """
-        return self.inference(input)
+        return self.inference(waveforms, bin_pred_threshold)
 
 
 class UNET_CINC2022(ECG_UNET):
@@ -157,7 +157,8 @@ class UNET_CINC2022(ECG_UNET):
     @torch.no_grad()
     def inference(
         self,
-        input: Union[np.ndarray, Tensor],
+        waveforms: Union[np.ndarray, Tensor],
+        bin_pred_threshold: float = 0.5,
     ) -> SequenceLabellingOutput:
         """
 
@@ -165,8 +166,11 @@ class UNET_CINC2022(ECG_UNET):
 
         Parameters
         ----------
-        input: ndarray or Tensor,
-            input tensor, of shape (batch_size, channels, seq_len)
+        waveforms: ndarray or Tensor,
+            waveforms tensor, of shape (batch_size, channels, seq_len)
+        bin_pred_threshold: float, default 0.5,
+            threshold for binary predictions,
+            works only if "unannotated" not in `self.classes`
 
         Returns
         -------
@@ -180,12 +184,18 @@ class UNET_CINC2022(ECG_UNET):
                 the array of binary predictions
         """
         self.eval()
-        _input = torch.as_tensor(input, dtype=self.dtype, device=self.device)
+        _input = torch.as_tensor(waveforms, dtype=self.dtype, device=self.device)
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
-        prob = self.softmax(self.forward(_input))
-        pred = torch.argmax(prob, dim=-1)
+        if "unannotated" in self.classes:
+            prob = self.softmax(self.forward(_input))
+            pred = torch.argmax(prob, dim=-1)
+        else:
+            prob = self.sigmoid(self.forward(_input))
+            pred = (prob > bin_pred_threshold).int() * (
+                prob == prob.max(dim=-1, keepdim=True).values
+            ).int()
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
@@ -198,9 +208,10 @@ class UNET_CINC2022(ECG_UNET):
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
-        input: Union[np.ndarray, Tensor],
+        waveforms: Union[np.ndarray, Tensor],
+        bin_pred_threshold: float = 0.5,
     ) -> SequenceLabellingOutput:
         """
         alias for `self.inference`
         """
-        return self.inference(input)
+        return self.inference(waveforms, bin_pred_threshold)

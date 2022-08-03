@@ -160,7 +160,8 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             shape: (batch, num_channels, seq_len)
         labels: dict of Tensor, optional,
             the labels of the input data, including:
-            - "outcome": the outcome labels, of shape (batch_size, n_outcomes)
+            - "murmur": the murmur labels, shape: (batch_size, n_classes) or (batch_size,)
+            - "outcome": the outcome labels, of shape (batch_size, n_outcomes) or (batch_size,)
             - "segmentation": the segmentation labels, of shape (batch_size, seq_len, n_states)
 
         Returns
@@ -171,6 +172,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
             - "outcome_loss": loss of the outcome predictions
             - "segmentation_loss": loss of the segmentation predictions
+            - "total_extra_loss": total loss of the extra heads
 
         """
         batch_size, channels, seq_len = waveforms.shape
@@ -193,7 +195,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
     @torch.no_grad()
     def inference(
         self,
-        input: Union[np.ndarray, Tensor],
+        waveforms: Union[np.ndarray, Tensor],
         seg_thr: float = 0.5,
     ) -> CINC2022Outputs:
         """
@@ -201,15 +203,13 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         Parameters
         ----------
-        input: ndarray or Tensor,
-            input tensor, of shape (batch_size, channels, seq_len)
+        waveforms: ndarray or Tensor,
+            waveforms tensor, of shape (batch_size, channels, seq_len)
         seg_thr: float, default 0.5,
             threshold for making binary predictions for
             the optional segmentaion head
 
         Returns
-        -------
-         Returns
         -------
         CINC2022Outputs, with attributes:
             - murmur_output: ClassificationOutput, with items:
@@ -243,7 +243,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         """
         self.eval()
-        _input = torch.as_tensor(input, dtype=self.dtype, device=self.device)
+        _input = torch.as_tensor(waveforms, dtype=self.dtype, device=self.device)
         if _input.ndim == 2:
             _input = _input.unsqueeze(0)  # add a batch dimension
         # batch_size, channels, seq_len = _input.shape
@@ -308,10 +308,10 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
-        input: Union[np.ndarray, Tensor],
+        waveforms: Union[np.ndarray, Tensor],
         seg_thr: float = 0.5,
     ) -> CINC2022Outputs:
         """
         alias for `self.inference`
         """
-        return self.inference(input, seg_thr)
+        return self.inference(waveforms, seg_thr)
