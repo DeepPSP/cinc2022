@@ -4,7 +4,6 @@
 import os
 import sys
 import argparse
-import logging
 import textwrap
 from copy import deepcopy
 from typing import Any, Optional, Tuple, NoReturn, Dict, List, Sequence, Union
@@ -37,7 +36,8 @@ from models import (  # noqa: F401
 )
 from cfg import BaseCfg, TrainCfg, ModelCfg
 from dataset import CinC2022Dataset
-from utils.scoring_metrics import compute_metrics
+from utils.scoring_metrics import compute_metrics  # noqa: F401
+from utils.augmentations import AugmenterManager
 
 if BaseCfg.torch_dtype == torch.float64:
     torch.set_default_tensor_type(torch.DoubleTensor)
@@ -171,6 +171,10 @@ class CINC2022Trainer(BaseTrainer):
             collate_fn=collate_fn,
         )
 
+    def _setup_augmenter_manager(self) -> NoReturn:
+        """ """
+        self.augmenter_manager = AugmenterManager.from_config(config=self.train_config)
+
     def train_one_epoch(self, pbar: tqdm) -> NoReturn:
         """
         train one epoch, and update the progress bar
@@ -181,16 +185,33 @@ class CINC2022Trainer(BaseTrainer):
             the progress bar for training
 
         """
-        for epoch_step, data_dict in enumerate(self.train_loader):
+        for epoch_step, input_tensors in enumerate(self.train_loader):
             self.global_step += 1
-            # data is assumed to be a tuple of tensors, of the following order:
-            # signals, labels, *extra_tensors
-            # data = self.augmenter_manager(*data)
+            # input_tensors is assumed to be a dict of tensors, with the following items:
+            # "waveforms" (required): the input waveforms
+            # "murmur" (optional): the murmur labels, for classification task and multi task
+            # "outcome" (optional): the outcome labels, for classification task and multi task
+            # "segmentation" (optional): the segmentation labels, for segmentation task and multi task
+            input_tensors["waveforms"] = self.augmenter_manager(
+                input_tensors["waveforms"]
+            )
 
-            out_tensors = self.run_one_step(data_dict)
+            # out_tensors is a dict of tensors, with the following items:
+            # - "murmur": the murmur predictions, of shape (batch_size, n_classes)
+            # - "outcome": the outcome predictions, of shape (batch_size, n_outcomes)
+            # - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
+            # - "outcome_loss": loss of the outcome predictions
+            # - "segmentation_loss": loss of the segmentation predictions
+            # - "total_extra_loss": total loss of the extra heads
+            out_tensors = self.run_one_step(input_tensors)
 
-            # TODO: correct the following code
-            loss = self.criterion(*out_tensors).to(self.dtype)
+            loss = self.criterion(
+                out_tensors[self._criterion_key], input_tensors[self._criterion_key]
+            ).to(self.dtype) + out_tensors.get(
+                "total_extra_loss", torch.tensor(0.0)
+            ).to(
+                self.dtype
+            )
             if self.train_config.flooding_level > 0:
                 flood = (
                     loss - self.train_config.flooding_level
@@ -229,39 +250,37 @@ class CINC2022Trainer(BaseTrainer):
                     epoch=self.epoch,
                     part="train",
                 )
-            pbar.update(data_dict["values"].shape[self.batch_dim])
+            pbar.update(input_tensors["waveforms"].shape[self.batch_dim])
 
-    def run_one_step(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def run_one_step(
+        self, input_tensors: Dict[str, torch.Tensor]
+    ) -> Dict[str, torch.Tensor]:
         """
 
         Parameters
         ----------
-        data: tuple of Tensors,
-            the data to be processed for training one step (batch),
-            should be of the following order:
-            signals, labels, *extra_tensors
+        input_tensors: dict of Tensors,
+            the tensors to be processed for training one step (batch), with the following items:
+                - "waveforms" (required): the input waveforms
+                - "murmur" (optional): the murmur labels, for classification task and multi task
+                - "outcome" (optional): the outcome labels, for classification task and multi task
+                - "segmentation" (optional): the segmentation labels, for segmentation task and multi task
 
         Returns
         -------
-        preds: Tensor,
-            the predictions of the model for the given data
-        labels: Tensor,
-            the labels of the given data
-        masks: Tensor, optional,
-            the state masks of the given data, if available
+        out_tensors: dict of Tensors, with the following items:
+            - "murmur": the murmur predictions, of shape (batch_size, n_classes)
+            - "outcome": the outcome predictions, of shape (batch_size, n_outcomes)
+            - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
+            - "outcome_loss": loss of the outcome predictions
+            - "segmentation_loss": loss of the segmentation predictions
+            - "total_extra_loss": total loss of the extra heads
 
         """
-        raise NotImplementedError
-        # signals, *labels = data
-        # signals = signals.to(device=self.device, dtype=self.dtype)
-        # labels = (lb.to(device=self.device, dtype=self.dtype) for lb in labels)
-        # # print(f"signals: {signals.shape}")
-        # # print(f"labels: {list(lb.shape for lb in labels)}")
-        # preds = self.model(signals)
-        # if isinstance(preds, torch.Tensor):
-        #     return (preds, *labels)
-        # else:
-        #     return (*preds, *labels)
+        input_tensors = {k: v.to(self.device) for k, v in input_tensors.items()}
+        waveforms = input_tensors.pop("waveforms")
+        out_tensors = self.model(waveforms, input_tensors)
+        return out_tensors
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
@@ -271,76 +290,112 @@ class CINC2022Trainer(BaseTrainer):
 
         self.model.eval()
 
-        all_scalar_preds = []
-        all_bin_preds = []
+        all_outputs = []
         all_labels = []
 
-        for signals, labels in data_loader:
-            signals = signals.to(device=self.device, dtype=self.dtype)
-            labels = labels.numpy()
+        for input_tensors in data_loader:
+            # input_tensors is assumed to be a dict of tensors, with the following items:
+            # "waveforms" (required): the input waveforms
+            # "murmur" (optional): the murmur labels, for classification task and multi task
+            # "outcome" (optional): the outcome labels, for classification task and multi task
+            # "segmentation" (optional): the segmentation labels, for segmentation task and multi task
+            waveforms = input_tensors.pop("waveforms")
+            waveforms = waveforms.to(device=self.device, dtype=self.dtype)
+            labels = {k: v.numpy() for k, v in input_tensors.items() if v is not None}
+
             all_labels.append(labels)
 
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
-            model_output = self._model.inference(signals)
-            all_scalar_preds.append(model_output.prob)
-            all_bin_preds.append(model_output.bin_pred)
+            all_outputs.append(self._model.inference(waveforms))
 
-        all_scalar_preds = np.concatenate(all_scalar_preds, axis=0)
-        all_bin_preds = np.concatenate(all_bin_preds, axis=0)
-        all_labels = np.concatenate(all_labels, axis=0)
-        classes = data_loader.dataset.classes
-
-        if self.val_train_loader is not None:
-            msg = f"all_scalar_preds.shape = {all_scalar_preds.shape}, all_labels.shape = {all_labels.shape}"
-            self.log_manager.log_message(msg, level=logging.DEBUG)
+        if self.val_train_loader is not None and self.train_config.task not in [
+            "segmentation"
+        ]:
             head_num = 5
-            head_scalar_preds = all_scalar_preds[:head_num, ...]
-            head_bin_preds = all_bin_preds[:head_num, ...]
-            head_preds_classes = [
-                np.array(classes)[np.where(row)] for row in head_bin_preds
+            head_scalar_preds = [
+                all_outputs[idx].murmur_outputs.prob for idx in range(head_num)
             ]
-            head_labels = all_labels[:head_num, ...]
+            head_bin_preds = [
+                all_outputs[idx].murmur_outputs.bin_pred for idx in range(head_num)
+            ]
+            head_preds_classes = [
+                np.array(all_outputs[0].murmur_outputs.classes)[np.where(row)]
+                for row in head_bin_preds
+            ]
+            head_labels = [all_labels[idx]["murmur"] for idx in range(head_num)]
             head_labels_classes = [
-                np.array(classes)[np.where(row)] for row in head_labels
+                np.array(all_outputs[0].murmur_outputs.classes)[np.where(row)]
+                for row in head_labels
             ]
             for n in range(head_num):
                 msg = textwrap.dedent(
                     f"""
                 ----------------------------------------------
-                scalar prediction:    {[round(n, 3) for n in head_scalar_preds[n].tolist()]}
-                binary prediction:    {head_bin_preds[n].tolist()}
-                labels:               {head_labels[n].astype(int).tolist()}
-                predicted classes:    {head_preds_classes[n].tolist()}
-                label classes:        {head_labels_classes[n].tolist()}
+                murmur scalar prediction:    {[round(item, 3) for item in head_scalar_preds[n].tolist()]}
+                murmur binary prediction:    {head_bin_preds[n].tolist()}
+                murmur labels:               {head_labels[n].astype(int).tolist()}
+                murmur predicted classes:    {head_preds_classes[n].tolist()}
+                murmur label classes:        {head_labels_classes[n].tolist()}
                 ----------------------------------------------
                 """
                 )
                 self.log_manager.log_message(msg)
+            if "outcome" in input_tensors:
+                head_scalar_preds = [
+                    all_outputs[idx].outcome_outputs.prob for idx in range(head_num)
+                ]
+                head_bin_preds = [
+                    all_outputs[idx].outcome_outputs.bin_pred for idx in range(head_num)
+                ]
+                head_preds_classes = [
+                    np.array(all_outputs[0].outcome_outputs.classes)[np.where(row)]
+                    for row in head_bin_preds
+                ]
+                head_labels = [all_labels[idx]["outcome"] for idx in range(head_num)]
+                head_labels_classes = [
+                    np.array(all_outputs[0].outcome_outputs.classes)[np.where(row)]
+                    for row in head_labels
+                ]
+                for n in range(head_num):
+                    msg = textwrap.dedent(
+                        f"""
+                    ----------------------------------------------
+                    outcome scalar prediction:    {[round(item, 3) for item in head_scalar_preds[n].tolist()]}
+                    outcome binary prediction:    {head_bin_preds[n].tolist()}
+                    outcome labels:               {head_labels[n].astype(int).tolist()}
+                    outcome predicted classes:    {head_preds_classes[n].tolist()}
+                    outcome label classes:        {head_labels_classes[n].tolist()}
+                    ----------------------------------------------
+                    """
+                    )
+                    self.log_manager.log_message(msg)
 
-        metrics = compute_metrics(
-            classes=classes,
-            labels=all_labels,
-            scalar_outputs=all_scalar_preds,
-            binary_outputs=all_bin_preds,
-        )
-        eval_res = dict(
-            auroc=metrics["auroc"],
-            auprc=metrics["auprc"],
-            f_measure=metrics["f_measure"],
-            accuracy=metrics["accuracy"],
-            weighted_accuracy=metrics["weighted_accuracy"],
-            challenge_cost=metrics["challenge_cost"],
-            task_score=metrics["task_score"],
-            neg_challenge_metric=-metrics["task_score"],
-        )
+        # TODO: correct the following code
+        raise NotImplementedError
+        # metrics = compute_metrics(
+        #     classes=classes,
+        #     labels=all_labels,
+        #     scalar_outputs=all_scalar_preds,
+        #     binary_outputs=all_bin_preds,
+        # )
+        # eval_res = dict(
+        #     auroc=metrics["auroc"],
+        #     auprc=metrics["auprc"],
+        #     f_measure=metrics["f_measure"],
+        #     accuracy=metrics["accuracy"],
+        #     weighted_accuracy=metrics["weighted_accuracy"],
+        #     challenge_cost=metrics["challenge_cost"],
+        #     task_score=metrics["task_score"],
+        #     neg_challenge_metric=-metrics["task_score"],
+        # )
 
-        # in case possible memeory leakage?
-        del all_scalar_preds, all_bin_preds, all_labels
+        # # in case possible memeory leakage?
+        # del all_scalar_preds, all_bin_preds, all_labels
 
-        self.model.train()
+        # self.model.train()
 
-        return eval_res
+        # return eval_res
 
     def evaluate_multi_task(self, data_loader: DataLoader) -> Dict[str, float]:
         """ """
@@ -402,6 +457,14 @@ class CINC2022Trainer(BaseTrainer):
 
     def extra_log_suffix(self) -> str:
         return f"task-{self.train_config.task}_{super().extra_log_suffix()}_{self.model_config.cnn_name}"
+
+    @property
+    def _criterion_key(self) -> str:
+        return {
+            "multi_task": "murmur",
+            "classification": "murmur",
+            "segmentation": "segmentation",
+        }[self.train_config.task]
 
 
 def collate_fn(
