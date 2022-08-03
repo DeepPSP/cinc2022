@@ -640,7 +640,16 @@ class CINC2022Reader(PCGDataBase):
             raise ValueError(f"Unsupported data type: {data_type}")
         return data
 
-    load_pcg = load_data  # alias for load_data
+    @add_docstring(load_data.__doc__)
+    def load_pcg(
+        self,
+        rec: Union[str, int],
+        fs: Optional[int] = None,
+        data_format: str = "channel_first",
+        data_type: str = "np",
+    ) -> np.ndarray:
+        """alias of `load_data`"""
+        return self.load_data(rec, fs, data_format, data_type)
 
     def load_ann(
         self, rec_or_sid: Union[str, int], class_map: Optional[Dict[str, int]] = None
@@ -684,6 +693,13 @@ class CINC2022Reader(PCGDataBase):
             raise ValueError(f"{rec_or_sid} is not a valid record or patient ID")
         ann = _class_map.get(ann, ann)
         return ann
+
+    @add_docstring(load_ann.__doc__)
+    def load_murmur(
+        self, rec_or_sid: Union[str, int], class_map: Optional[Dict[str, int]] = None
+    ) -> Union[str, int]:
+        """alias of `load_ann`"""
+        return self.load_ann(rec_or_sid, class_map)
 
     def load_segmentation(
         self, rec: Union[str, int], seg_format: str = "df", fs: Optional[int] = None
@@ -1619,7 +1635,16 @@ class CompositeReader(ReprMixin):
         data = dr.load_pcg(rec, fs=fs, data_format=data_format, data_type=data_type)
         return data
 
-    load_pcg = load_data  # alias
+    @add_docstring(load_data.__doc__)
+    def load_data(
+        self,
+        rec: Union[str, int],
+        fs: Optional[int] = None,
+        data_format: str = "channel_first",
+        data_type: str = "np",
+    ) -> np.ndarray:
+        """alias of `load_data`"""
+        return self.load_data(rec, fs, data_format, data_type)
 
     def extra_repr_keys(self) -> List[str]:
         return ["databases", "fs"]
