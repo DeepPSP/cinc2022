@@ -36,7 +36,7 @@ from models import (  # noqa: F401
 )
 from cfg import BaseCfg, TrainCfg, ModelCfg
 from dataset import CinC2022Dataset
-from utils.scoring_metrics import compute_metrics  # noqa: F401
+from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
 from utils.augmentations import AugmenterManager
 
 if BaseCfg.torch_dtype == torch.float64:
@@ -371,14 +371,13 @@ class CINC2022Trainer(BaseTrainer):
                     )
                     self.log_manager.log_message(msg)
 
+        metrics = compute_challenge_metrics(
+            labels=all_labels,
+            outputs=all_outputs,
+            # require_both=True,
+        )
         # TODO: correct the following code
         raise NotImplementedError
-        # metrics = compute_metrics(
-        #     classes=classes,
-        #     labels=all_labels,
-        #     scalar_outputs=all_scalar_preds,
-        #     binary_outputs=all_bin_preds,
-        # )
         # eval_res = dict(
         #     auroc=metrics["auroc"],
         #     auprc=metrics["auprc"],
