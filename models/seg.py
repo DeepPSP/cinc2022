@@ -2,7 +2,7 @@
 """
 
 from copy import deepcopy
-from typing import Union, Optional, NoReturn, Any
+from typing import Union, Optional, NoReturn, Any, Dict
 
 import numpy as np
 import torch
@@ -10,12 +10,11 @@ from torch import Tensor
 from torch_ecg.cfg import CFG
 from torch_ecg.models.ecg_seq_lab_net import ECG_SEQ_LAB_NET
 from torch_ecg.models.unets.ecg_unet import ECG_UNET
-from torch_ecg.components.outputs import (
-    SequenceLabellingOutput,
-)
+from torch_ecg.components.outputs import SequenceLabellingOutput
 from torch_ecg.utils import add_docstring
 
 from cfg import ModelCfg
+from .outputs import CINC2022Outputs
 
 
 __all__ = [
@@ -47,6 +46,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         model_cfg = deepcopy(ModelCfg[task])
         model = ECG_SEQ_LAB_NET_CINC2022(model_cfg)
         ````
+
         """
         _config = CFG(deepcopy(ModelCfg.segmentation))
         _config = _config[_config.model_name]
@@ -86,7 +86,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         self,
         waveforms: Union[np.ndarray, Tensor],
         bin_pred_threshold: float = 0.5,
-    ) -> SequenceLabellingOutput:
+    ) -> CINC2022Outputs:
         """
         auxiliary function to `forward`, for CINC2022,
 
@@ -100,7 +100,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
 
         Returns
         -------
-        output: SequenceLabellingOutput, with items:
+        CINC2022Outputs, with one attribute `segmentation_output`, containing the following items:
             - classes: list of str,
                 list of the class names
             - prob: ndarray or DataFrame,
@@ -108,6 +108,7 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
                 (and binary predictions if `class_names` is True)
             - pred: ndarray,
                 the array of binary predictions
+
         """
         self.eval()
         _input = torch.as_tensor(waveforms, dtype=self.dtype, device=self.device)
@@ -125,18 +126,20 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
-        return SequenceLabellingOutput(
+        segmentation_output = SequenceLabellingOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
         )
+
+        return CINC2022Outputs(None, None, segmentation_output)
 
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         waveforms: Union[np.ndarray, Tensor],
         bin_pred_threshold: float = 0.5,
-    ) -> SequenceLabellingOutput:
+    ) -> CINC2022Outputs:
         """
         alias for `self.inference`
         """
@@ -166,6 +169,7 @@ class UNET_CINC2022(ECG_UNET):
         model_cfg = deepcopy(ModelCfg[task])
         model = ECG_SEQ_LAB_NET_CINC2022(model_cfg)
         ````
+
         """
         _config = CFG(deepcopy(ModelCfg.segmentation))
         _config = _config[_config.model_name]
@@ -203,7 +207,7 @@ class UNET_CINC2022(ECG_UNET):
         self,
         waveforms: Union[np.ndarray, Tensor],
         bin_pred_threshold: float = 0.5,
-    ) -> SequenceLabellingOutput:
+    ) -> CINC2022Outputs:
         """
         auxiliary function to `forward`, for CINC2022,
 
@@ -217,7 +221,7 @@ class UNET_CINC2022(ECG_UNET):
 
         Returns
         -------
-        output: SequenceLabellingOutput, with items:
+        CINC2022Outputs, with one attribute `segmentation_output`, containing the following items:
             - classes: list of str,
                 list of the class names
             - prob: ndarray or DataFrame,
@@ -225,6 +229,7 @@ class UNET_CINC2022(ECG_UNET):
                 (and binary predictions if `class_names` is True)
             - pred: ndarray,
                 the array of binary predictions
+
         """
         self.eval()
         _input = torch.as_tensor(waveforms, dtype=self.dtype, device=self.device)
@@ -242,18 +247,20 @@ class UNET_CINC2022(ECG_UNET):
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
 
-        return SequenceLabellingOutput(
+        segmentation_output = SequenceLabellingOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
         )
+
+        return CINC2022Outputs(None, None, segmentation_output)
 
     @add_docstring(inference.__doc__)
     def inference_CINC2022(
         self,
         waveforms: Union[np.ndarray, Tensor],
         bin_pred_threshold: float = 0.5,
-    ) -> SequenceLabellingOutput:
+    ) -> CINC2022Outputs:
         """
         alias for `self.inference`
         """
