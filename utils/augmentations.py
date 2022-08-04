@@ -33,3 +33,7 @@ class AugmenterManager(TA.SomeOf):
         """ """
         transforms = [TA.from_dict(item) for item in config["augmentations"]]
         return cls(transforms, **config["augmentations_kw"])
+
+    def __len__(self) -> int:
+        """ """
+        return len(self.transforms)
