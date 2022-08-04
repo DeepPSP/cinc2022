@@ -458,11 +458,11 @@ class CINC2022Trainer(BaseTrainer):
         weighted_cost = 0
         if eval_res.get("murmur_cost", None) is not None:
             weighted_cost += (
-                eval_res["murmur_cost"] * self.train_config.head_weights.murmur
+                eval_res["murmur_cost"] * self.train_config[self.train_config.task].head_weights.murmur
             )
         if eval_res.get("outcome_cost", None) is not None:
             weighted_cost += (
-                eval_res["outcome_cost"] * self.train_config.head_weights.outcome
+                eval_res["outcome_cost"] * self.train_config[self.train_config.task].head_weights.outcome
             )
         eval_res["neg_weighted_cost"] = -weighted_cost
 
