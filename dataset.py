@@ -137,7 +137,7 @@ class CinC2022Dataset(Dataset, ReprMixin):
         self.__cache = {k: np.concatenate([v[k] for v in tmp_cache]) for k in keys}
         for k in keys:
             if self.__cache[k].ndim == 1:
-                self.__cache[k] = self.__cache[k].reshape(-1, 1)
+                self.__cache[k] = self.__cache[k]
 
     def _load_all_data(self) -> NoReturn:
         """ """
