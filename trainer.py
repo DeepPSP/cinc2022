@@ -105,7 +105,6 @@ class CINC2022Trainer(BaseTrainer):
         val_dataset: Optional[Dataset] = None,
     ) -> NoReturn:
         """
-
         setup the dataloaders for training and validation
 
         Parameters
@@ -185,6 +184,10 @@ class CINC2022Trainer(BaseTrainer):
             the progress bar for training
 
         """
+        if self.epoch >= self.train_config[self.task].freeze_backbone_at > 0:
+            self.model.freeze_backbone(True)
+        else:
+            self.model.freeze_backbone(False)
         for epoch_step, input_tensors in enumerate(self.train_loader):
             self.global_step += 1
             # input_tensors is assumed to be a dict of tensors, with the following items:
@@ -285,8 +288,6 @@ class CINC2022Trainer(BaseTrainer):
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
         """ """
-        if self.train_config.task == "multi_task":
-            return self.evaluate_multi_task(data_loader)
 
         self.model.eval()
 
@@ -371,69 +372,55 @@ class CINC2022Trainer(BaseTrainer):
                     )
                     self.log_manager.log_message(msg)
 
-        metrics = compute_challenge_metrics(
+        eval_res = compute_challenge_metrics(
             labels=all_labels,
             outputs=all_outputs,
-            # require_both=True,
+            require_both=True,
         )
-        # TODO: correct the following code
-        raise NotImplementedError
-        # eval_res = dict(
-        #     auroc=metrics["auroc"],
-        #     auprc=metrics["auprc"],
-        #     f_measure=metrics["f_measure"],
-        #     accuracy=metrics["accuracy"],
-        #     weighted_accuracy=metrics["weighted_accuracy"],
-        #     challenge_cost=metrics["challenge_cost"],
-        #     task_score=metrics["task_score"],
-        #     neg_challenge_metric=-metrics["task_score"],
-        # )
+        # eval_res contains the following items:
+        # murmur_auroc: float,
+        #     the macro-averaged area under the receiver operating characteristic curve for the murmur predictions
+        # murmur_auprc: float,
+        #     the macro-averaged area under the precision-recall curve for the murmur predictions
+        # murmur_f_measure: float,
+        #     the macro-averaged F-measure for the murmur predictions
+        # murmur_accuracy: float,
+        #     the accuracy for the murmur predictions
+        # murmur_weighted_accuracy: float,
+        #     the weighted accuracy for the murmur predictions
+        # murmur_cost: float,
+        #     the challenge cost for the murmur predictions
+        # outcome_auroc: float,
+        #     the macro-averaged area under the receiver operating characteristic curve for the outcome predictions
+        # outcome_auprc: float,
+        #     the macro-averaged area under the precision-recall curve for the outcome predictions
+        # outcome_f_measure: float,
+        #     the macro-averaged F-measure for the outcome predictions
+        # outcome_accuracy: float,
+        #     the accuracy for the outcome predictions
+        # outcome_weighted_accuracy: float,
+        #     the weighted accuracy for the outcome predictions
+        # outcome_cost: float,
+        #     the challenge cost for the outcome predictions
 
-        # # in case possible memeory leakage?
-        # del all_scalar_preds, all_bin_preds, all_labels
+        weighted_cost = 0
+        if eval_res.get("murmur_cost", None) is not None:
+            weighted_cost += (
+                eval_res["murmur_cost"] * self.train_config.head_weights.murmur
+            )
+        if eval_res.get("outcome_cost", None) is not None:
+            weighted_cost += (
+                eval_res["outcome_cost"] * self.train_config.head_weights.outcome
+            )
+        eval_res["neg_weighted_cost"] = -weighted_cost
 
-        # self.model.train()
+        # in case possible memeory leakage?
+        del all_labels
+        del all_outputs
 
-        # return eval_res
+        self.model.train()
 
-    def evaluate_multi_task(self, data_loader: DataLoader) -> Dict[str, float]:
-        """ """
-        self.model.eval()
-
-        all_scalar_preds = []
-        all_bin_preds = []
-        all_aux_preds = []
-        all_labels = []
-        all_masks = []
-
-        for signals, labels, masks in data_loader:
-            signals = signals.to(device=self.device, dtype=self.dtype)
-            labels = labels.numpy()
-            masks = masks.numpy()
-            all_labels.append(labels)
-            all_masks.append(masks)
-
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-            model_output, aux_output = self._model.inference(signals)
-            all_scalar_preds.append(model_output.prob)
-            all_bin_preds.append(model_output.bin_pred)
-
-        raise NotImplementedError
-
-    def _setup_optimizer(self) -> NoReturn:
-        """ """
-        # TODO: adjust for multi-task
-        if self.train_config.task == "multi_task":
-            raise NotImplementedError
-        super()._setup_optimizer()
-
-    def _setup_criterion(self) -> NoReturn:
-        """ """
-        # TODO: adjust for multi-task
-        if self.train_config.task == "multi_task":
-            raise NotImplementedError
-        super()._setup_criterion()
+        return eval_res
 
     @property
     def batch_dim(self) -> int:

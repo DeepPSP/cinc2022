@@ -1019,7 +1019,7 @@ class CINC2022Reader(PCGDataBase):
         """ """
         raise NotImplementedError
 
-    def plot_outcome_correlation(self, col: str = "Murmur", **kwargs:Any) -> object:
+    def plot_outcome_correlation(self, col: str = "Murmur", **kwargs: Any) -> object:
         """
         plot the correlation between the outcome and the feature `col`
 
@@ -1035,11 +1035,12 @@ class CINC2022Reader(PCGDataBase):
         Returns
         -------
         ax: mpl.axes.Axes
-        
+
         """
         import matplotlib as mpl
         import matplotlib.pyplot as plt
         import seaborn as sns
+
         sns.set()
         plt.rcParams["xtick.labelsize"] = 14
         plt.rcParams["ytick.labelsize"] = 14
@@ -1048,19 +1049,32 @@ class CINC2022Reader(PCGDataBase):
 
         assert col in ["Murmur", "Age", "Sex", "Pregnancy status"]
         prefix_sep = " - "
-        df_dummies = pd.get_dummies(self.df_stats[col], prefix=col, prefix_sep=prefix_sep)
+        df_dummies = pd.get_dummies(
+            self.df_stats[col], prefix=col, prefix_sep=prefix_sep
+        )
         columns = df_dummies.columns.tolist()
         if f"{col}{prefix_sep}{self.stats_fillna_val}" in columns:
             idx = columns.index(f"{col}{prefix_sep}{self.stats_fillna_val}")
             columns[idx] = f"{col}{prefix_sep}{'NA'}"
             df_dummies.columns = columns
         df_stats = pd.concat((self.df_stats, df_dummies), axis=1)
-        plot_kw = dict(kind="bar", figsize=(6, 6), ylabel="Number of Subjects (n.u.)", stacked=True, rot=0, ylim=(0, 620), yticks=np.arange(0,700,100), width=0.3)
-        plot_kw.update(kwargs)
-        ax = df_stats.groupby("Outcome").agg("sum")[df_dummies.columns.tolist()].plot(
-            **plot_kw
+        plot_kw = dict(
+            kind="bar",
+            figsize=(6, 6),
+            ylabel="Number of Subjects (n.u.)",
+            stacked=True,
+            rot=0,
+            ylim=(0, 620),
+            yticks=np.arange(0, 700, 100),
+            width=0.3,
         )
-        ax.legend(loc="upper left", ncol=int(np.ceil(len(columns)/3)))
+        plot_kw.update(kwargs)
+        ax = (
+            df_stats.groupby("Outcome")
+            .agg("sum")[df_dummies.columns.tolist()]
+            .plot(**plot_kw)
+        )
+        ax.legend(loc="upper left", ncol=int(np.ceil(len(columns) / 3)))
         plt.tight_layout()
 
         mpl.rc_file_defaults()

@@ -234,7 +234,17 @@ TrainCfg.classification.loss_kw = CFG(
 # monitor choices
 # challenge metric is the **cost** of misclassification
 # hence it is the lower the better
-TrainCfg.classification.monitor = "neg_challenge_metric"  # accuracy (not recommended)
+TrainCfg.classification.monitor = (
+    "neg_weighted_cost"  # weighted_accuracy (not recommended)
+)
+TrainCfg.classification.head_weights = CFG(
+    # used to compute a numeric value to use the monitor
+    murmur=0.5,
+    outcome=0.5,
+)
+
+# freeze backbone configs, -1 for no freezing
+TrainCfg.classification.freeze_backbone_at = int(0.6 * TrainCfg.n_epochs)
 
 ###########################################
 # segmentation configurations
@@ -331,6 +341,9 @@ TrainCfg.segmentation.loss_kw = CFG(
 
 # monitor choices
 TrainCfg.segmentation.monitor = "jaccard"
+
+# freeze backbone configs, -1 for no freezing
+TrainCfg.segmentation.freeze_backbone_at = -1
 
 
 ###########################################
@@ -437,7 +450,14 @@ TrainCfg.multi_task.loss_kw = CFG(
 )
 
 # monitor choices
-TrainCfg.multi_task.monitor = "val_loss"  # TODO: adjust monitor
+TrainCfg.multi_task.monitor = "neg_weighted_cost"  # TODO: adjust monitor
+TrainCfg.multi_task.head_weights = CFG(
+    # used to compute a numeric value to use the monitor
+    murmur=0.5,
+    outcome=0.5,
+)
+# freeze backbone configs, -1 for no freezing
+TrainCfg.multi_task.freeze_backbone_at = int(0.6 * TrainCfg.n_epochs)
 
 
 def set_entry_test_flag(test_flag: bool):
@@ -460,7 +480,7 @@ for t in TrainCfg.tasks:
     ModelCfg[t].task = t
     ModelCfg[t].fs = TrainCfg[t].fs
 
-    ModelCfg[t].update(ModelArchCfg[t])
+    ModelCfg[t].update(deepcopy(ModelArchCfg[t]))
 
     ModelCfg[t].classes = TrainCfg[t].classes
     ModelCfg[t].num_channels = TrainCfg[t].num_channels
@@ -474,14 +494,14 @@ for t in TrainCfg.tasks:
     for mn in [
         "crnn",
         "seq_lab",
-        "unet",
+        # "unet",
     ]:
         if mn not in ModelCfg[t]:
             continue
         ModelCfg[t][mn] = adjust_cnn_filter_lengths(ModelCfg[t][mn], ModelCfg[t].fs)
-        ModelCfg[t][mn].cnn_name = ModelCfg[t].cnn_name
-        ModelCfg[t][mn].rnn_name = ModelCfg[t].rnn_name
-        ModelCfg[t][mn].attn_name = ModelCfg[t].attn_name
+        ModelCfg[t][mn].cnn.name = ModelCfg[t].cnn_name
+        ModelCfg[t][mn].rnn.name = ModelCfg[t].rnn_name
+        ModelCfg[t][mn].attn.name = ModelCfg[t].attn_name
 
 
 # classification model aux. output
