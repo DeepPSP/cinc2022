@@ -324,7 +324,7 @@ TrainCfg.segmentation.augmentations = [
 ]
 TrainCfg.segmentation.augmentations_kw = CFG(
     p=0.7,
-    mode="per_batch",
+    p_mode="per_batch",
 )
 
 # model choices
@@ -428,7 +428,7 @@ TrainCfg.multi_task.augmentations = [
 ]
 TrainCfg.multi_task.augmentations_kw = CFG(
     p=0.7,
-    mode="per_batch",
+    p_mode="per_batch",
 )
 
 # model choices
