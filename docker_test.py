@@ -138,11 +138,11 @@ def test_challenge_metrics() -> NoReturn:
     ]
     labels = [
         {
-            "murmur": np.array([0.0, 0.0, 1.0]),
+            "murmur": np.array([[0.0, 0.0, 1.0]]),
             "outcome": np.array([0]),
         },
         {
-            "murmur": np.array([0.0, 1.0, 0.0]),
+            "murmur": np.array([[0.0, 1.0, 0.0]]),
             "outcome": np.array([1]),
         },
     ]

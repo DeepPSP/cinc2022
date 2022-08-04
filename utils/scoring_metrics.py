@@ -100,8 +100,9 @@ def compute_challenge_metrics(
 
     NOTE
     ----
-    the "murmur_xxx" metrics are contained in the returned dict iff corr. labels and outputs are provided;
-    the same applies to the "outcome_xxx" metrics.
+    1. the "murmur_xxx" metrics are contained in the returned dict iff corr. labels and outputs are provided;
+        the same applies to the "outcome_xxx" metrics.
+    2. all labels should have a batch dimension, except for categorical labels
 
     """
     metrics = {}
@@ -114,12 +115,11 @@ def compute_challenge_metrics(
             ]
         )
     # metrics for murmurs
+    # NOTE: labels all have a batch dimension, except for categorical labels
     if outputs[0].murmur_output is not None:
         murmur_labels = np.concatenate(
-            [
+            [  # categorical or binarized labels
                 lb["murmur"]
-                if lb["murmur"].shape[-1] == 1
-                else np.atleast_2d(lb["murmur"])
                 for lb in labels
             ]
         )
@@ -145,10 +145,8 @@ def compute_challenge_metrics(
     # metrics for outcomes
     if outputs[0].outcome_output is not None:
         outcome_labels = np.concatenate(
-            [
+            [  # categorical or binarized labels
                 lb["outcome"]
-                if lb["outcome"].shape[-1] == 1
-                else np.atleast_2d(lb["outcome"])
                 for lb in labels
             ]
         )
@@ -464,6 +462,7 @@ def compute_auc(
         AUPRCs for each class, of shape: (n_classes,)
 
     """
+    print("Computing AUROC and AUPRC...")
     num_patients, num_classes = np.shape(labels)
 
     # Compute and summarize the confusion matrices for each class across at distinct output values.
@@ -566,6 +565,7 @@ def compute_accuracy(
     accuracy_classes: np.ndarray,
         the accuracy for each class, of shape: (n_classes,)
     """
+    print("Computing accuracy...")
     assert np.shape(labels) == np.shape(outputs)
     num_patients, num_classes = np.shape(labels)
     A = compute_confusion_matrix(labels, outputs)
@@ -608,6 +608,7 @@ def compute_f_measure(
         F-measures for each class, of shape: (n_classes,)
 
     """
+    print("Computing F-measure...")
     num_patients, num_classes = np.shape(labels)
 
     A = compute_one_vs_rest_confusion_matrix(labels, outputs)
@@ -652,6 +653,7 @@ def compute_weighted_accuracy(
         weighted accuracy
 
     """
+    print("Computing weighted accuracy...")
     # Define constants.
     if classes == ["Present", "Unknown", "Absent"]:
         weights = np.array([[5, 3, 1], [5, 3, 1], [5, 3, 1]])
@@ -728,6 +730,7 @@ def compute_cost(
         case sensitive
 
     """
+    print("Computing challenge cost...")
     # Define positive and negative classes for referral and treatment.
     positive_classes = ["Present", "Unknown", "Abnormal"]
     negative_classes = ["Absent", "Normal"]
