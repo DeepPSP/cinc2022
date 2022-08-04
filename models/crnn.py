@@ -65,6 +65,25 @@ class CRNN_CINC2022(ECG_CRNN):
             config=_config,
         )
 
+    def freeze_backbone(self, freeze: bool = True) -> NoReturn:
+        """
+        freeze the backbone (CRNN part, excluding the heads) of the model
+
+        Parameters
+        ----------
+        freeze: bool, default True,
+            whether to freeze the backbone
+
+        """
+        for params in self.cnn.parameters():
+            params.requires_grad = not freeze
+        if getattr(self, "rnn") is not None:
+            for params in self.rnn.parameters():
+                params.requires_grad = not freeze
+        if getattr(self, "attn") is not None:
+            for params in self.attn.parameters():
+                params.requires_grad = not freeze
+
     def forward(
         self,
         waveforms: Tensor,
@@ -157,6 +176,10 @@ class CRNN_CINC2022(ECG_CRNN):
                     scalar (probability) predictions,
                 - pred: ndarray,
                     the array of outcome class number predictions
+                - forward_output: ndarray,
+                    the array of output of the outcome head of the model's forward function,
+                    useful for producing challenge result using
+                    multiple recordings
             segmentation_output: SequenceLabellingOutput, optional, with items:
                 - classes: list of str,
                     list of the state class names

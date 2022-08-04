@@ -147,6 +147,21 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
         self.sigmoid = torch.nn.Sigmoid()
         self.softmax = torch.nn.Softmax(-1)
 
+    def freeze_backbone(self, freeze: bool = True) -> NoReturn:
+        """
+        freeze the backbone (feature_extractor and encoder) of the model
+
+        Parameters
+        ----------
+        freeze: bool, default True,
+            whether to freeze the backbone
+
+        """
+        for params in self.feature_extractor.parameters():
+            params.requires_grad = not freeze
+        for params in self.encoder.parameters():
+            params.requires_grad = not freeze
+
     def forward(
         self,
         waveforms: Tensor,
@@ -233,6 +248,10 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                     scalar (probability) predictions,
                 - pred: ndarray,
                     the array of outcome class number predictions
+                - forward_output: ndarray,
+                    the array of output of the outcome head of the model's forward function,
+                    useful for producing challenge result using
+                    multiple recordings
             segmentation_output: SequenceLabellingOutput, optional, with items:
                 - classes: list of str,
                     list of the state class names

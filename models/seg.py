@@ -59,6 +59,25 @@ class SEQ_LAB_NET_CINC2022(ECG_SEQ_LAB_NET):
             _config[_config.model_name],
         )
 
+    def freeze_backbone(self, freeze: bool = True) -> NoReturn:
+        """
+        freeze the backbone (CRNN part, excluding the heads) of the model
+
+        Parameters
+        ----------
+        freeze: bool, default True,
+            whether to freeze the backbone
+
+        """
+        for params in self.cnn.parameters():
+            params.requires_grad = not freeze
+        if getattr(self, "rnn") is not None:
+            for params in self.rnn.parameters():
+                params.requires_grad = not freeze
+        if getattr(self, "attn") is not None:
+            for params in self.attn.parameters():
+                params.requires_grad = not freeze
+
     def forward(
         self,
         waveforms: Tensor,
@@ -201,6 +220,13 @@ class UNET_CINC2022(ECG_UNET):
 
         """
         return {"segmentation": super().forward(waveforms)}
+
+    def freeze_backbone(self, freeze: bool = True) -> NoReturn:
+        """
+        not used in this model,
+        only to keep the API consistent with other models
+        """
+        pass
 
     @torch.no_grad()
     def inference(
