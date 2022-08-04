@@ -27,7 +27,83 @@ def compute_challenge_metrics(
     outputs: Sequence[CINC2022Outputs],
     require_both: bool = False,
 ) -> Dict[str, float]:
-    """ """
+    """
+    Compute the challenge metrics
+
+    Parameters
+    ----------
+    labels: sequence of dict of ndarray,
+        labels containing at least one of the following items:
+            - "murmur":
+                binary labels, of shape: (n_samples, n_classes);
+                or categorical labels, of shape: (n_samples,)
+            - "outcome":
+                binary labels, of shape: (n_samples, n_classes),
+                or categorical labels, of shape: (n_samples,)
+    outputs: sequence of CINC2022Outputs,
+        outputs containing at least one non-null attributes:
+            - murmur_output: ClassificationOutput, with items:
+                - classes: list of str,
+                    list of the class names
+                - prob: ndarray or DataFrame,
+                    scalar (probability) predictions,
+                    (and binary predictions if `class_names` is True)
+                - pred: ndarray,
+                    the array of class number predictions
+                - bin_pred: ndarray,
+                    the array of binary predictions
+                - forward_output: ndarray,
+                    the array of output of the model's forward function,
+                    useful for producing challenge result using
+                    multiple recordings
+            - outcome_output: ClassificationOutput, optional, with items:
+                - classes: list of str,
+                    list of the outcome class names
+                - prob: ndarray,
+                    scalar (probability) predictions,
+                - pred: ndarray,
+                    the array of outcome class number predictions
+                - forward_output: ndarray,
+                    the array of output of the outcome head of the model's forward function,
+                    useful for producing challenge result using
+                    multiple recordings
+    require_both: bool,
+        whether to require both murmur and outcome labels and outputs to be provided
+
+    Returns
+    -------
+    dict, a dict of the following metrics:
+        - murmur_auroc: float,
+            the macro-averaged area under the receiver operating characteristic curve for the murmur predictions
+        - murmur_auprc: float,
+            the macro-averaged area under the precision-recall curve for the murmur predictions
+        - murmur_f_measure: float,
+            the macro-averaged F-measure for the murmur predictions
+        - murmur_accuracy: float,
+            the accuracy for the murmur predictions
+        - murmur_weighted_accuracy: float,
+            the weighted accuracy for the murmur predictions
+        - murmur_cost: float,
+            the challenge cost for the murmur predictions
+        - outcome_auroc: float,
+            the macro-averaged area under the receiver operating characteristic curve for the outcome predictions
+        - outcome_auprc: float,
+            the macro-averaged area under the precision-recall curve for the outcome predictions
+        - outcome_f_measure: float,
+            the macro-averaged F-measure for the outcome predictions
+        - outcome_accuracy: float,
+            the accuracy for the outcome predictions
+        - outcome_weighted_accuracy: float,
+            the weighted accuracy for the outcome predictions
+        - outcome_cost: float,
+            the challenge cost for the outcome predictions
+
+    NOTE
+    ----
+    the "murmur_xxx" metrics are contained in the returned dict iff corr. labels and outputs are provided;
+    the same applies to the "outcome_xxx" metrics.
+
+    """
     metrics = {}
     if require_both:
         assert all([set(lb.keys()) <= set(["murmur", "outcome"]) for lb in labels])
@@ -135,12 +211,8 @@ def _compute_challenge_metrics(
             the accuracy
         weighted_accuracy: float,
             the weighted accuracy
-        challenge_cost: float,
+        cost: float,
             the challenge cost
-        task_score: float,
-            the task score, which equals
-            `weighted_accuracy` if `classes` equals `BaseCfg.classes`;
-            `challenge_cost` if `classes` equals `BaseCfg.outcomes`
 
     """
     detailed_metrics = _compute_challenge_metrics_detailed(
