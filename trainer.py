@@ -16,17 +16,22 @@ from torch.nn.parallel import (  # noqa: F401
     DistributedDataParallel as DDP,
     DataParallel as DP,
 )  # noqa: F401
-
-try:
-    from tqdm.auto import tqdm
-except ModuleNotFoundError:
-    from tqdm import tqdm
-
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn
 from torch_ecg.utils.utils_data import mask_to_intervals  # noqa: F401
+from torch_ecg.models.loss import (
+    AsymmetricLoss,
+    BCEWithLogitsWithClassWeightLoss,
+    FocalLoss,
+    MaskedBCEWithLogitsLoss,
+)
+
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    from tqdm import tqdm
 
 from models import (  # noqa: F401
     Wav2Vec2_CINC2022,
@@ -172,7 +177,43 @@ class CINC2022Trainer(BaseTrainer):
 
     def _setup_augmenter_manager(self) -> NoReturn:
         """ """
-        self.augmenter_manager = AugmenterManager.from_config(config=self.train_config)
+        self.augmenter_manager = AugmenterManager.from_config(
+            config=self.train_config[self.train_config.task]
+        )
+
+    def _setup_criterion(self) -> NoReturn:
+        """ """
+        loss_kw = self.train_config.get("loss_kw", {}).get(self._criterion_key, {})
+        for k, v in loss_kw.items():
+            if isinstance(v, torch.Tensor):
+                loss_kw[k] = v.to(device=self.device, dtype=self.dtype)
+        if self.train_config.loss[self._criterion_key] == "BCEWithLogitsLoss":
+            self.criterion = nn.BCEWithLogitsLoss(**loss_kw)
+        elif (
+            self.train_config.loss[self._criterion_key]
+            == "BCEWithLogitsWithClassWeightLoss"
+        ):
+            self.criterion = BCEWithLogitsWithClassWeightLoss(**loss_kw)
+        elif self.train_config.loss[self._criterion_key] == "BCELoss":
+            self.criterion = nn.BCELoss(**loss_kw)
+        elif self.train_config.loss[self._criterion_key] == "MaskedBCEWithLogitsLoss":
+            self.criterion = MaskedBCEWithLogitsLoss(**loss_kw)
+        elif self.train_config.loss[self._criterion_key] == "MaskedBCEWithLogitsLoss":
+            self.criterion = MaskedBCEWithLogitsLoss(**loss_kw)
+        elif self.train_config.loss[self._criterion_key] == "FocalLoss":
+            self.criterion = FocalLoss(**loss_kw)
+        elif self.train_config.loss[self._criterion_key] == "AsymmetricLoss":
+            self.criterion = AsymmetricLoss(**loss_kw)
+        elif self.train_config.loss[self._criterion_key] == "CrossEntropyLoss":
+            self.criterion = nn.CrossEntropyLoss(**loss_kw)
+        else:
+            raise NotImplementedError(
+                f"loss `{self.train_config.loss}` not implemented! "
+                "Please use one of the following: `BCEWithLogitsLoss`, `BCEWithLogitsWithClassWeightLoss`, "
+                "`BCELoss`, `MaskedBCEWithLogitsLoss`, `MaskedBCEWithLogitsLoss`, `FocalLoss`, "
+                "`AsymmetricLoss`, `CrossEntropyLoss`, or override this method to setup your own criterion."
+            )
+        self.criterion.to(device=self.device, dtype=self.dtype)
 
     def train_one_epoch(self, pbar: tqdm) -> NoReturn:
         """
@@ -184,12 +225,17 @@ class CINC2022Trainer(BaseTrainer):
             the progress bar for training
 
         """
-        if self.epoch >= self.train_config[self.task].freeze_backbone_at > 0:
-            self.model.freeze_backbone(True)
+        if (
+            self.epoch
+            >= self.train_config[self.train_config.task].freeze_backbone_at
+            > 0
+        ):
+            self._model.freeze_backbone(True)
         else:
-            self.model.freeze_backbone(False)
+            self._model.freeze_backbone(False)
         for epoch_step, input_tensors in enumerate(self.train_loader):
             self.global_step += 1
+            n_samples = input_tensors["waveforms"].shape[self.batch_dim]
             # input_tensors is assumed to be a dict of tensors, with the following items:
             # "waveforms" (required): the input waveforms
             # "murmur" (optional): the murmur labels, for classification task and multi task
@@ -208,13 +254,23 @@ class CINC2022Trainer(BaseTrainer):
             # - "total_extra_loss": total loss of the extra heads
             out_tensors = self.run_one_step(input_tensors)
 
+            # WARNING:
+            # When `module` (self._model) returns a scalar (i.e., 0-dimensional tensor) in forward(),
+            # `DataParallel` will return a vector of length equal to number of devices used in data parallelism,
+            # containing the result from each device.
+            # ref. https://pytorch.org/docs/stable/generated/torch.nn.DataParallel.html
             loss = self.criterion(
-                out_tensors[self._criterion_key], input_tensors[self._criterion_key]
-            ).to(self.dtype) + out_tensors.get(
-                "total_extra_loss", torch.tensor(0.0)
-            ).to(
-                self.dtype
+                out_tensors[self._criterion_key],
+                input_tensors[self._criterion_key].to(
+                    dtype=self.dtype, device=self.device
+                ),
+            ).to(dtype=self.dtype, device=self.device) + out_tensors.get(
+                "total_extra_loss",
+                torch.tensor(0.0, dtype=self.dtype, device=self.device),
+            ).mean().to(
+                dtype=self.dtype, device=self.device
             )
+
             if self.train_config.flooding_level > 0:
                 flood = (
                     loss - self.train_config.flooding_level
@@ -253,7 +309,7 @@ class CINC2022Trainer(BaseTrainer):
                     epoch=self.epoch,
                     part="train",
                 )
-            pbar.update(input_tensors["waveforms"].shape[self.batch_dim])
+            pbar.update(n_samples)
 
     def run_one_step(
         self, input_tensors: Dict[str, torch.Tensor]
@@ -280,8 +336,8 @@ class CINC2022Trainer(BaseTrainer):
             - "total_extra_loss": total loss of the extra heads
 
         """
+        waveforms = input_tensors.pop("waveforms").to(self.device)
         input_tensors = {k: v.to(self.device) for k, v in input_tensors.items()}
-        waveforms = input_tensors.pop("waveforms")
         out_tensors = self.model(waveforms, input_tensors)
         return out_tensors
 
@@ -439,10 +495,18 @@ class CINC2022Trainer(BaseTrainer):
 
     @property
     def save_prefix(self) -> str:
-        return f"task-{self.train_config.task}_{self._model.__name__}_{self.model_config.cnn_name}_epoch"
+        prefix = f"task-{self.train_config.task}_{self._model.__name__}"
+        if hasattr(self.model_config, "cnn"):
+            prefix = f"{prefix}_{self.model_config.cnn.name}_epoch"
+        else:
+            prefix = f"{prefix}_epoch"
+        return prefix
 
     def extra_log_suffix(self) -> str:
-        return f"task-{self.train_config.task}_{super().extra_log_suffix()}_{self.model_config.cnn_name}"
+        suffix = f"task-{self.train_config.task}_{super().extra_log_suffix()}"
+        if hasattr(self.model_config, "cnn"):
+            suffix = f"{suffix}_{self.model_config.cnn.name}"
+        return suffix
 
     @property
     def _criterion_key(self) -> str:
