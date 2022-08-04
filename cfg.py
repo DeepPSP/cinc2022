@@ -108,8 +108,8 @@ TrainCfg.early_stopping.patience = TrainCfg.n_epochs // 2
 TrainCfg.keep_checkpoint_max = 10
 
 # configs of loss function
-TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
-TrainCfg.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+# TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
+# TrainCfg.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
 TrainCfg.flooding_level = 0.0  # flooding performed if positive,
 
 # configs of logging
@@ -226,9 +226,13 @@ TrainCfg.classification.rnn_name = "lstm"  # "none", "lstm"
 TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
 
 # loss function choices
-TrainCfg.classification.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.classification.loss = CFG(
+    murmur="AsymmetricLoss",  # "FocalLoss"
+    outcome="CrossEntropyLoss",  # valid only if outcomes is not None
+)
 TrainCfg.classification.loss_kw = CFG(
-    gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
+    murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
+    outcome={},
 )
 
 # monitor choices
@@ -334,9 +338,11 @@ TrainCfg.segmentation.rnn_name = "lstm"  # "none", "lstm"
 TrainCfg.segmentation.attn_name = "se"  # "none", "se", "gc", "nl"
 
 # loss function choices
-TrainCfg.segmentation.loss = "AsymmetricLoss"  # "FocalLoss"
+TrainCfg.segmentation.loss = CFG(
+    segmentation="AsymmetricLoss",  # "FocalLoss"
+)
 TrainCfg.segmentation.loss_kw = CFG(
-    gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"
+    segmentation=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
 )
 
 # monitor choices
@@ -445,7 +451,7 @@ TrainCfg.multi_task.loss = CFG(
 )
 TrainCfg.multi_task.loss_kw = CFG(
     murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
-    outcome={},  # "FocalLoss", "AsymmetricLoss"
+    outcome={},
     segmentation=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
 )
 
@@ -509,9 +515,9 @@ ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
 if ModelCfg.classification.outcomes is None:
     ModelCfg.classification.outcome_head = None
 else:
-    ModelCfg.classification.outcome_head.loss = TrainCfg.classification.outcome_loss
+    ModelCfg.classification.outcome_head.loss = TrainCfg.classification.loss.outcome
     ModelCfg.classification.outcome_head.loss_kw = deepcopy(
-        TrainCfg.classification.outcome_loss_kw
+        TrainCfg.classification.loss_kw.outcome
     )
 ModelCfg.classification.states = None
 
