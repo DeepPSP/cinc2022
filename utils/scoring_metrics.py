@@ -118,10 +118,7 @@ def compute_challenge_metrics(
     # NOTE: labels all have a batch dimension, except for categorical labels
     if outputs[0].murmur_output is not None:
         murmur_labels = np.concatenate(
-            [  # categorical or binarized labels
-                lb["murmur"]
-                for lb in labels
-            ]
+            [lb["murmur"] for lb in labels]  # categorical or binarized labels
         )
         murmur_scalar_outputs = np.concatenate(
             [np.atleast_2d(item.murmur_output.prob) for item in outputs]
@@ -145,10 +142,7 @@ def compute_challenge_metrics(
     # metrics for outcomes
     if outputs[0].outcome_output is not None:
         outcome_labels = np.concatenate(
-            [  # categorical or binarized labels
-                lb["outcome"]
-                for lb in labels
-            ]
+            [lb["outcome"] for lb in labels]  # categorical or binarized labels
         )
         outcome_scalar_outputs = np.concatenate(
             [np.atleast_2d(item.outcome_output.prob) for item in outputs]
