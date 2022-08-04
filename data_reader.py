@@ -1019,16 +1019,53 @@ class CINC2022Reader(PCGDataBase):
         """ """
         raise NotImplementedError
 
-    def plot_outcome_correlation(self, col: str = "Murmur", **kwargs) -> NoReturn:
-        """ """
+    def plot_outcome_correlation(self, col: str = "Murmur", **kwargs:Any) -> object:
+        """
+        plot the correlation between the outcome and the feature `col`
+
+        Parameters
+        ----------
+        col: str, default "Murmur",
+            the feature to be used for the correlation, can be one of
+            "Murmur", "Age", "Sex", "Pregnancy status"
+        kwargs: dict,
+            key word arguments,
+            passed to the function `pd.DataFrame.plot`
+
+        Returns
+        -------
+        ax: mpl.axes.Axes
+        
+        """
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        sns.set()
+        plt.rcParams["xtick.labelsize"] = 14
+        plt.rcParams["ytick.labelsize"] = 14
+        plt.rcParams["axes.labelsize"] = 18
+        plt.rcParams["legend.fontsize"] = 13
+
         assert col in ["Murmur", "Age", "Sex", "Pregnancy status"]
-        df_dummies = pd.get_dummies(self.df_stats[col], prefix=col)
+        prefix_sep = " - "
+        df_dummies = pd.get_dummies(self.df_stats[col], prefix=col, prefix_sep=prefix_sep)
+        columns = df_dummies.columns.tolist()
+        if f"{col}{prefix_sep}{self.stats_fillna_val}" in columns:
+            idx = columns.index(f"{col}{prefix_sep}{self.stats_fillna_val}")
+            columns[idx] = f"{col}{prefix_sep}{'NA'}"
+            df_dummies.columns = columns
         df_stats = pd.concat((self.df_stats, df_dummies), axis=1)
-        plot_kw = dict(kind="bar", figsize=(8, 5), stacked=True, rot=0, ylim=(0, 600))
+        plot_kw = dict(kind="bar", figsize=(6, 6), ylabel="Number of Subjects (n.u.)", stacked=True, rot=0, ylim=(0, 620), yticks=np.arange(0,700,100), width=0.3)
         plot_kw.update(kwargs)
-        df_stats.groupby("Outcome").agg("sum")[df_dummies.columns.tolist()].plot(
+        ax = df_stats.groupby("Outcome").agg("sum")[df_dummies.columns.tolist()].plot(
             **plot_kw
         )
+        ax.legend(loc="upper left", ncol=int(np.ceil(len(columns)/3)))
+        plt.tight_layout()
+
+        mpl.rc_file_defaults()
+
+        return ax
 
 
 _CINC2016_INFO = DataBaseInfo(  # NOT finished yet

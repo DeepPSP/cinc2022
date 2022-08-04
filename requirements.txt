@@ -25,6 +25,7 @@ PyWavelets
 xmltodict
 einops
 matplotlib
+seaborn
 requests
 kaldi_io
 xgboost
