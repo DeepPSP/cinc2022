@@ -370,19 +370,17 @@ class CINC2022Trainer(BaseTrainer):
             "segmentation"
         ]:
             head_num = 5
-            head_scalar_preds = [
-                all_outputs[idx].murmur_outputs.prob for idx in range(head_num)
-            ]
-            head_bin_preds = [
-                all_outputs[idx].murmur_outputs.bin_pred for idx in range(head_num)
-            ]
+            head_scalar_preds = all_outputs[0].murmur_output.prob[:head_num]
+            head_bin_preds = all_outputs[0].murmur_output.bin_pred[:head_num]
             head_preds_classes = [
-                np.array(all_outputs[0].murmur_outputs.classes)[np.where(row)]
+                np.array(all_outputs[0].murmur_output.classes)[np.where(row)[0]]
                 for row in head_bin_preds
             ]
-            head_labels = [all_labels[idx]["murmur"] for idx in range(head_num)]
+            head_labels = all_labels[0]["murmur"][:head_num]
             head_labels_classes = [
-                np.array(all_outputs[0].murmur_outputs.classes)[np.where(row)]
+                np.array(all_outputs[0].murmur_output.classes)[np.where(row)]
+                if head_labels.ndim == 2
+                else np.array(all_outputs[0].murmur_output.classes)[row]
                 for row in head_labels
             ]
             for n in range(head_num):
@@ -399,19 +397,17 @@ class CINC2022Trainer(BaseTrainer):
                 )
                 self.log_manager.log_message(msg)
             if "outcome" in input_tensors:
-                head_scalar_preds = [
-                    all_outputs[idx].outcome_outputs.prob for idx in range(head_num)
-                ]
-                head_bin_preds = [
-                    all_outputs[idx].outcome_outputs.bin_pred for idx in range(head_num)
-                ]
+                head_scalar_preds = all_outputs[0].outcome_output.prob[:head_num]
+                head_bin_preds = all_outputs[0].outcome_output.bin_pred[:head_num]
                 head_preds_classes = [
-                    np.array(all_outputs[0].outcome_outputs.classes)[np.where(row)]
+                    np.array(all_outputs[0].outcome_output.classes)[np.where(row)[0]]
                     for row in head_bin_preds
                 ]
-                head_labels = [all_labels[idx]["outcome"] for idx in range(head_num)]
+                head_labels = all_labels[0]["outcome"][:head_num]
                 head_labels_classes = [
-                    np.array(all_outputs[0].outcome_outputs.classes)[np.where(row)]
+                    np.array(all_outputs[0].outcome_output.classes)[np.where(row)[0]]
+                    if head_labels.ndim == 2
+                    else np.array(all_outputs[0].outcome_output.classes)[row]
                     for row in head_labels
                 ]
                 for n in range(head_num):
