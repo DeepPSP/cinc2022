@@ -307,8 +307,18 @@ def run_challenge_model(
     murmur_classes = train_cfg[TASK].classes
     outcome_classes = train_cfg[TASK].outcomes
 
-    murmur_probabilities, murmur_labels, murmur_cls_labels, murmur_forward_outputs = [], [], [], []
-    outcome_probabilities, outcome_labels, outcome_cls_labels, outcome_forward_outputs = [], [], [], []
+    murmur_probabilities, murmur_labels, murmur_cls_labels, murmur_forward_outputs = (
+        [],
+        [],
+        [],
+        [],
+    )
+    (
+        outcome_probabilities,
+        outcome_labels,
+        outcome_cls_labels,
+        outcome_forward_outputs,
+    ) = ([], [], [], [])
     # features = []
     # if BaseCfg.merge_rule.lower() == "avg":
     #     pooler = torch.nn.AdaptiveAvgPool1d((1,))
@@ -341,7 +351,6 @@ def run_challenge_model(
     # probabilities = probabilities.squeeze(dim=0).cpu().detach().numpy()
     # labels = labels.squeeze(dim=0).cpu().detach().numpy()
 
-
     # get final prediction for murmurs:
     # strategy:
     # 1. (at least) one positive -> positive
@@ -360,18 +369,21 @@ def run_challenge_model(
     if len(murmur_positive_indices) > 0:
         # if exists at least one positive recording,
         # then the subject is diagnosed with the positive class
-        murmur_probabilities = murmur_probabilities[murmur_positive_indices, ...].mean(axis=0)
+        murmur_probabilities = murmur_probabilities[murmur_positive_indices, ...].mean(
+            axis=0
+        )
         murmur_labels = murmur_labels[murmur_positive_indices[0]]
     elif len(murmur_unknown_indices) > 0:
         # no positive recording, but at least one unknown recording
-        murmur_probabilities = murmur_probabilities[murmur_unknown_indices, ...].mean(axis=0)
+        murmur_probabilities = murmur_probabilities[murmur_unknown_indices, ...].mean(
+            axis=0
+        )
         murmur_labels = murmur_labels[murmur_unknown_indices[0]]
     else:
         # no positive or unknown recording,
         # only negative class recordings
         murmur_probabilities = murmur_probabilities.mean(axis=0)
         murmur_labels = murmur_labels[0]
-
 
     # get final prediction for outcomes
     # strategy:
@@ -385,12 +397,16 @@ def run_challenge_model(
     outcome_forward_outputs = np.concatenate(outcome_forward_outputs, axis=0)
 
     outcome_positive_class_id = outcome_classes.index(OUTCOME_POSITIVE_CLASS)
-    outcome_positive_indices = np.where(outcome_cls_labels == outcome_positive_class_id)[0]
+    outcome_positive_indices = np.where(
+        outcome_cls_labels == outcome_positive_class_id
+    )[0]
 
     if len(outcome_positive_indices) > 0:
         # if exists at least one positive recording,
         # then the subject is diagnosed with the positive class
-        outcome_probabilities = outcome_probabilities[outcome_positive_indices, ...].mean(axis=0)
+        outcome_probabilities = outcome_probabilities[
+            outcome_positive_indices, ...
+        ].mean(axis=0)
         outcome_labels = outcome_labels[outcome_positive_indices[0]]
     else:
         # no positive recording, only negative class recordings
