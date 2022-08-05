@@ -167,7 +167,9 @@ class PCGDataBase(PhysioNetDataBase):
 
         """
         super().__init__(db_name, db_dir, working_dir, verbose, **kwargs)
-        self.db_dir = Path(self.db_dir).resolve().absolute()  # will be fixed in `torch_ecg`
+        self.db_dir = (
+            Path(self.db_dir).resolve().absolute()
+        )  # will be fixed in `torch_ecg`
         self.fs = fs
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
         self.audio_backend = audio_backend.lower()
