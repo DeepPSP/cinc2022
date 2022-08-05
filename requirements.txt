@@ -33,3 +33,7 @@ huggingface_hub
 transformers==4.18.0
 datasets
 accelerate
+# requirements from torch-audiomentations,
+# which is installed with --no-deps
+julius>=0.2.3,<0.3
+torch-pitch-shift>=1.2.2
