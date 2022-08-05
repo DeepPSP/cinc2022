@@ -180,7 +180,10 @@ log
 *.ipynb
 # !inspect_data.ipynb
 !train_models.ipynb
+!plot_figures.ipynb
 
 *.npy
 
 saved_models/
+
+!images/*.pdf
