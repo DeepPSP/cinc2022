@@ -194,7 +194,10 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         if self.squeeze is not None:
             waveforms = self.squeeze(waveforms)
-        features, _ = self.feature_extractor(waveforms, seq_len)
+        if "wav2vec2" in self.config.cnn.name.lower():
+            features, _ = self.feature_extractor(waveforms, seq_len)
+        else:
+            features = self.feature_extractor(waveforms)
         features = self.encoder(features)
         pooled_features = self.pool(features)
 
