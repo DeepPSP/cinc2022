@@ -179,6 +179,7 @@ log
 
 *.ipynb
 # !inspect_data.ipynb
+!train_models.ipynb
 
 *.npy
 
