@@ -35,6 +35,7 @@ except ModuleNotFoundError:
 
 from models import (  # noqa: F401
     Wav2Vec2_CINC2022,
+    HFWav2Vec2_CINC2022,
     CRNN_CINC2022,
     SEQ_LAB_NET_CINC2022,
     UNET_CINC2022,
@@ -585,6 +586,7 @@ def get_args(**kwargs: Any):
 
 _MODEL_MAP = {
     "wav2vec2": Wav2Vec2_CINC2022,
+    "wav2vec2_hf": HFWav2Vec2_CINC2022,
     "crnn": CRNN_CINC2022,
     "seq_lab": SEQ_LAB_NET_CINC2022,
     "unet": UNET_CINC2022,

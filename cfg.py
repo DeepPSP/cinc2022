@@ -195,16 +195,16 @@ TrainCfg.classification.augmentations = [
             sample_rate=TrainCfg.classification.fs,
         ),
     ),
-    dict(
-        transform="PitchShift",
-        params=dict(
-            sample_rate=TrainCfg.classification.fs,
-            min_transpose_semitones=-4.0,
-            max_transpose_semitones=4.0,
-            mode="per_example",
-            p=0.4,
-        ),
-    ),
+    # dict(
+    #     transform="PitchShift",
+    #     params=dict(
+    #         sample_rate=TrainCfg.classification.fs,
+    #         min_transpose_semitones=-4.0,
+    #         max_transpose_semitones=4.0,
+    #         mode="per_example",
+    #         p=0.4,
+    #     ),
+    # ),
     dict(
         transform="PolarityInversion",
         params=dict(
