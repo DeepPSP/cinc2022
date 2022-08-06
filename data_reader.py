@@ -1825,7 +1825,7 @@ class CompositeReader(ReprMixin):
         return data
 
     @add_docstring(load_data.__doc__)
-    def load_data(
+    def load_pcg(
         self,
         rec: Union[str, int],
         fs: Optional[int] = None,
