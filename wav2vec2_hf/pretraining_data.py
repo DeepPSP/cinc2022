@@ -445,6 +445,11 @@ class FastDataReader(Dataset, ReprMixin):
             self.dtype = np.float64
         else:
             self.dtype = np.float32
+        self.max_length = int(self.config.max_duration_in_seconds * self.config.fs)
+        if self.config.min_duration_in_seconds is not None:
+            self.min_length = int(self.config.min_duration_in_seconds * self.config.fs)
+        else:
+            self.min_length = 0
 
     def __len__(self) -> int:
         """ """
@@ -456,13 +461,13 @@ class FastDataReader(Dataset, ReprMixin):
         values = self.reader.load_data(rec, data_format="channel_first")
         if self.ppm:
             values, _ = self.ppm(values, self.reader.fs)
-        if values.shape[-1] > self.config.input_len:
-            n_segments, res = divmod(values.shape[-1], self.config.input_len)
+        if values.shape[-1] > self.max_length:
+            n_segments, res = divmod(values.shape[-1], self.max_length)
             if res != 0:
                 values = np.vstack(
                     (
                         values[..., :-res].reshape(n_segments, -1),
-                        values[..., -self.config.input_len :],
+                        values[..., -self.max_length :],
                     )
                 )
             else:
@@ -473,17 +478,17 @@ class FastDataReader(Dataset, ReprMixin):
         values = self.feature_extractor(
             values,
             sampling_rate=self.config.fs,
-            max_length=self.config.input_len,
+            max_length=self.max_length,
             truncation=True,
         )
         values = [
             BatchFeature(
                 dict(
                     input_values=values.input_values[0][idx],
-                    input_length=values.input_values[0].shape[-1],
+                    # input_length=values.input_values[0].shape[-1],
                 )
             )
-            for idx in range(values.input_values[0].shape[0])
+            for idx in range(values.input_values[0].shape[0]) if values.input_values[0].shape[-1] >= self.min_length
         ]
 
         return values

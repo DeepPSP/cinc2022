@@ -38,6 +38,7 @@ for t in PreTrainCfg.tasks + [
 PreTrainCfg.update(
     CFG(
         # new attributes
+        classes=[],
         max_gumbel_temperature=2.0,
         min_gumbel_temperature=0.5,
         gumbel_temperature_decay=0.999995,
@@ -47,10 +48,11 @@ PreTrainCfg.update(
         # old attributes
         optimizer="hf-adamw",
         lr_scheduler="linear",
+        num_warmup_steps=600,
         log_dir=_cwd / "log",
         checkpoints=_cwd / "checkpoints",
         model_dir=_cwd / "saved_models",
-        input_len=int(30 * PreTrainCfg.fs),  # 30seconds, to adjust
+        # input_len=int(30 * PreTrainCfg.fs),  # 30seconds, deprecated, use `max_duration_in_seconds`
     )
 )
 PreTrainCfg.log_dir.mkdir(parents=True, exist_ok=True)
@@ -116,6 +118,7 @@ def list_models() -> List[str]:
 
 
 _wav2vec_base = CFG(
+    model_name="base",
     model_config_args=CFG(
         vocab_size=32,
         hidden_size=768,
@@ -176,6 +179,7 @@ _wav2vec_base = CFG(
 )
 
 _wav2vec_small = deepcopy(_wav2vec_base)
+_wav2vec_small.model_name="small",
 _wav2vec_small.model_config_args.hidden_size = 3 * 2**7  # 384
 _wav2vec_small.model_config_args.intermediate_size = 3 * 2**9  # 1536
 
