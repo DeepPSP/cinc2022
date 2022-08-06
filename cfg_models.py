@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 
-# wav2vec2
+# torchaudio wav2vec2
 wav2vec2 = CFG()
 
 wav2vec2.cnn = CFG()
@@ -109,8 +109,8 @@ wav2vec2.encoder.wav2vec2_nano.layer_norm_first = False
 wav2vec2.encoder.wav2vec2_nano.layer_drop = 0.1
 
 # global pooling
-# currently is fixed using `AdaptiveMaxPool1d`
-wav2vec2.global_pool = "max"  # "avg", "attn"
+# currently is fixed using `AdaptiveXXXPool1d`
+wav2vec2.global_pool = "avg"  # "max", "avg", "attn"
 
 wav2vec2.clf = CFG()
 wav2vec2.clf.out_channels = [
@@ -121,6 +121,21 @@ wav2vec2.clf.activation = "mish"
 wav2vec2.clf.bias = True
 wav2vec2.clf.kernel_initializer = "he_normal"
 wav2vec2.clf.dropouts = 0.2
+
+
+# transformers wav2vec2
+wav2vec2_hf = CFG()
+wav2vec2_hf.backbone = "small"  # "small", "base"
+# "base" and "small" are built-in in the file `wav2vec2_hf.pretraining_cfg.py`
+# if one wants to add new backbone, one has to add the config in wav2vec2_hf.backbone_cfg via
+# `wav2vec2_hf.backbone_cfg[backbone] = CFG(...)`
+wav2vec2_hf.backbone_cfg = CFG()
+
+# global pooling
+# currently is fixed using `AdaptiveXXXPool1d`
+wav2vec2_hf.global_pool = "avg"  # "max", "avg", "attn"
+
+wav2vec2_hf.clf = deepcopy(wav2vec2.clf)
 
 
 # extra heads
@@ -153,8 +168,8 @@ ModelArchCfg = CFG()
 
 ModelArchCfg.classification = CFG()
 ModelArchCfg.classification.crnn = deepcopy(ECG_CRNN_CONFIG)
-
 ModelArchCfg.classification.wav2vec2 = deepcopy(wav2vec2)
+ModelArchCfg.classification.wav2vec2_hf = deepcopy(wav2vec2_hf)
 
 ModelArchCfg.classification.outcome_head = deepcopy(OutcomeHeadCfg)
 
@@ -169,5 +184,7 @@ ModelArchCfg.segmentation.unet = deepcopy(ECG_UNET_VANILLA_CONFIG)
 ModelArchCfg.multi_task = CFG()
 ModelArchCfg.multi_task.crnn = deepcopy(ECG_CRNN_CONFIG)
 ModelArchCfg.multi_task.wav2vec2 = deepcopy(wav2vec2)
+ModelArchCfg.multi_task.wav2vec2_hf = deepcopy(wav2vec2_hf)
+
 ModelArchCfg.multi_task.outcome_head = deepcopy(OutcomeHeadCfg)
 ModelArchCfg.multi_task.segmentation_head = deepcopy(SegmentationHeadCfg)
