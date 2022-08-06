@@ -195,16 +195,16 @@ TrainCfg.classification.augmentations = [
             sample_rate=TrainCfg.classification.fs,
         ),
     ),
-    # dict(
-    #     transform="PitchShift",
-    #     params=dict(
-    #         sample_rate=TrainCfg.classification.fs,
-    #         min_transpose_semitones=-4.0,
-    #         max_transpose_semitones=4.0,
-    #         mode="per_example",
-    #         p=0.4,
-    #     ),
-    # ),
+    dict(
+        transform="PitchShift",
+        params=dict(
+            sample_rate=TrainCfg.classification.fs,
+            min_transpose_semitones=-4.0,
+            max_transpose_semitones=4.0,
+            mode="per_example",
+            p=0.4,
+        ),
+    ),
     dict(
         transform="PolarityInversion",
         params=dict(
@@ -304,13 +304,13 @@ TrainCfg.segmentation.augmentations = [
             max_f_decay=2.0,
             mode="per_example",
             p=0.5,
-            sample_rate=TrainCfg.classification.fs,
+            sample_rate=TrainCfg.segmentation.fs,
         ),
     ),
     # dict(
     #     transform="PitchShift",
     #     params=dict(
-    #         sample_rate=TrainCfg.classification.fs,
+    #         sample_rate=TrainCfg.segmentation.fs,
     #         min_transpose_semitones=-4.0,
     #         max_transpose_semitones=4.0,
     #         mode="per_example",
@@ -322,7 +322,7 @@ TrainCfg.segmentation.augmentations = [
         params=dict(
             mode="per_example",
             p=0.6,
-            sample_rate=TrainCfg.classification.fs,
+            sample_rate=TrainCfg.segmentation.fs,
         ),
     ),
 ]
@@ -410,13 +410,13 @@ TrainCfg.multi_task.augmentations = [
             max_f_decay=2.0,
             mode="per_example",
             p=0.5,
-            sample_rate=TrainCfg.classification.fs,
+            sample_rate=TrainCfg.multi_task.fs,
         ),
     ),
     # dict(
     #     transform="PitchShift",
     #     params=dict(
-    #         sample_rate=TrainCfg.classification.fs,
+    #         sample_rate=TrainCfg.multi_task.fs,
     #         min_transpose_semitones=-4.0,
     #         max_transpose_semitones=4.0,
     #         mode="per_example",
@@ -428,7 +428,7 @@ TrainCfg.multi_task.augmentations = [
         params=dict(
             mode="per_example",
             p=0.6,
-            sample_rate=TrainCfg.classification.fs,
+            sample_rate=TrainCfg.multi_task.fs,
         ),
     ),
 ]

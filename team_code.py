@@ -139,6 +139,7 @@ def train_challenge_model(
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.5)
 
+    train_config[TASK].model_name = "wav2vec2"  # "wav2vec", "crnn", "wav2vec2_hf"
     # train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
     # train_config[TASK].rnn_name = "none"  # "none", "lstm"
     # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
