@@ -134,12 +134,15 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         # https://discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/4
         num_workers = 4
 
+        # https://github.com/pytorch/pytorch/issues/47445
+        # bugs about pin_memory
+
         self.train_loader = DataLoader(
             dataset=train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=False,
             collate_fn=data_collator,
         )
@@ -150,7 +153,7 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
                 batch_size=self.batch_size,
                 shuffle=True,
                 num_workers=num_workers,
-                pin_memory=True,
+                pin_memory=False,
                 drop_last=False,
                 collate_fn=data_collator,
             )
@@ -161,7 +164,7 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=False,
             collate_fn=data_collator,
         )
@@ -201,8 +204,7 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
             scheduler_kwargs.update(
                 {k: self.train_config.get(k, v) for k, v in scheduler_kwargs.items()}
             )
-            print(scheduler_kwargs)
-            self.lr_scheduler = get_scheduler(
+            self.scheduler = get_scheduler(
                 scheduler_type,
                 self.optimizer,
                 **scheduler_kwargs,
