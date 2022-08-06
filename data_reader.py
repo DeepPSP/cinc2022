@@ -254,15 +254,21 @@ _CINC2022_INFO = DataBaseInfo(
     The CirCor DigiScope Phonocardiogram Dataset (main resource for CinC2022)
     """,
     about="""
-    1. 5272 heart sound recordings (.wav format) were collected from the main 4 auscultation locations of 1568 subjects, aged between 0 and 21 years (mean ± STD = 6.1 ± 4.3 years), with a duration between 4.8 to 80.4 seconds (mean ± STD = 22.9 ± 7.4 s)
-    2. segmentation annotations (.tsv format) regarding the location of fundamental heart sounds (S1 and S2) in the recordings have been obtained using a semi-supervised scheme
+    1. 5272 heart sound recordings (.wav format, sampling rate 4000 Hz) were collected from the main 4 auscultation locations of 1568 subjects, aged between 0 and 21 years (mean ± STD = 6.1 ± 4.3 years), with a duration between 4.8 to 80.4 seconds (mean ± STD = 22.9 ± 7.4 s)
+    2. segmentation annotations (.tsv format) regarding the location of fundamental heart sounds (S1 and S2) in the recordings have been obtained using a semi-supervised scheme. The annotation files are composed of three distinct columns: the first column corresponds to the time instant (in seconds) where the wave was detected for the first time, the second column corresponds to the time instant (in seconds) where the wave was detected for the last time, and the third column corresponds to an identifier that uniquely identifies the detected wave. Here, we use the following convention:
+        - The S1 wave is identified by the integer 1.
+        - The systolic period is identified by the integer 2.
+        - The S2 wave is identified by the integer 3.
+        - The diastolic period is identified by the integer 4.
+        - The unannotated segments of the signal are identified by the integer 0.
     """,
     usage=[
         "Heart murmur detection",
         "Heart sound segmentation",
     ],
     note="""
-    1. the "Murmur" column (records whether heart murmur can be heard or not) and the "Outcome" column (the expert cardiologist's overall diagnosis using **clinical history, physical examination, analog auscultation, echocardiogram, etc.**) are **NOT RELATED**. All of the 6 combinations (["Present", "Absent", "Unknown"] × ["Abnormal", "Normal"]) occur in the dataset.
+    1. the "Murmur" column (records whether heart murmur can be heard or not) and the "Outcome" column (the expert cardiologist's overall diagnosis using **clinical history, physical examination, analog auscultation, echocardiogram, etc.**) are **NOT RELATED**. All of the 6 combinations (["Present", "Absent", "Unknown"] x ["Abnormal", "Normal"]) occur in the dataset.
+    2. the segmentation files do NOT in general (totally 132 such files) have the same length (namely the second column of the last row of these .tsv files) as the audio files.
     """,
     issues="""
     1. the segmentation file `50782_MV_1.tsv` (versions 1.0.2, 1.0.3) is broken.
@@ -617,7 +623,8 @@ class CINC2022Reader(PCGDataBase):
         rec : str or int,
             the record name or the index of the record in `self.all_records`
         fs : int, optional,
-            the sampling frequency of the record, defaults to `self.fs`
+            the sampling frequency of the record, defaults to `self.fs`,
+            -1 for the sampling frequency from the audio file
         data_format : str, optional,
             the format of the returned data, defaults to `channel_first`
             can be `channel_last`, `channel_first`, `flat`,
