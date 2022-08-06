@@ -6,12 +6,12 @@ from typing import Optional, Tuple, List
 import torch
 from torch import Tensor
 from torch.nn import Module
-from torch_ecg.utils.utils_nn import SizeMixin
+from torch_ecg.utils.utils_nn import SizeMixin, CkptMixin
 
 from . import components
 
 
-class Wav2Vec2Model(Module, SizeMixin):
+class Wav2Vec2Model(Module, CkptMixin, SizeMixin):
     """torchaudio.models.Wav2Vec2Model(feature_extractor: torch.nn.Module, encoder: torch.nn.Module, aux: Optional[torch.nn.Module] = None)
 
     Encoder model used in *wav2vec 2.0* [:footcite:`baevski2020wav2vec`].
