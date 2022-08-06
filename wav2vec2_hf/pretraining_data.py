@@ -488,7 +488,8 @@ class FastDataReader(Dataset, ReprMixin):
                     # input_length=values.input_values[0].shape[-1],
                 )
             )
-            for idx in range(values.input_values[0].shape[0]) if values.input_values[0].shape[-1] >= self.min_length
+            for idx in range(values.input_values[0].shape[0])
+            if values.input_values[0].shape[-1] >= self.min_length
         ]
 
         return values

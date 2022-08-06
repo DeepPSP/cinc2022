@@ -15,7 +15,12 @@ except ModuleNotFoundError:
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
-from accelerate import Accelerator  # noqa: F401
+from torch.nn.parallel import (  # noqa: F401
+    DistributedDataParallel as DDP,
+    DataParallel as DP,
+)  # noqa: F401
+
+# from accelerate import Accelerator  # noqa: F401
 from transformers import (  # noqa: F401
     AdamW,
     Trainer,
@@ -163,7 +168,7 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
 
     def _setup_optimizer(self) -> NoReturn:
         """ """
-        if re.sub("[\\-_]*", "", self.train_config.optimizer.lower()) == "hf_adamw":
+        if re.sub("[\\-_]*", "", self.train_config.optimizer.lower()) == "hfadamw":
             # AdamW from huggingface
             optimizer_kwargs = get_kwargs(AdamW)
             optimizer_kwargs.update(
@@ -185,9 +190,18 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         ):
             scheduler_type = SchedulerType[self.train_config.lr_scheduler.upper()]
             scheduler_kwargs = get_kwargs(get_scheduler)
+            scheduler_kwargs["num_training_steps"] = (
+                max(
+                    1,
+                    len(self.train_loader)
+                    // self.train_config.gradient_accumulation_steps,
+                )
+                * self.train_config.n_epochs
+            )
             scheduler_kwargs.update(
                 {k: self.train_config.get(k, v) for k, v in scheduler_kwargs.items()}
             )
+            print(scheduler_kwargs)
             self.lr_scheduler = get_scheduler(
                 scheduler_type,
                 self.optimizer,
@@ -230,7 +244,7 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
             # divide loss by gradient accumulation steps since gradients
             # are accumulated for multiple backward passes in PyTorch
             loss = outputs.loss / self.train_config.gradient_accumulation_steps
-            loss.backward()
+            # loss.backward()
 
             multiply_grads(self.model.parameters(), 1 / num_losses)
 
@@ -312,6 +326,8 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
 
         """
         # forward
+        for k in batch:
+            batch[k] = batch[k].to(self.device)
         outputs = self.model(**batch)
         return outputs
 
@@ -354,6 +370,20 @@ class Wav2Vec2PreTrainingTrainer(BaseTrainer):
         return []
 
     @property
+    def required_train_config_fields(self) -> List[str]:
+        """ """
+        return [
+            # "classes",
+            # "monitor",  # can be None
+            "n_epochs",
+            "batch_size",
+            "log_step",
+            "optimizer",
+            "lr_scheduler",
+            "learning_rate",
+        ] + self.extra_required_train_config_fields
+
+    @property
     def save_prefix(self) -> str:
         return f"HF-Wav2Vec2-Pretrain-{self.model_config.model_name}"
 
@@ -372,6 +402,9 @@ def parse_args() -> dict:
 if __name__ == "__main__":
     model_config = PreTrainModelCfg.get_Wav2Vec2Config()
     model = Wav2Vec2ForPreTraining(model_config)
+    if torch.cuda.device_count() > 1:
+        model = DP(model)
+        # model = DDP(model)
 
     trainer = Wav2Vec2PreTrainingTrainer(
         model,

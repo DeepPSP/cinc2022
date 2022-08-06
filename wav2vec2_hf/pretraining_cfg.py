@@ -52,6 +52,7 @@ PreTrainCfg.update(
         log_dir=_cwd / "log",
         checkpoints=_cwd / "checkpoints",
         model_dir=_cwd / "saved_models",
+        gradient_accumulation_steps=1,
         # input_len=int(30 * PreTrainCfg.fs),  # 30seconds, deprecated, use `max_duration_in_seconds`
     )
 )
@@ -179,7 +180,7 @@ _wav2vec_base = CFG(
 )
 
 _wav2vec_small = deepcopy(_wav2vec_base)
-_wav2vec_small.model_name="small",
+_wav2vec_small.model_name = "small"
 _wav2vec_small.model_config_args.hidden_size = 3 * 2**7  # 384
 _wav2vec_small.model_config_args.intermediate_size = 3 * 2**9  # 1536
 
