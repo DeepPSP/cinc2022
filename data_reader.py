@@ -1226,10 +1226,16 @@ _CINC2016_INFO = DataBaseInfo(  # NOT finished yet
     The PhysioNet/Computing in Cardiology Challenge 2016
     """,
     about="""
-    to write
+    1. The Challenge training set consists of five databases (A through E) containing a total of 3,126 heart sound recordings collected from different locations on the body (4 typical locations are aortic area, pulmonic area, tricuspid area and mitral area, but could be one of 9 different locations).
+    2. The recordings last from several (5) seconds to up to more than one hundred seconds (just over 120 seconds). All recordings have been resampled to 2,000 Hz and have been provided as .wav format. Each recording contains only one PCG lead.
+    3. The training and test (unavailable to the public) sets have each been divided so that they are two sets of mutually exclusive populations.
+    4. Heart sound recordings (.wav files) were divided into two types: normal and abnormal heart sound recordings. The normal recordings were from healthy subjects and the abnormal ones were from patients with a confirmed cardiac diagnosis.
+    5. Due to the uncontrolled environment of the recordings, many recordings are corrupted by various noise sources, such as talking, stethoscope motion, breathing and intestinal sounds. Some recordings were difficult or even impossible to classify as normal or abnormal. Hence a third class "Uncertain" is added for scoring.
+    6. Extra ECG recordings (.dat files) were provided along with the heart sound recordings.
     """,
     usage=[
         "Heart murmur detection",
+        "Heart abnormality detection from ECG",
     ],
     references=[
         "https://physionet.org/content/challenge-2016/1.0.0/",
@@ -1458,17 +1464,28 @@ _EPHNOGRAM_INFO = DataBaseInfo(  # NOT finished yet
     A Simultaneous Electrocardiogram and Phonocardiogram Database
     """,
     about="""
-    to write
+    1. 61 recordings were acquired from 24 healthy male adults aged between 23 and 29 (average: 25.4 ± 1.9 years) in 30min stress-test sessions during resting, walking, running and biking conditions, using indoor fitness center equipment. The database also contains several (8) 30s sample records acquired during rest conditions.
+    2. The device for collecting the database includes three-lead ECG, two digital stethoscope channels for PCG acquisition and two auxiliary channels to capture the ambient audio noise.
+    3. The three channels PCG2, AUX1, and AUX2 (which are available for some of the records), are mostly very weak in amplitude (at quantization noise level). However, through visual inspection and by listening to these audio channels, it is noticed that they have captured some of the electronic device noises and the weak background sounds in the environment
+    4. The analog signals are filtered by an anti-aliasing analog filter and sampled at 8kHz with a resolution of 12-bits (with 10.5 effective number of bits).
+    5. The front-end anti-aliasing and baseline wander rejection filter consists of a first-order passive high-pass filter with a -3dB cutoff frequency of 0.1Hz, followed by an active 5th order low-pass Butterworth filter, which form bandpass filters that cover the major ECG (upper -3dB cutoff frequency was set to 150Hz, with 30dB of attenuation at 1kHz and a 30dB gain in the passband) and PCG (upper cutoff frequency of 1kHz, 30dB of attenuation at 5kHz, and a passband gain of 5dB) bandwidths.
+    6. Additional filtering, including power-line cancellation (50Hz) is performed in the digital domain.
     """,
     usage=[
+        "Simultaneous multi-modal analysis of ECG and PCG",
+        "Mathematical PCG models for generating synthetic signals"
+        "PCG quality enhancement",
         "PCG model pretraining",
         "ECG model pretraining",
     ],
     references=[
         "https://physionet.org/content/ephnogram/1.0.0/",
+        "A. Kazemnejad, P. Gordany, and R. Sameni. An open-access simultaneous electrocardiogram and phonocardiogram database. bioRxiv, 2021. DOI: https://doi.org/10.1101/2021.05.17.444563",
+        "R. Sameni, The Open-Source Electrophysiological Toolbox (OSET), v 3.14, URL: https://github.com/alphanumericslab/OSET",
     ],
     doi=[
         "10.13026/tjtq-5911",
+        "10.1101/2021.05.17.444563",
     ],
 )
 
@@ -1705,9 +1722,7 @@ class EPHNOGRAMReader(PCGDataBase):
         return self._df_stats
 
 
-add_docstring(_HeartMurmurInfo, mode="append")
-
-
+@add_docstring(_HeartMurmurInfo, mode="append")
 class CompositeReader(ReprMixin):
     """
     Database reader that combines multiple readers,
