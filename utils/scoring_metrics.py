@@ -107,7 +107,7 @@ def compute_challenge_metrics(
     """
     metrics = {}
     if require_both:
-        assert all([set(lb.keys()) <= set(["murmur", "outcome"]) for lb in labels])
+        assert all([set(lb.keys()) >= set(["murmur", "outcome"]) for lb in labels])
         assert all(
             [
                 item.murmur_output is not None and item.outcome_output is not None

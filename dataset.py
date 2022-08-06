@@ -291,7 +291,7 @@ class FastDataReader(ReprMixin, Dataset):
 
         elif self.task in ["segmentation"]:
             label = self.reader.load_segmentation(
-                rec, seg_format="binary", fs=self.config[self.task].fs
+                rec, seg_format="binary", ensure_same_len=True, fs=self.config[self.task].fs
             )
             label = ensure_siglen(
                 label,
@@ -387,7 +387,7 @@ class MutiTaskFastDataReader(ReprMixin, Dataset):
             )
 
         mask = self.reader.load_segmentation(
-            rec, seg_format="binary", fs=self.config[self.task].fs
+            rec, seg_format="binary", ensure_same_len=True, fs=self.config[self.task].fs
         )
         mask = ensure_siglen(
             mask,
