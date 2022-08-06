@@ -721,7 +721,11 @@ class CINC2022Reader(PCGDataBase):
         return self.load_ann(rec_or_sid, class_map)
 
     def load_segmentation(
-        self, rec: Union[str, int], seg_format: str = "df", fs: Optional[int] = None
+        self,
+        rec: Union[str, int],
+        seg_format: str = "df",
+        ensure_same_len: bool = True,
+        fs: Optional[int] = None,
     ) -> Union[pd.DataFrame, np.ndarray, dict]:
         """
         load the segmentation of the record `rec`
@@ -734,11 +738,21 @@ class CINC2022Reader(PCGDataBase):
             the format of the returned segmentation,
             can be `df`, `dict`, `mask`, `binary`,
             case insensitive
+        ensure_same_len : bool, default True,
+            if True, the length of the segmentation will be
+            the same as the length of the audio data
+        fs : int, optional,
+            the sampling frequency, defaults to `self.fs`,
+            -1 for the sampling frequency from the audio file
 
         Returns
         -------
         pd.DataFrame or np.ndarray or dict,
             the segmentation of the record
+
+        NOTE
+        ----
+        segmentation files do NOT have the same length (namely the second column of the last row of these .tsv files) as the audio files.
 
         """
         if isinstance(rec, int):
@@ -756,6 +770,20 @@ class CINC2022Reader(PCGDataBase):
         df_seg["wave"] = df_seg["label"].apply(lambda s: self.segmentation_map[s])
         df_seg["start"] = (fs * df_seg["start_t"]).apply(round)
         df_seg["end"] = (fs * df_seg["end_t"]).apply(round)
+        if ensure_same_len:
+            sig_len = wfdb.rdheader(str(self.get_absolute_path(rec))).sig_len
+            if sig_len != df_seg["end"].max():
+                df_seg = df_seg.append(
+                    dict(
+                        start_t=df_seg["end"].max() / fs,
+                        end_t=sig_len / fs,
+                        start=df_seg["end"].max(),
+                        end=sig_len,
+                        wave="unannotated",
+                        label=BaseCfg.ignore_index,
+                    ),
+                    ignore_index=True,
+                )
         if seg_format.lower() in [
             "dataframe",
             "df",
