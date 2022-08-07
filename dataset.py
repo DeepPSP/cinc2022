@@ -7,17 +7,17 @@ from copy import deepcopy
 from typing import Optional, List, Sequence, NoReturn, Dict
 
 import numpy as np
-
-try:
-    from tqdm.auto import tqdm
-except ModuleNotFoundError:
-    from tqdm import tqdm
 import torch
 from torch.utils.data.dataset import Dataset
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import ReprMixin, list_sum
 from torch_ecg.utils.utils_data import ensure_siglen, stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
+
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    from tqdm import tqdm
 
 from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
 from inputs import (  # noqa: F401
