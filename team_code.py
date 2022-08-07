@@ -39,6 +39,8 @@ from models import (  # noqa: F401
     CRNN_CINC2022,
     SEQ_LAB_NET_CINC2022,
     UNET_CINC2022,
+    Wav2Vec2_CINC2022,
+    HFWav2Vec2_CINC2022,
 )  # noqa: F401
 from trainer import (  # noqa: F401
     CINC2022Trainer,
@@ -50,9 +52,13 @@ from helper_code import *  # noqa: F403
 
 
 CinC2022Dataset.__DEBUG__ = False
+
 CRNN_CINC2022.__DEBUG__ = False
 SEQ_LAB_NET_CINC2022.__DEBUG__ = False
 UNET_CINC2022.__DEBUG__ = False
+Wav2Vec2_CINC2022.__DEBUG__ = False
+HFWav2Vec2_CINC2022.__DEBUG__ = False
+
 CINC2022Trainer.__DEBUG__ = False
 
 
@@ -71,6 +77,13 @@ if ModelCfg.torch_dtype == torch.float64:
     DTYPE = np.float64
 else:
     DTYPE = np.float32
+
+
+# choices of the models
+TrainCfg[TASK].model_name = "wav2vec2"  # "wav2vec", "crnn", "wav2vec2_hf"
+# TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
+# TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
+# TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 
 
 ################################################################################
@@ -118,7 +131,9 @@ def train_challenge_model(
     classes = ["Present", "Unknown", "Absent"]
     num_classes = len(classes)
 
-    # TODO: Train the model.
+    ###############################################################################
+    # Train the model.
+    ###############################################################################
     # general configs and logger
     train_config = deepcopy(TrainCfg)
     train_config.db_dir = data_folder
@@ -138,11 +153,6 @@ def train_challenge_model(
         train_config.log_step = 50
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.5)
-
-    train_config[TASK].model_name = "wav2vec2"  # "wav2vec", "crnn", "wav2vec2_hf"
-    # train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
-    # train_config[TASK].rnn_name = "none"  # "none", "lstm"
-    # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 
     train_config.final_model_name = _ModelFilename
     train_config[TASK].final_model_name = _ModelFilename
