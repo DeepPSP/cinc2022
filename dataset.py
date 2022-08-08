@@ -272,7 +272,7 @@ class FastDataReader(ReprMixin, Dataset):
             out = {"waveforms": waveforms, "murmur": label}
             if self.config[self.task].outcomes is not None:
                 outcome = self.reader.load_outcome(rec)
-                if self.config[self.task].outcome_loss != "CrossEntropyLoss":
+                if self.config[self.task].loss["outcome"] != "CrossEntropyLoss":
                     outcome = (
                         np.isin(self.config[self.task].outcomes, outcome)
                         .astype(self.dtype)[np.newaxis, ...]

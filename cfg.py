@@ -3,6 +3,7 @@
 
 import pathlib
 from copy import deepcopy
+from typing import Union, Sequence, NoReturn
 
 import numpy as np
 import torch
@@ -17,6 +18,7 @@ __all__ = [
     "BaseCfg",
     "TrainCfg",
     "ModelCfg",
+    "remove_extra_heads",
 ]
 
 
@@ -159,10 +161,6 @@ if TrainCfg.classification.outcomes is not None:
     }
 else:
     TrainCfg.classification.outcome_map = None
-TrainCfg.classification.outcome_loss = (
-    "CrossEntropyLoss"  # valid only if outcomes is not None
-)
-TrainCfg.classification.outcome_loss_kw = CFG()
 TrainCfg.classification.class_map = {
     c: i for i, c in enumerate(TrainCfg.classification.classes)
 }
@@ -558,3 +556,36 @@ ModelCfg.outcome.xgboost.init_params = CFG()
 ModelCfg.outcome.xgboost.train_params = CFG()
 ModelCfg.outcome.xgboost.train_kw = CFG()
 ModelCfg.outcome.xgboost.cv_kw = CFG()
+
+
+def remove_extra_heads(
+    train_config: CFG, model_config: CFG, heads: Union[str, Sequence[str]]
+) -> NoReturn:
+    """
+    remove extra heads from **task-specific** train config and model config,
+    e.g. `TrainCfg.classification` and `ModelCfg.classification`
+
+    Parameters
+    ----------
+    train_config : CFG
+        train config
+    model_config : CFG
+        model config
+    heads : str or sequence of str,
+        names of heads to remove
+
+    """
+    if isinstance(heads, str):
+        heads = [heads]
+    for head in heads:
+        if head.lower() in ["outcome", "outcomes"]:
+            train_config.outcomes = None
+            train_config.outcome_map = None
+            train_config.loss.pop("outcome", None)
+            train_config.loss_kw.pop("outcome", None)
+            train_config.head_weights = {"murmur": 1.0}
+        if head.lower() in ["segmentation"]:
+            train_config.states = None
+            train_config.state_map = None
+            train_config.loss.pop("segmentation", None)
+            train_config.loss_kw.pop("segmentation", None)
