@@ -290,6 +290,7 @@ class CINC2022Reader(PCGDataBase):
     """ """
 
     __name__ = "CINC2022Reader"
+    stats_fillna_val = "NA"
 
     def __init__(
         self,
@@ -491,7 +492,7 @@ class CINC2022Reader(PCGDataBase):
                         k, v = line.replace("#", "").split(":")
                         k, v = k.strip(), v.strip()
                         if v == "nan":
-                            v = ""
+                            v = self.stats_fillna_val
                         new_row[k] = v
                     new_row["Recording locations:"] = "+".join(locations)
                     self._df_stats = self._df_stats.append(
@@ -519,7 +520,7 @@ class CINC2022Reader(PCGDataBase):
         self._df_stats = self._df_stats[self._stats_cols]
         for idx, row in self._df_stats.iterrows():
             for c in ["Height", "Weight"]:
-                if row[c] == "":
+                if row[c] == self.stats_fillna_val:
                     self._df_stats.at[idx, c] = np.nan
 
         # load stats of the records
@@ -1017,10 +1018,6 @@ class CINC2022Reader(PCGDataBase):
         if self._df_stats_records is None or self._df_stats_records.empty:
             self._load_stats()
         return self._df_stats_records
-
-    @property
-    def stats_fillna_val(self) -> str:
-        return "NA"
 
     @property
     def murmur_feature_cols(self) -> List[str]:
