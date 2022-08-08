@@ -9,13 +9,14 @@
 #
 ################################################################################
 
-import os
 import time
 from copy import deepcopy
 from itertools import repeat
+from pathlib import Path
 from typing import NoReturn, List, Tuple, Dict, Union
 
 import numpy as np
+from sklearn.base import BaseEstimator
 import torch
 from torch.nn.parallel import (  # noqa: F401
     DistributedDataParallel as DDP,
@@ -24,7 +25,7 @@ from torch.nn.parallel import (  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg._preprocessors import PreprocManager
 
-from cfg import TrainCfg, ModelCfg, remove_extra_heads
+from cfg import TrainCfg, ModelCfg, OutcomeCfg, remove_extra_heads
 from dataset import CinC2022Dataset
 from inputs import (  # noqa: F401
     InputConfig,
@@ -41,6 +42,7 @@ from models import (  # noqa: F401
     UNET_CINC2022,
     Wav2Vec2_CINC2022,
     HFWav2Vec2_CINC2022,
+    OutComeClassifier_CINC2022,
 )  # noqa: F401
 from trainer import (  # noqa: F401
     CINC2022Trainer,
@@ -48,7 +50,7 @@ from trainer import (  # noqa: F401
     _set_task,
 )  # noqa: F401
 
-from helper_code import find_patient_files
+from helper_code import find_patient_files, get_locations
 
 
 CinC2022Dataset.__DEBUG__ = False
@@ -62,13 +64,17 @@ HFWav2Vec2_CINC2022.__DEBUG__ = False
 CINC2022Trainer.__DEBUG__ = False
 
 
-TASK = "multi_task"
+USE_AUX_OUTCOME_MODEL = False  # True, False
+
+TASK = "classification"  # "classification", "multi_task"
 FS = 4000
 MURMUR_POSITIVE_CLASS = "Present"
 MURMUR_UNKNOWN_CLASS = "Unknown"
 OUTCOME_POSITIVE_CLASS = "Abnormal"
 
-_ModelFilename = "final_model.pth.tar"
+_ModelFilename = "final_model_main.pth.tar"
+
+_ModelFilename_outcome = "final_model_outcome.pkl"
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -126,7 +132,8 @@ def train_challenge_model(
         raise Exception("No data was provided.")
 
     # Create a folder for the model if it does not already exist.
-    os.makedirs(model_folder, exist_ok=True)
+    # os.makedirs(model_folder, exist_ok=True)
+    Path(model_folder).mkdir(parents=True, exist_ok=True)
 
     classes = ["Present", "Unknown", "Absent"]
     num_classes = len(classes)
@@ -136,8 +143,8 @@ def train_challenge_model(
     ###############################################################################
     # general configs and logger
     train_config = deepcopy(TrainCfg)
-    train_config.db_dir = data_folder
-    train_config.model_dir = model_folder
+    train_config.db_dir = Path(data_folder).resolve().absolute()
+    train_config.model_dir = Path(model_folder).resolve().absolute()
     train_config.debug = False
 
     if train_config.get("entry_test_flag", False):
@@ -172,12 +179,13 @@ def train_challenge_model(
     # if "encoder" in model_config[model_name]:
     #     model_config[model_name].encoder.name = train_config[TASK].encoder_name
 
-    # choose whether to remove some heads
-    remove_extra_heads(
-        train_config=train_config,
-        model_config=model_config,
-        heads=["outcome"],  # "outcome", "segmentation", None
-    )
+    # NOTE: choose whether to remove some heads
+    if USE_AUX_OUTCOME_MODEL:
+        remove_extra_heads(
+            train_config=train_config,
+            model_config=model_config,
+            heads=["outcome"],  # "outcome", "segmentation", None
+        )
 
     start_time = time.time()
 
@@ -214,6 +222,14 @@ def train_challenge_model(
 
     torch.cuda.empty_cache()
 
+    if USE_AUX_OUTCOME_MODEL:
+        # NOTE: train an auxilliary outcome model
+        OutcomeCfg.db_dir = Path(data_folder).resolve().absolute()
+        OutcomeCfg.model_dir = Path(model_folder).resolve().absolute()
+        outcome_clf = OutComeClassifier_CINC2022(OutcomeCfg)
+        outcome_clf.search(model_name="rf", cv=None)
+        outcome_clf.save_best_model(model_name=_ModelFilename_outcome)
+
     if verbose >= 1:
         print("Done.")
 
@@ -227,7 +243,7 @@ def train_challenge_model(
 # arguments and outputs of this function.
 def load_challenge_model(
     model_folder: str, verbose: int
-) -> Dict[str, Union[CFG, torch.nn.Module]]:
+) -> Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]]:
     """
 
     Parameters
@@ -240,33 +256,47 @@ def load_challenge_model(
     Returns
     -------
     dict, with items:
-        - model: torch.nn.Module,
-            the loaded model
+        - main_model: torch.nn.Module,
+            the loaded model, for murmur predictions,
+            or for both murmur and outcome predictions
         - train_cfg: CFG,
             the training configuration,
             including the list of classes (the ordering is important),
             and the preprocessing configurations
+        - outcome_model: BaseEstimator, optional,
+            the loaded model, for outcome predictions
 
     """
     print("\n" + "*" * 100)
     msg = "   loading CinC2022 challenge model   ".center(100, "#")
     print(msg)
+    # murmur model
     model_cls = _MODEL_MAP[TrainCfg[TASK].model_name]
-    model, train_cfg = model_cls.from_checkpoint(
-        path=os.path.join(model_folder, _ModelFilename),
+    main_model, train_cfg = model_cls.from_checkpoint(
+        path=Path(model_folder) / _ModelFilename,
         device=DEVICE,
     )
-    model.eval()
+    main_model.eval()
+    if USE_AUX_OUTCOME_MODEL:
+        # outcome model
+        outcome_model = OutComeClassifier_CINC2022.from_path(
+            Path(model_folder) / _ModelFilename_outcome
+        )
+    else:
+        outcome_model = None
     msg = "   CinC2022 challenge model loaded   ".center(100, "#")
     print(msg)
     print("*" * 100 + "\n")
-    return dict(model=model, train_cfg=train_cfg)
+    model = dict(main_model=main_model, train_cfg=train_cfg)
+    if USE_AUX_OUTCOME_MODEL:
+        model["outcome_model"] = outcome_model
+    return model
 
 
 # Run your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments and outputs of this function.
 def run_challenge_model(
-    model: Dict[str, Union[CFG, torch.nn.Module]],
+    model: Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]],
     data: str,
     recordings: Union[List[np.ndarray], Tuple[List[np.ndarray], List[int]]],
     verbose: int,
@@ -275,9 +305,10 @@ def run_challenge_model(
 
     Parameters
     ----------
-    model: Dict[str, Union[CFG, torch.nn.Module]],
-        the trained model (key "model"),
-        along with the training configuration (key "train_cfg")
+    model: Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]],
+        the trained main model (key "main_model"),
+        along with the training configuration (key "train_cfg");
+        and (optionally) the trained outcome model (key "outcome_model")
     data: str,
         patient metadata file data, read from a text file
     recordings: List[np.ndarray],
@@ -309,8 +340,14 @@ def run_challenge_model(
 
     """
 
-    _model = model["model"]
-    _model.to(device=DEVICE)
+    locations = get_locations(data)
+
+    if USE_AUX_OUTCOME_MODEL:
+        outcome_model = model["outcome_model"]
+    else:
+        outcome_model = None
+    main_model = model["main_model"]
+    main_model.to(device=DEVICE)
     train_cfg = model["train_cfg"]
     ppm_config = CFG(random=False)
     ppm_config.update(deepcopy(train_cfg[TASK]))
@@ -344,28 +381,33 @@ def run_challenge_model(
     # elif BaseCfg.merge_rule.lower() == "max":
     #     pooler = torch.nn.AdaptiveMaxPool1d((1,))
 
-    for rec, fs in zip(recordings, frequencies):
+    murmur_pred_dict = dict()  # potentialy used for OutComeClassifier_CINC2022
+
+    for loc, rec, fs in zip(locations, recordings, frequencies):
         rec = _to_dtype(rec, DTYPE)
         rec, _ = ppm(rec, fs)
         for _ in range(3 - rec.ndim):
             rec = rec[np.newaxis, :]
-        model_output = _model.inference(rec.copy().astype(DTYPE))
+        model_output = main_model.inference(rec.copy().astype(DTYPE))
         murmur_probabilities.append(model_output.murmur_output.prob)
         murmur_labels.append(model_output.murmur_output.bin_pred)
         murmur_cls_labels.append(model_output.murmur_output.pred)
         murmur_forward_outputs.append(model_output.murmur_output.forward_output)
-        outcome_probabilities.append(model_output.murmur_output.prob)
-        outcome_labels.append(model_output.murmur_output.bin_pred)
-        outcome_cls_labels.append(model_output.murmur_output.pred)
-        outcome_forward_outputs.append(model_output.murmur_output.forward_output)
         # rec = torch.from_numpy(rec.copy().astype(DTYPE)).to(device=DEVICE)
         # # rec of shape (1, 1, n_samples)
-        # features.append(_model.extract_features(rec))  # shape (1, n_features, n_samples)
+        # features.append(main_model.extract_features(rec))  # shape (1, n_features, n_samples)
+        murmur_pred_dict[loc] = model_output.murmur_output.pred
+
+        if not USE_AUX_OUTCOME_MODEL:
+            outcome_probabilities.append(model_output.outcome_output.prob)
+            outcome_labels.append(model_output.outcome_output.bin_pred)
+            outcome_cls_labels.append(model_output.outcome_output.pred)
+            outcome_forward_outputs.append(model_output.outcome_output.forward_output)
 
     # features = torch.cat(features, dim=-1)  # shape (1, n_features, n_samples)
     # features = pooler(features).squeeze(dim=-1)  # shape (1, n_features)
-    # forward_output = _model.clf(features)  # shape (1, n_classes)
-    # probabilities = _model.softmax(forward_output)
+    # forward_output = main_model.clf(features)  # shape (1, n_classes)
+    # probabilities = main_model.softmax(forward_output)
     # labels = (probabilities == probabilities.max(dim=-1, keepdim=True).values).to(int)
     # probabilities = probabilities.squeeze(dim=0).cpu().detach().numpy()
     # labels = labels.squeeze(dim=0).cpu().detach().numpy()
@@ -404,33 +446,44 @@ def run_challenge_model(
         murmur_probabilities = murmur_probabilities.mean(axis=0)
         murmur_labels = murmur_labels[0]
 
-    # get final prediction for outcomes
-    # strategy:
-    # 1. (at least) one positive -> positive
-    # 2. all negative -> negative
-    # TODO:
-    # 1. consider using patient's metadata (`data`) to determine the outcome class, since at least `Preganancy status` has high correlation with outcome
-    outcome_probabilities = np.concatenate(outcome_probabilities, axis=0)
-    outcome_labels = np.concatenate(outcome_labels, axis=0)
-    outcome_cls_labels = np.concatenate(outcome_cls_labels, axis=0)
-    outcome_forward_outputs = np.concatenate(outcome_forward_outputs, axis=0)
+    if not USE_AUX_OUTCOME_MODEL:
+        # get final prediction for outcomes
+        # strategy:
+        # 1. (at least) one positive -> positive
+        # 2. all negative -> negative
+        # TODO:
+        # 1. consider using patient's metadata (`data`) to determine the outcome class,
+        #    since at least `Preganancy status` has high correlation with outcome
+        outcome_probabilities = np.concatenate(outcome_probabilities, axis=0)
+        outcome_labels = np.concatenate(outcome_labels, axis=0)
+        outcome_cls_labels = np.concatenate(outcome_cls_labels, axis=0)
+        outcome_forward_outputs = np.concatenate(outcome_forward_outputs, axis=0)
 
-    outcome_positive_class_id = outcome_classes.index(OUTCOME_POSITIVE_CLASS)
-    outcome_positive_indices = np.where(
-        outcome_cls_labels == outcome_positive_class_id
-    )[0]
+        outcome_positive_class_id = outcome_classes.index(OUTCOME_POSITIVE_CLASS)
+        outcome_positive_indices = np.where(
+            outcome_cls_labels == outcome_positive_class_id
+        )[0]
 
-    if len(outcome_positive_indices) > 0:
-        # if exists at least one positive recording,
-        # then the subject is diagnosed with the positive class
-        outcome_probabilities = outcome_probabilities[
-            outcome_positive_indices, ...
-        ].mean(axis=0)
-        outcome_labels = outcome_labels[outcome_positive_indices[0]]
+        if len(outcome_positive_indices) > 0:
+            # if exists at least one positive recording,
+            # then the subject is diagnosed with the positive class
+            outcome_probabilities = outcome_probabilities[
+                outcome_positive_indices, ...
+            ].mean(axis=0)
+            outcome_labels = outcome_labels[outcome_positive_indices[0]]
+        else:
+            # no positive recording, only negative class recordings
+            outcome_probabilities = outcome_probabilities.mean(axis=0)
+            outcome_labels = outcome_labels[0]
     else:
-        # no positive recording, only negative class recordings
-        outcome_probabilities = outcome_probabilities.mean(axis=0)
-        outcome_labels = outcome_labels[0]
+        outcome_output = outcome_model.inference(
+            data,
+            murmur_pred_dict,
+        )
+        outcome_probabilities = outcome_output.prob
+        outcome_labels = outcome_output.bin_pred
+        outcome_cls_labels = outcome_output.pred
+        outcome_forward_outputs = None
 
     # Concatenate classes, labels, and probabilities.
     classes = murmur_classes + outcome_classes
