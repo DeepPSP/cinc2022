@@ -61,6 +61,7 @@ class OutComeClassifier_CINC2022(object):
         Parameters:
         -----------
         config: CFG, optional,
+            configurations, ref. `cfg.OutcomeCfg`
 
         """
         self.config = deepcopy(config)
@@ -89,7 +90,16 @@ class OutComeClassifier_CINC2022(object):
     def _prepare_training_data(
         self, db_dir: Optional[Union[str, Path]] = None
     ) -> NoReturn:
-        """ """
+        """
+        Prepares training data.
+
+        Parameters
+        ----------
+        db_dir: str, optional,
+            database directory,
+            if None, do nothing
+
+        """
         if db_dir is not None:
             self.config.db_dir = db_dir
         self.config.db_dir = self.config.get("db_dir", None)
@@ -165,6 +175,18 @@ class OutComeClassifier_CINC2022(object):
     ) -> BaseEstimator:
         """
         Returns a model instance.
+
+        Parameters
+        ----------
+        model_name: str,
+            model name, ref. `self.model_map`
+        params: dict, optional,
+            model parameters
+
+        Returns
+        -------
+        BaseEstimator,
+            model instance
         """
         return self.model_map[model_name](**(params or {}))
 
@@ -184,6 +206,19 @@ class OutComeClassifier_CINC2022(object):
     ) -> NoReturn:
         """
         Saves a model to a file.
+
+        Parameters
+        ----------
+        model: BaseEstimator,
+            model instance to save
+        imputer: SimpleImputer,
+            imputer instance to save
+        scaler: BaseEstimator,
+            scaler instance to save
+        config: CFG,
+            configurations of the model
+        model_path: str or Path,
+            path to save the model
         """
         _config = deepcopy(config)
         _config.pop("db_dir", None)
@@ -201,6 +236,13 @@ class OutComeClassifier_CINC2022(object):
     def save_best_model(self, model_name: Optional[str] = None) -> NoReturn:
         """
         Saves the best model to a file.
+
+        Parameters
+        ----------
+        model_name: str, optional,
+            model name,
+            defaults to f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
+
         """
         if model_name is None:
             model_name = f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
@@ -214,7 +256,20 @@ class OutComeClassifier_CINC2022(object):
 
     @classmethod
     def from_file(cls, path: Union[str, Path]) -> "OutComeClassifier_CINC2022":
-        """ """
+        """
+        Loads a OutComeClassifier_CINC2022 instance from a file.
+
+        Parameters
+        ----------
+        path: str or Path,
+            path to the model file
+
+        Returns
+        -------
+        OutComeClassifier_CINC2022,
+            OutComeClassifier_CINC2022 instance
+
+        """
         loaded = pickle.loads(Path(path).read_bytes())
         config = loaded["config"]
         clf = cls(config)
@@ -224,9 +279,34 @@ class OutComeClassifier_CINC2022(object):
         return clf
 
     def inference(
-        self, patient_data: str, murmur_pred: Dict[str, np.ndarray]
+        self, patient_data: str, murmur_pred: Dict[str, int]
     ) -> ClassificationOutput:
-        """ """
+        """
+        Helper function to infer the outcome of a patient.
+
+        Parameters
+        ----------
+        patient_data: str,
+            patient demographic data, read from a (.txt) file
+        murmur_pred: Dict[str, int],
+            murmur predictions for each location,
+            keyed by location name,
+            value is 0 or 1 for murmur detected (1) or not (0)
+
+        Returns
+        -------
+        ClassificationOutput,
+            classification output, with the following items:
+            - classes: list of str,
+                list of outcome class names
+            - prob: ndarray,
+                probability array of each class, of shape (1, n_classes)
+            - pred: ndarray,
+                predicted class index, of shape (1,)
+            - bin_pred: ndarray,
+                binarized prediction (0 or 1 for each outcome class), of shape (1, n_classes)
+
+        """
         # assert self.config is not None and self.best_clf is not None
         content = patient_data.splitlines()
         features = {f"Location-{loc}": -1 for loc in self.config.location_list}
@@ -259,7 +339,6 @@ class OutComeClassifier_CINC2022(object):
             df_features[self.config.x_cols_cont]
         )
         X = df_features.values
-        print(X)
         y_prob = self.best_clf.predict_proba(X)
         y_pred = self.best_clf.predict(X)
         bin_pred = _cls_to_bin(
@@ -274,7 +353,27 @@ class OutComeClassifier_CINC2022(object):
         model_name: str = "rf",
         cv: Optional[int] = None,
     ) -> Tuple[BaseEstimator, dict, float]:
-        """ """
+        """
+        Performs a grid search on the model.
+
+        Parameters
+        ----------
+        model_name: str,
+            model name, ref. to self.config.model_map
+        cv: int, optional,
+            number of cross-validation folds,
+            None for no cross-validation
+
+        Returns
+        -------
+        BaseEstimator,
+            the best model instance
+        dict,
+            the best model parameters
+        float,
+            the best model score
+
+        """
         assert self.reader is not None, "No training data found."
         cache_key = self._get_cache_key(model_name, cv)
 
@@ -343,6 +442,31 @@ class OutComeClassifier_CINC2022(object):
     ) -> Tuple[BaseEstimator, dict, float]:
         """
         Performs a grid search on the given model and parameters without cross validation.
+
+        Parameters
+        ----------
+        model_name: str,
+            model name, ref. to self.config.model_map
+        param_grid: ParameterGrid,
+            parameter grid for grid search
+        X_train: np.ndarray,
+            training features, of shape (n_samples, n_features)
+        y_train: np.ndarray,
+            training labels, of shape (n_samples, )
+        X_val: np.ndarray,
+            validation features, of shape (n_samples, n_features)
+        y_val: np.ndarray,
+            validation labels, of shape (n_samples, )
+
+        Returns
+        -------
+        BaseEstimator,
+            the best model instance
+        dict,
+            the best model parameters
+        float,
+            the best model score
+
         """
         best_score = np.inf
         best_clf = None
@@ -409,6 +533,33 @@ class OutComeClassifier_CINC2022(object):
     ) -> Tuple[BaseEstimator, dict, float]:
         """
         Performs a grid search on the given model and parameters with cross validation.
+
+        Parameters
+        ----------
+        model_name: str,
+            model name, ref. to self.config.model_map
+        param_grid: ParameterGrid,
+            parameter grid for grid search
+        X_train: np.ndarray,
+            training features, of shape (n_samples, n_features)
+        y_train: np.ndarray,
+            training labels, of shape (n_samples, )
+        X_val: np.ndarray,
+            validation features, of shape (n_samples, n_features)
+        y_val: np.ndarray,
+            validation labels, of shape (n_samples, )
+        cv: int, default 5,
+            number of cross validation folds
+
+        Returns
+        -------
+        BaseEstimator,
+            the best model instance
+        dict,
+            the best model parameters
+        float,
+            the best model score
+
         """
         gscv = GridSearchCV(
             estimator=self.get_model(model_name),
@@ -464,7 +615,25 @@ class OutComeClassifier_CINC2022(object):
         cv: Optional[int] = None,
         name: Optional[str] = None,
     ) -> dict:
-        """ """
+        """
+        Gets the cache for historical grid searches.
+
+        Parameters
+        ----------
+        model_name: str,
+            model name, ref. to self.config.model_map
+        cv: int, default None,
+            number of cross validation folds
+            None for no cross validation
+        name: str, default None,
+            suffix name of the cache
+
+        Returns
+        -------
+        dict,
+            the cached grid search results
+
+        """
         key = self._get_cache_key(model_name, cv, name)
         return self.__cache[key]
 
@@ -474,7 +643,25 @@ class OutComeClassifier_CINC2022(object):
         cv: Optional[int] = None,
         name: Optional[str] = None,
     ) -> str:
-        """ """
+        """
+        Gets the cache key for historical grid searches.
+
+        Parameters
+        ----------
+        model_name: str,
+            model name, ref. to self.config.model_map
+        cv: int, default None,
+            number of cross validation folds
+            None for no cross validation
+        name: str, default None,
+            suffix name of the cache
+
+        Returns
+        -------
+        str,
+            the cache key
+
+        """
         key = model_name
         if cv is not None:
             key += f"_{cv}"
@@ -519,7 +706,17 @@ class OutComeClassifier_CINC2022(object):
     def _train_test_split(
         self, train_ratio: float = 0.8, force_recompute: bool = False
     ) -> List[str]:
-        """ """
+        """
+        Stratified train/test split.
+
+        Parameters
+        ----------
+        train_ratio: float, default 0.8,
+            ratio of training data to total data
+        force_recompute: bool, default False,
+            if True, recompute the train/test split
+
+        """
         if self.reader is None:
             print(
                 "No training data available. Please call `_prepare_training_data` first."
