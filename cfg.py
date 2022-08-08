@@ -575,8 +575,11 @@ def remove_extra_heads(
         names of heads to remove
 
     """
+    if heads in ["", None, []]:
+        return
     if isinstance(heads, str):
         heads = [heads]
+    assert set(heads) <= set(["outcome", "outcomes", "segmentation"])
     for head in heads:
         if head.lower() in ["outcome", "outcomes"]:
             train_config.outcomes = None

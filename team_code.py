@@ -24,7 +24,7 @@ from torch.nn.parallel import (  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg._preprocessors import PreprocManager
 
-from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
+from cfg import TrainCfg, ModelCfg, remove_extra_heads
 from dataset import CinC2022Dataset
 from inputs import (  # noqa: F401
     InputConfig,
@@ -171,6 +171,13 @@ def train_challenge_model(
         model_config[model_name].attn.name = train_config[TASK].attn_name
     # if "encoder" in model_config[model_name]:
     #     model_config[model_name].encoder.name = train_config[TASK].encoder_name
+
+    # choose whether to remove some heads
+    remove_extra_heads(
+        train_config=train_config,
+        model_config=model_config,
+        heads=["outcome"],  # "outcome", "segmentation", None
+    )
 
     start_time = time.time()
 
