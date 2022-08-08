@@ -15,7 +15,8 @@ from sklearn.base import BaseEstimator
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import ParameterGrid, GridSearchCV
-from sklearn.pipeline import Pipeline
+
+# from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 from sklearn.ensemble import (
     RandomForestClassifier,
@@ -74,7 +75,6 @@ class OutComeClassifier_CINC2022(object):
         self._prepare_training_data()
 
         self.__cache = {}
-        self.__pipeline = None
         self.best_clf, self.best_params, self.best_score = None, None, None
         self._no = 1
 
@@ -128,7 +128,7 @@ class OutComeClassifier_CINC2022(object):
                 self.__df_features.loc[:, col] = self.__df_features[col].map(mapping)
         for col in self.config.x_cols_cont:
             self.__df_features.loc[:, col] = self.__df_features.loc[:, col].apply(
-                lambda x: np.nan if x == self.reader.stats_fillna_val else x
+                lambda x: np.nan if x == CINC2022Reader.stats_fillna_val else x
             )
         self.__df_features.loc[
             :, self.config.x_cols_cont
@@ -198,26 +198,22 @@ class OutComeClassifier_CINC2022(object):
             )
         )
 
-    def format_pipeline(self) -> Pipeline:
-        """ """
-        assert all(
-            [
-                self.imputer is not None,
-                self.scaler is not None,
-                self.best_clf is not None,
-            ]
+    def save_best_model(self, model_name: Optional[str] = None) -> NoReturn:
+        """
+        Saves the best model to a file.
+        """
+        if model_name is None:
+            model_name = f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
+        self.save_model(
+            self.best_clf,
+            self.__imputer,
+            self.__scaler,
+            self.config,
+            Path(self.config.get("model_dir", ".")) / model_name,
         )
-        self.__pipeline = Pipeline(
-            [
-                ("imputer", self.__imputer),
-                ("scaler", self.__scaler),
-                ("outcome_classifier", self.best_clf),
-            ]
-        )
-        return self.__pipeline
 
     @classmethod
-    def from_file(cls, path: Union[str, Path]) -> "OutComeClassifier":
+    def from_file(cls, path: Union[str, Path]) -> "OutComeClassifier_CINC2022":
         """ """
         loaded = pickle.loads(Path(path).read_bytes())
         config = loaded["config"]
@@ -225,8 +221,53 @@ class OutComeClassifier_CINC2022(object):
         clf.__imputer = loaded["imputer"]
         clf.__scaler = loaded["scaler"]
         clf.best_clf = loaded["outcome_classifier"]
-        clf.format_pipeline()
         return clf
+
+    def inference(
+        self, patient_data: str, murmur_pred: Dict[str, np.ndarray]
+    ) -> ClassificationOutput:
+        """ """
+        # assert self.config is not None and self.best_clf is not None
+        content = patient_data.splitlines()
+        features = {f"Location-{loc}": -1 for loc in self.config.location_list}
+        for loc, v in murmur_pred.items():
+            features[f"Location-{loc}"] = v
+        for line in content:
+            if not line.startswith("#"):
+                continue
+            k, v = line.replace("#", "").split(":")
+            k, v = k.strip(), v.strip()
+            if k in self.config.x_cols_cont:
+                features[k] = float(v)
+            # elif k in self.config.x_cols_cate:
+            elif k in self.config.feature_list:
+                if v == "nan":
+                    v = CINC2022Reader.stats_fillna_val
+                if k in self.config.ordinal_mappings:
+                    features[k] = self.config.ordinal_mappings[k][v]
+                elif v.lower() == "true":
+                    features[k] = 1
+                elif v.lower() == "false":
+                    features[k] = 0
+                else:
+                    raise ValueError(f"Unknown value {v} for {k}")
+        df_features = pd.DataFrame(features, index=[0])[self.config.feature_list]
+        df_features.loc[:, self.config.x_cols_cont] = self.__imputer.transform(
+            df_features[self.config.x_cols_cont]
+        )
+        df_features.loc[:, self.config.x_cols_cont] = self.__scaler.transform(
+            df_features[self.config.x_cols_cont]
+        )
+        X = df_features.values
+        print(X)
+        y_prob = self.best_clf.predict_proba(X)
+        y_pred = self.best_clf.predict(X)
+        bin_pred = _cls_to_bin(
+            self.best_clf.predict(X), shape=(1, len(self.config.class_map))
+        )
+        return ClassificationOutput(
+            classes=self.config.classes, prob=y_prob, pred=y_pred, bin_pred=bin_pred
+        )
 
     def search(
         self,
@@ -234,7 +275,7 @@ class OutComeClassifier_CINC2022(object):
         cv: Optional[int] = None,
     ) -> Tuple[BaseEstimator, dict, float]:
         """ """
-
+        assert self.reader is not None, "No training data found."
         cache_key = self._get_cache_key(model_name, cv)
 
         if cv is None:
@@ -456,10 +497,6 @@ class OutComeClassifier_CINC2022(object):
     @property
     def scaler(self) -> BaseEstimator:
         return self.__scaler
-
-    @property
-    def pipeline(self) -> Pipeline:
-        return self.__pipeline
 
     @property
     def model_map(self) -> Dict[str, BaseEstimator]:
