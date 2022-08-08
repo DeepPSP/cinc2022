@@ -18,6 +18,7 @@ __all__ = [
     "BaseCfg",
     "TrainCfg",
     "ModelCfg",
+    "OutcomeCfg",
     "remove_extra_heads",
 ]
 
@@ -237,7 +238,7 @@ TrainCfg.classification.loss_kw = CFG(
 # challenge metric is the **cost** of misclassification
 # hence it is the lower the better
 TrainCfg.classification.monitor = (
-    "neg_weighted_cost"  # weighted_accuracy (not recommended)
+    "neg_weighted_cost"  # weighted_accuracy (not recommended)  # the higher the better
 )
 TrainCfg.classification.head_weights = CFG(
     # used to compute a numeric value to use the monitor
@@ -454,7 +455,7 @@ TrainCfg.multi_task.loss_kw = CFG(
 )
 
 # monitor choices
-TrainCfg.multi_task.monitor = "neg_weighted_cost"  # TODO: adjust monitor
+TrainCfg.multi_task.monitor = "neg_weighted_cost"  # the higher the better
 TrainCfg.multi_task.head_weights = CFG(
     # used to compute a numeric value to use the monitor
     murmur=0.5,
@@ -533,29 +534,111 @@ ModelCfg.multi_task.segmentation_head.loss_kw = deepcopy(
 
 # model for the outcome (final diagnosis)
 
-ModelCfg.outcome = CFG()
-ModelCfg.outcome.name = "mlp"  # "xgboost"
-ModelCfg.outcome = deepcopy(_BASE_MODEL_CONFIG)
-ModelCfg.outcome.classes = deepcopy(BaseCfg.outcomes)
-
-# mlp for outcome prediction (classification)
-ModelCfg.outcome.mlp = CFG()
-ModelCfg.outcome.mlp.out_channels = [
-    512,
-    128,
+OutcomeCfg = CFG()
+OutcomeCfg.db_dir = None
+OutcomeCfg.log_dir = BaseCfg.log_dir
+OutcomeCfg.model_dir = BaseCfg.model_dir
+OutcomeCfg.split_col = "Patient ID"  # for train-test split
+OutcomeCfg.y_col = "Outcome"
+OutcomeCfg.classes = deepcopy(BaseCfg.outcomes)
+OutcomeCfg.class_map = {c: i for i, c in enumerate(OutcomeCfg.classes)}
+OutcomeCfg.x_cols_cate = [
+    "Age",
+    "Sex",
+    "Pregnancy status",
+    "Locations",
+    "Murmur locations",
 ]
-ModelCfg.outcome.mlp.bias = True
-ModelCfg.outcome.mlp.dropouts = 0.2
-ModelCfg.outcome.mlp.activation = "mish"
-
-# xgboost for outcome prediction (classification)
-# https://xgboost.readthedocs.io/en/stable/python/python_api.html#module-xgboost.training
-# TODO: finish xgboost config
-ModelCfg.outcome.xgboost = CFG()
-ModelCfg.outcome.xgboost.init_params = CFG()
-ModelCfg.outcome.xgboost.train_params = CFG()
-ModelCfg.outcome.xgboost.train_kw = CFG()
-ModelCfg.outcome.xgboost.cv_kw = CFG()
+OutcomeCfg.x_cols_cont = [
+    "Height",
+    "Weight",
+]
+OutcomeCfg.cont_scaler = "standard"  # "minmax", "standard"
+OutcomeCfg.x_cols = OutcomeCfg.x_cols_cate + OutcomeCfg.x_cols_cont
+OutcomeCfg.ordinal_mappings = {
+    "Age": {
+        "Neonate": 0,
+        "Infant": 1,
+        "Child": 2,
+        "Adolescent": 3,
+        "NA": 4,
+    },
+    "Sex": {
+        "Female": 0,
+        "Male": 1,
+    },
+}
+# OutcomeCfg.location_list = ["PV", "AV", "MV", "TV", "Phc"]
+# only 2 subjects have "Phc" location audio recordings
+# hence this location is ignored
+OutcomeCfg.location_list = ["PV", "AV", "MV", "TV"]
+OutcomeCfg.feature_list = ["Age", "Sex", "Height", "Weight", "Pregnancy status"] + [
+    f"Location-{loc}" for loc in OutcomeCfg.location_list
+]
+OutcomeCfg.grids = CFG()
+OutcomeCfg.grids.rf = {
+    "n_estimators": [10, 15, 20, 50, 100],
+    "criterion": ["gini", "entropy"],
+    "min_samples_split": [2, 3, 4],
+    "max_features": ["auto", "sqrt", "log2"],
+    "bootstrap": [True, False],
+    "oob_score": [True, False],
+    "warm_start": [True, False],
+    "class_weight": ["balanced", "balanced_subsample", None],
+}
+OutcomeCfg.grids.xgb = {
+    "n_estimators": [10, 15, 20, 50],
+    "learning_rate": [0.01, 0.05, 0.1],
+    "reg_alpha": [0.0, 0.1, 0.5, 1.0],
+    "reg_lambda": [0.0, 0.1, 0.5, 1.0],
+    "max_depth": [3, 5, 8],
+    "verbosity": [0],
+}
+OutcomeCfg.grids.gdbt = {
+    "n_estimators": [10, 15, 20, 50, 100],
+    "loss": ["deviance", "exponential"],
+    "learning_rate": [0.01, 0.05, 0.1],
+    "criterion": ["friedman_mse", "mse"],
+    "min_samples_split": [2, 3, 4],
+    "max_features": ["auto", "sqrt", "log2"],
+    "warm_start": [True, False],
+    "ccp_alpha": [0.0, 0.1, 0.5, 1.0],
+}
+OutcomeCfg.grids.svc = {
+    "C": [0.1, 0.5, 1, 10],
+    "kernel": ["linear", "poly", "rbf", "sigmoid"],
+    "degree": [2, 3, 5],  # for "poly" kernel
+    "gamma": [
+        "scale",
+        "auto",
+    ],  # Kernel coefficient for 'rbf', 'poly' and 'sigmoid'
+    "coef0": [0.0, 0.2, 0.5, 1.0],  # for 'poly' and 'sigmoid'
+    "class_weight": ["balanced", None],
+    "probability": [True],
+    "shrinking": [True, False],
+}
+OutcomeCfg.grids.bagging = {
+    "n_estimators": [10, 15, 20, 50, 100],
+    "max_features": [0.1, 0.2, 0.5, 0.9, 1.0],
+    "bootstrap": [True, False],
+    "bootstrap_features": [True, False],
+    "oob_score": [True, False],
+    "warm_start": [True, False],
+}
+# OutcomeCfg.grids.sk_mlp =
+#     {
+#         "hidden_layer_sizes": [(50,), (100,), (50, 100), (50, 100, 50)],
+#         "activation": ["logistic", "tanh", "relu"],
+#         "solver": ["lbfgs", "sgd", "adam"],
+#         "alpha": [0.0001, 0.001, 0.01],
+#         "learning_rate": ["constant", "invscaling", "adaptive"],
+#         "learning_rate_init": [
+#             0.001,
+#             0.01,
+#         ],
+#         "warm_start": [True, False],
+#     }
+OutcomeCfg.monitor = "outcome_cost"  # the lower the better
 
 
 def remove_extra_heads(
