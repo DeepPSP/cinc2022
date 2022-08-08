@@ -1,2 +1,3 @@
 time,ID,task,model,outcome,murmur
 8/5/2022 18:25:04 ET,Revenger_1229_1,classification,crnn-resnet_nature_comm_bottle_neck_se-lstm-se,13835.503,0.637
+8/6/2022 23:41:19 ET,Revenger_1243_2,classification,wav2vec2_small-resnet_nature_comm_bottle_neck_se,13835.503,0.367
