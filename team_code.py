@@ -149,6 +149,7 @@ def train_challenge_model(
         train_config.early_stopping.patience = 20
     else:
         train_config.n_epochs = 80
+        train_config.freeze_backbone_at = 40
         train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.log_step = 50
         # train_config.max_lr = 1.5e-3
@@ -184,7 +185,6 @@ def train_challenge_model(
         model = DP(model)
         # model = DDP(model)
     model.to(device=DEVICE)
-    return model
 
     if isinstance(model, DP):
         print(model.module.config)

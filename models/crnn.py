@@ -103,7 +103,7 @@ class CRNN_CINC2022(ECG_CRNN):
 
         Returns
         -------
-        dict of Tensor, with items:
+        dict of Tensor, with items (some are optional):
             - "murmur": the murmur predictions, of shape (batch_size, n_classes)
             - "outcome": the outcome predictions, of shape (batch_size, n_outcomes)
             - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)

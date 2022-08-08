@@ -246,7 +246,7 @@ class CINC2022Trainer(BaseTrainer):
                 input_tensors["waveforms"]
             )
 
-            # out_tensors is a dict of tensors, with the following items:
+            # out_tensors is a dict of tensors, with the following items (some are optional):
             # - "murmur": the murmur predictions, of shape (batch_size, n_classes)
             # - "outcome": the outcome predictions, of shape (batch_size, n_outcomes)
             # - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
@@ -328,7 +328,7 @@ class CINC2022Trainer(BaseTrainer):
 
         Returns
         -------
-        out_tensors: dict of Tensors, with the following items:
+        out_tensors: dict of Tensors, with the following items (some are optional):
             - "murmur": the murmur predictions, of shape (batch_size, n_classes)
             - "outcome": the outcome predictions, of shape (batch_size, n_outcomes)
             - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)

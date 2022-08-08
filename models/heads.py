@@ -97,7 +97,7 @@ class MultiTaskHead(nn.Module, SizeMixin):
         Returns
         -------
         dict of Tensor,
-            the output of the model, including:
+            the output of the model, including (some are optional):
             - "outcome": the outcome predictions, of shape (batch_size, n_outcomes)
             - "segmentation": the segmentation predictions, of shape (batch_size, seq_len, n_states)
             - "outcome_loss": loss of the outcome predictions
