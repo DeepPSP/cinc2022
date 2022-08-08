@@ -9,7 +9,7 @@ from deprecated import deprecated
 from torch_ecg.utils.utils_metrics import _cls_to_bin
 
 from cfg import BaseCfg
-from models.outputs import CINC2022Outputs
+from outputs import CINC2022Outputs
 
 
 __all__ = [

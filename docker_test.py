@@ -33,7 +33,7 @@ from utils.scoring_metrics import compute_challenge_metrics
 from data_reader import CINC2022Reader, CINC2016Reader, EPHNOGRAMReader  # noqa: F401
 from dataset import CinC2022Dataset
 from models import CRNN_CINC2022, SEQ_LAB_NET_CINC2022, UNET_CINC2022
-from models.outputs import CINC2022Outputs
+from outputs import CINC2022Outputs
 from trainer import CINC2022Trainer, _set_task, _MODEL_MAP
 
 

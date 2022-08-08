@@ -30,10 +30,10 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
 )
 
 from cfg import ModelCfg
+from outputs import CINC2022Outputs
 from wav2vec2_ta import Wav2Vec2Model, components as w2v2_components
 from wav2vec2_hf import PreTrainModelCfg as HFPreTrainModelCfg
 from .heads import MultiTaskHead
-from .outputs import CINC2022Outputs
 
 
 __all__ = [

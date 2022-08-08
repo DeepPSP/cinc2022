@@ -14,7 +14,7 @@ from torch_ecg.components.outputs import SequenceLabellingOutput
 from torch_ecg.utils import add_docstring
 
 from cfg import ModelCfg
-from .outputs import CINC2022Outputs
+from outputs import CINC2022Outputs
 
 
 __all__ = [

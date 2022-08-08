@@ -37,8 +37,8 @@ except ModuleNotFoundError:
 
 from cfg import BaseCfg
 from data_reader import CINC2022Reader
+from outputs import CINC2022Outputs
 from utils.scoring_metrics import compute_challenge_metrics
-from models.outputs import CINC2022Outputs
 
 
 __all__ = [

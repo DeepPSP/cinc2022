@@ -17,8 +17,8 @@ from torch_ecg.components.outputs import (
 from torch_ecg.utils import add_docstring
 
 from cfg import ModelCfg
+from outputs import CINC2022Outputs
 from .heads import MultiTaskHead
-from .outputs import CINC2022Outputs
 
 
 __all__ = ["CRNN_CINC2022"]
