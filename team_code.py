@@ -53,27 +53,30 @@ from trainer import (  # noqa: F401
 from helper_code import find_patient_files, get_locations
 
 
-CinC2022Dataset.__DEBUG__ = False
-
-CRNN_CINC2022.__DEBUG__ = False
-SEQ_LAB_NET_CINC2022.__DEBUG__ = False
-UNET_CINC2022.__DEBUG__ = False
-Wav2Vec2_CINC2022.__DEBUG__ = False
-HFWav2Vec2_CINC2022.__DEBUG__ = False
-
-CINC2022Trainer.__DEBUG__ = False
-
+################################################################################
+# NOTE: configurable options
 
 USE_AUX_OUTCOME_MODEL = False  # True, False
 
 TASK = "classification"  # "classification", "multi_task"
+
+# choices of the models
+TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
+# TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
+# TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
+# TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
+################################################################################
+
+
+################################################################################
+# NOTE: constants
+
 FS = 4000
 MURMUR_POSITIVE_CLASS = "Present"
 MURMUR_UNKNOWN_CLASS = "Unknown"
 OUTCOME_POSITIVE_CLASS = "Abnormal"
 
 _ModelFilename = "final_model_main.pth.tar"
-
 _ModelFilename_outcome = "final_model_outcome.pkl"
 
 
@@ -85,11 +88,16 @@ else:
     DTYPE = np.float32
 
 
-# choices of the models
-TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
-# TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
-# TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
-# TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
+CinC2022Dataset.__DEBUG__ = False
+
+CRNN_CINC2022.__DEBUG__ = False
+SEQ_LAB_NET_CINC2022.__DEBUG__ = False
+UNET_CINC2022.__DEBUG__ = False
+Wav2Vec2_CINC2022.__DEBUG__ = False
+HFWav2Vec2_CINC2022.__DEBUG__ = False
+
+CINC2022Trainer.__DEBUG__ = False
+################################################################################
 
 
 ################################################################################
