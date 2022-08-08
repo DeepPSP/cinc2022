@@ -57,6 +57,7 @@ from helper_code import find_patient_files, get_locations
 # NOTE: configurable options
 
 USE_AUX_OUTCOME_MODEL = False  # True, False
+MURMUR_UNKNOWN_AS_POSITIVE = True  # for OutcomeClassifier_CINC2022
 
 TASK = "classification"  # "classification", "multi_task"
 
@@ -369,6 +370,9 @@ def run_challenge_model(
         frequencies = list(repeat(FS, num_recordings))
 
     murmur_classes = train_cfg[TASK].classes
+    murmur_positive_class_id = murmur_classes.index(MURMUR_POSITIVE_CLASS)
+    murmur_unknown_class_id = murmur_classes.index(MURMUR_UNKNOWN_CLASS)
+
     outcome_classes = train_cfg[TASK].outcomes
 
     murmur_probabilities, murmur_labels, murmur_cls_labels, murmur_forward_outputs = (
@@ -404,7 +408,15 @@ def run_challenge_model(
         # rec = torch.from_numpy(rec.copy().astype(DTYPE)).to(device=DEVICE)
         # # rec of shape (1, 1, n_samples)
         # features.append(main_model.extract_features(rec))  # shape (1, n_features, n_samples)
-        murmur_pred_dict[loc] = model_output.murmur_output.pred
+        if MURMUR_UNKNOWN_AS_POSITIVE:
+            murmur_pred_dict[loc] = int(
+                model_output.murmur_output.pred.item()
+                in [murmur_positive_class_id, murmur_unknown_class_id]
+            )
+        else:
+            murmur_pred_dict[loc] = int(
+                model_output.murmur_output.pred.item() == murmur_positive_class_id
+            )
 
         if not USE_AUX_OUTCOME_MODEL:
             outcome_probabilities.append(model_output.outcome_output.prob)
@@ -430,9 +442,7 @@ def run_challenge_model(
     murmur_cls_labels = np.concatenate(murmur_cls_labels, axis=0)
     murmur_forward_outputs = np.concatenate(murmur_forward_outputs, axis=0)
 
-    murmur_positive_class_id = murmur_classes.index(MURMUR_POSITIVE_CLASS)
     murmur_positive_indices = np.where(murmur_cls_labels == murmur_positive_class_id)[0]
-    murmur_unknown_class_id = murmur_classes.index(MURMUR_UNKNOWN_CLASS)
     murmur_unknown_indices = np.where(murmur_cls_labels == murmur_unknown_class_id)[0]
 
     if len(murmur_positive_indices) > 0:
