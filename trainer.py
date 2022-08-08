@@ -428,7 +428,7 @@ class CINC2022Trainer(BaseTrainer):
         eval_res = compute_challenge_metrics(
             labels=all_labels,
             outputs=all_outputs,
-            require_both=True,
+            require_both=False,
         )
         # eval_res contains the following items:
         # murmur_auroc: float,

@@ -1020,7 +1020,7 @@ class CINC2022Reader(PCGDataBase):
 
     @property
     def stats_fillna_val(self) -> str:
-        return ""
+        return "NA"
 
     @property
     def murmur_feature_cols(self) -> List[str]:
