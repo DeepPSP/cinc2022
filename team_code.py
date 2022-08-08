@@ -48,7 +48,7 @@ from trainer import (  # noqa: F401
     _set_task,
 )  # noqa: F401
 
-from helper_code import *  # noqa: F403
+from helper_code import find_patient_files
 
 
 CinC2022Dataset.__DEBUG__ = False
@@ -62,7 +62,7 @@ HFWav2Vec2_CINC2022.__DEBUG__ = False
 CINC2022Trainer.__DEBUG__ = False
 
 
-TASK = "classification"
+TASK = "multi_task"
 FS = 4000
 MURMUR_POSITIVE_CLASS = "Present"
 MURMUR_UNKNOWN_CLASS = "Unknown"
@@ -80,7 +80,7 @@ else:
 
 
 # choices of the models
-TrainCfg[TASK].model_name = "wav2vec2"  # "wav2vec", "crnn", "wav2vec2_hf"
+TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
 # TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
 # TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
 # TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
@@ -119,7 +119,7 @@ def train_challenge_model(
         print("Finding data files...")
 
     # Find the patient data files.
-    patient_files = find_patient_files(data_folder)  # noqa: F405
+    patient_files = find_patient_files(data_folder)
     num_patient_files = len(patient_files)
 
     if num_patient_files == 0:
@@ -184,6 +184,7 @@ def train_challenge_model(
         model = DP(model)
         # model = DDP(model)
     model.to(device=DEVICE)
+    return model
 
     if isinstance(model, DP):
         print(model.module.config)
