@@ -157,7 +157,7 @@ def train_challenge_model(
     train_config.debug = False
 
     if train_config.get("entry_test_flag", False):
-        # to test in the file docker_test.py
+        # to test in the file test_docker.py or in test_local.py
         train_config.n_epochs = 1
         train_config.batch_size = 4  # 16G (Tesla T4)
         train_config.log_step = 4

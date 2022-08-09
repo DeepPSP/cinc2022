@@ -57,7 +57,7 @@ RUN pip install torch-ecg
 RUN pip install torch-audiomentations --no-deps
 
 
-RUN python docker_test.py
+RUN python test_docker.py
 
 
 # commands to run test with docker container:
