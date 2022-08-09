@@ -102,7 +102,12 @@ class CINC2022Trainer(BaseTrainer):
 
         """
         super().__init__(
-            model, CinC2022Dataset, model_config, train_config, device, lazy
+            model=model,
+            dataset_cls=CinC2022Dataset,
+            model_config=model_config,
+            train_config=train_config,
+            device=device,
+            lazy=lazy,
         )
 
     def _setup_dataloaders(
