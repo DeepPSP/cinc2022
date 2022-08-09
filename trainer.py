@@ -142,7 +142,10 @@ class CINC2022Trainer(BaseTrainer):
             )
 
         # https://discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/4
-        num_workers = 4
+        if self.device == torch.device("cpu"):
+            num_workers = 1
+        else:
+            num_workers = 4
 
         self.train_loader = DataLoader(
             dataset=train_dataset,
