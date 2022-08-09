@@ -372,39 +372,45 @@ class MutiTaskFastDataReader(ReprMixin, Dataset):
                 [self.config[self.task].class_map[label] for _ in range(n_segments)],
                 dtype=int,
             )
-
-        outcome = self.reader.load_outcome(rec)
-        if self.config[self.task].loss["outcome"] != "CrossEntropyLoss":
-            outcome = (
-                np.isin(self.config[self.task].outcomes, outcome)
-                .astype(self.dtype)[np.newaxis, ...]
-                .repeat(n_segments, axis=0)
-            )
-        else:
-            outcome = np.array(
-                [
-                    self.config[self.task].outcome_map[outcome]
-                    for _ in range(n_segments)
-                ],
-                dtype=int,
-            )
-
-        mask = self.reader.load_segmentation(
-            rec, seg_format="binary", ensure_same_len=True, fs=self.config[self.task].fs
-        )
-        mask = ensure_siglen(
-            mask,
-            siglen=self.config[self.task].input_len,
-            fmt="channel_last",
-            tolerance=self.config[self.task].sig_slice_tol,
-        ).astype(self.dtype)
-
-        return {
+        out_tensors = {
             "waveforms": waveforms,
             "murmur": label,
-            "outcome": outcome,
-            "segmentation": mask,
         }
+
+        if self.config[self.task].outcomes is not None:
+            outcome = self.reader.load_outcome(rec)
+            if self.config[self.task].loss["outcome"] != "CrossEntropyLoss":
+                outcome = (
+                    np.isin(self.config[self.task].outcomes, outcome)
+                    .astype(self.dtype)[np.newaxis, ...]
+                    .repeat(n_segments, axis=0)
+                )
+            else:
+                outcome = np.array(
+                    [
+                        self.config[self.task].outcome_map[outcome]
+                        for _ in range(n_segments)
+                    ],
+                    dtype=int,
+                )
+            out_tensors["outcome"] = outcome
+
+        if self.config[self.task].states is not None:
+            mask = self.reader.load_segmentation(
+                rec,
+                seg_format="binary",
+                ensure_same_len=True,
+                fs=self.config[self.task].fs,
+            )
+            mask = ensure_siglen(
+                mask,
+                siglen=self.config[self.task].input_len,
+                fmt="channel_last",
+                tolerance=self.config[self.task].sig_slice_tol,
+            ).astype(self.dtype)
+            out_tensors["segmentation"] = mask
+
+        return out_tensors
 
     def extra_repr_keys(self) -> List[str]:
         return [
