@@ -311,7 +311,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                 prob=prob,
                 pred=pred,
                 bin_pred=bin_pred,
-                forward_output=forward_output["outcome"],
+                forward_output=forward_output["outcome"].cpu().detach().numpy(),
             )
         else:
             outcome_output = None
@@ -333,7 +333,7 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
                 classes=self.states,
                 prob=prob,
                 pred=pred,
-                forward_output=forward_output["segmentation"],
+                forward_output=forward_output["segmentation"].cpu().detach().numpy(),
             )
         else:
             segmentation_output = None
@@ -636,7 +636,7 @@ class HFWav2Vec2_CINC2022(nn.Module, CkptMixin, SizeMixin):
                 prob=prob,
                 pred=pred,
                 bin_pred=bin_pred,
-                forward_output=forward_output["outcome"],
+                forward_output=forward_output["outcome"].cpu().detach().numpy(),
             )
         else:
             outcome_output = None
@@ -658,7 +658,7 @@ class HFWav2Vec2_CINC2022(nn.Module, CkptMixin, SizeMixin):
                 classes=self.states,
                 prob=prob,
                 pred=pred,
-                forward_output=forward_output["segmentation"],
+                forward_output=forward_output["segmentation"].cpu().detach().numpy(),
             )
         else:
             segmentation_output = None

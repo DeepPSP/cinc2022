@@ -223,7 +223,7 @@ class CRNN_CINC2022(ECG_CRNN):
                 prob=prob,
                 pred=pred,
                 bin_pred=bin_pred,
-                forward_output=forward_output["outcome"],
+                forward_output=forward_output["outcome"].cpu().detach().numpy(),
             )
         else:
             outcome_output = None
@@ -245,7 +245,7 @@ class CRNN_CINC2022(ECG_CRNN):
                 classes=self.states,
                 prob=prob,
                 pred=pred,
-                forward_output=forward_output["segmentation"],
+                forward_output=forward_output["segmentation"].cpu().detach().numpy(),
             )
         else:
             segmentation_output = None
