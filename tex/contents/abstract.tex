@@ -21,12 +21,18 @@
 
 % NOT finished
 
-Aim: to write
+Aim: This work focuses on the problem of heart murmur detection and related clinical diagnosis (outcome) from phonocardiogram (PCG) recordings raised by the George B. Moody PhysioNet Challenge 2022. Heart murmur is an important indicator for cardiac pathologies, especially congenital heart diseases. Its accurate detection helps early clinical intervention of such vital diseases.
 
-Methods: to write
+Methods: PCGs are normalized to have values in [-1, 1], resampled to 1000 Hz and filtered with a Butterworth band-pass filter of order 3 and cutoff frequencies 25 - 400 Hz. Deep neural networks (DNNs) which accept waveform inputs are used to make 3-class murmur classification, namely ``Present'', ``Absent'' and ``Unknown'', for each recording. We performed neural architecture searching (NAS) among a set of network backbones, including multi-branch convolutional neural networks (CNNs), SE-ResNets, TResNets, simplified wav2vec2, etc. Additional heads for outcome prediction and segmentation are added into the networks to enable multi-objective learning.
 
-Results: to write
+% An additional random forest classifier ...
 
-Conclusion: to write
+Based on a stratified splitting on the subjects, 20\% of the public training data were left out as a validation set for model selection. Each recording was padded or sliced to a length of 30 seconds (30000 in sample points) and a batch size of 24 was used for parallel training. The AdamW optimizer was adopted, along with the OneCycle scheduler of a maximum learning rate of 0.002, to optimize the model weights on the asymmetric loss of the training data.
+
+% Predictions of multiple recordings from one subject were merged via manually designed rules to give its final prediction.
+
+% Results: The best entry submission of our team ``Revenger'' used the bottleneck SE-ResNet model and received a challenge score of 736 on the hidden validation set. The score on the left-out validation set was 474.
+
+% Conclusion: We provided an effective solution, which still has improvement spaces, to the problem of detecting heart murmurs from PCGs.
 
 \end{abstract}
