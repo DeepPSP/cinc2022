@@ -509,7 +509,7 @@ for t in TrainCfg.tasks:
         ModelCfg[t][mn].attn.name = ModelCfg[t].attn_name
 
 
-# classification model aux. output
+# classification model outcome head
 ModelCfg.classification.outcomes = deepcopy(TrainCfg.classification.outcomes)
 if ModelCfg.classification.outcomes is None:
     ModelCfg.classification.outcome_head = None
@@ -521,7 +521,7 @@ else:
 ModelCfg.classification.states = None
 
 
-# multi-task model segmentation head
+# multi-task model outcome and segmentation head
 ModelCfg.multi_task.outcomes = deepcopy(TrainCfg.multi_task.outcomes)
 ModelCfg.multi_task.outcome_head.loss = TrainCfg.multi_task.loss.outcome
 ModelCfg.multi_task.outcome_head.loss_kw = deepcopy(TrainCfg.multi_task.loss_kw.outcome)
@@ -670,8 +670,12 @@ def remove_extra_heads(
             train_config.loss.pop("outcome", None)
             train_config.loss_kw.pop("outcome", None)
             train_config.head_weights = {"murmur": 1.0}
+            model_config.outcomes = None
+            model_config.outcome_head = None
         if head.lower() in ["segmentation"]:
             train_config.states = None
             train_config.state_map = None
             train_config.loss.pop("segmentation", None)
             train_config.loss_kw.pop("segmentation", None)
+            model_config.states = None
+            model_config.segmentation_head = None
