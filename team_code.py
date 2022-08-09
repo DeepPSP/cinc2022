@@ -56,10 +56,10 @@ from helper_code import find_patient_files, get_locations
 ################################################################################
 # NOTE: configurable options
 
-USE_AUX_OUTCOME_MODEL = False  # True, False
+USE_AUX_OUTCOME_MODEL = True  # True, False
 MURMUR_UNKNOWN_AS_POSITIVE = True  # for OutcomeClassifier_CINC2022
 
-TASK = "multi_task"  # "classification", "multi_task"
+TASK = "classification"  # "classification", "multi_task"
 
 # choices of the models
 TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
@@ -290,7 +290,7 @@ def load_challenge_model(
     main_model.eval()
     if USE_AUX_OUTCOME_MODEL:
         # outcome model
-        outcome_model = OutComeClassifier_CINC2022.from_path(
+        outcome_model = OutComeClassifier_CINC2022.from_file(
             Path(model_folder) / _ModelFilename_outcome
         )
     else:
@@ -375,7 +375,12 @@ def run_challenge_model(
     murmur_positive_class_id = murmur_classes.index(MURMUR_POSITIVE_CLASS)
     murmur_unknown_class_id = murmur_classes.index(MURMUR_UNKNOWN_CLASS)
 
-    outcome_classes = train_cfg[TASK].outcomes
+    if USE_AUX_OUTCOME_MODEL:
+        outcome_classes = outcome_model.config.classes
+    else:
+        outcome_classes = train_cfg[TASK].outcomes
+
+    outcome_positive_class_id = outcome_classes.index(OUTCOME_POSITIVE_CLASS)
 
     murmur_probabilities, murmur_labels, murmur_cls_labels, murmur_forward_outputs = (
         [],
@@ -478,8 +483,6 @@ def run_challenge_model(
         outcome_labels = np.concatenate(outcome_labels, axis=0)
         outcome_cls_labels = np.concatenate(outcome_cls_labels, axis=0)
         outcome_forward_outputs = np.concatenate(outcome_forward_outputs, axis=0)
-
-        outcome_positive_class_id = outcome_classes.index(OUTCOME_POSITIVE_CLASS)
         outcome_positive_indices = np.where(
             outcome_cls_labels == outcome_positive_class_id
         )[0]
@@ -500,8 +503,8 @@ def run_challenge_model(
             data,
             murmur_pred_dict,
         )
-        outcome_probabilities = outcome_output.prob
-        outcome_labels = outcome_output.bin_pred
+        outcome_probabilities = outcome_output.prob[0]
+        outcome_labels = outcome_output.bin_pred[0]
         outcome_cls_labels = outcome_output.pred
         outcome_forward_outputs = None
 
