@@ -59,7 +59,7 @@ from helper_code import find_patient_files, get_locations
 USE_AUX_OUTCOME_MODEL = False  # True, False
 MURMUR_UNKNOWN_AS_POSITIVE = True  # for OutcomeClassifier_CINC2022
 
-TASK = "classification"  # "classification", "multi_task"
+TASK = "multi_task"  # "classification", "multi_task"
 
 # choices of the models
 TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
@@ -190,8 +190,10 @@ def train_challenge_model(
 
     # NOTE: choose whether to remove some heads
     if USE_AUX_OUTCOME_MODEL:
+        # from torch_ecg.utils.misc import dict_to_str
+        # print(dict_to_str(train_config))
         remove_extra_heads(
-            train_config=train_config,
+            train_config=train_config[TASK],
             model_config=model_config,
             heads=["outcome"],  # "outcome", "segmentation", None
         )
