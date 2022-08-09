@@ -1,6 +1,7 @@
 """
 """
 
+import warnings
 from typing import NoReturn, Optional, Dict
 
 import torch.nn as nn
@@ -106,6 +107,8 @@ class MultiTaskHead(nn.Module, SizeMixin):
             - "total_extra_loss": total loss of the extra heads
 
         """
+        if self.empty:
+            warnings.warn("Empty model, DO NOT call forward function!")
         out = dict(total_extra_loss=scalar_tensor(0.0))
         if "segmentation" in self.heads:
             out["segmentation"] = self.heads["segmentation"](features.permute(0, 2, 1))
