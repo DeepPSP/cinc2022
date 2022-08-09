@@ -64,6 +64,8 @@ class CRNN_CINC2022(ECG_CRNN):
             in_channels=self.clf.in_channels,
             config=_config,
         )
+        if self.extra_heads.empty:
+            self.extra_heads = None
 
     def freeze_backbone(self, freeze: bool = True) -> NoReturn:
         """
@@ -130,8 +132,11 @@ class CRNN_CINC2022(ECG_CRNN):
         # print(f"clf in shape = {x.shape}")
         pred = self.clf(pooled_features)  # batch_size, n_classes
 
-        out = self.extra_heads(features, pooled_features, seq_len, labels)
-        out["murmur"] = pred
+        if self.extra_heads is not None:
+            out = self.extra_heads(features, pooled_features, seq_len, labels)
+            out["murmur"] = pred
+        else:
+            out = {"murmur": pred}
 
         return out
 

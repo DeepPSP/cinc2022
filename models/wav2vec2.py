@@ -150,6 +150,8 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
             in_channels=self.clf.in_channels,
             config=_config,
         )
+        if self.extra_heads.empty:
+            self.extra_heads = None
 
         if "wav2vec2" in cnn_choice:
             self.squeeze = Rearrange("batch 1 seqlen -> batch seqlen")
@@ -216,10 +218,13 @@ class Wav2Vec2_CINC2022(Wav2Vec2Model):
 
         pred = self.clf(pooled_features)
 
-        out = self.extra_heads(
-            features.permute(0, 2, 1), pooled_features, seq_len, labels
-        )
-        out["murmur"] = pred
+        if self.extra_heads is not None:
+            out = self.extra_heads(
+                features.permute(0, 2, 1), pooled_features, seq_len, labels
+            )
+            out["murmur"] = pred
+        else:
+            out = {"murmur": pred}
 
         return out
 
@@ -436,6 +441,8 @@ class HFWav2Vec2_CINC2022(nn.Module, CkptMixin, SizeMixin):
             in_channels=self.clf.in_channels,
             config=_config,
         )
+        if self.extra_heads.empty:
+            self.extra_heads = None
 
         # for inference
         # classification: if single-label, use softmax; otherwise (multi-label) use sigmoid
@@ -541,10 +548,13 @@ class HFWav2Vec2_CINC2022(nn.Module, CkptMixin, SizeMixin):
 
         pred = self.clf(pooled_features)
 
-        out = self.extra_heads(
-            features.permute(0, 2, 1), pooled_features, seq_len, labels
-        )
-        out["murmur"] = pred
+        if self.extra_heads is not None:
+            out = self.extra_heads(
+                features.permute(0, 2, 1), pooled_features, seq_len, labels
+            )
+            out["murmur"] = pred
+        else:
+            out = {"murmur": pred}
 
         return out
 

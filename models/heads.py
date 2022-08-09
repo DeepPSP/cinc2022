@@ -168,3 +168,7 @@ class MultiTaskHead(nn.Module, SizeMixin):
                 "`AsymmetricLoss`, `CrossEntropyLoss`, or override this method to setup your own criterion."
             )
         return criterion
+
+    @property
+    def empty(self) -> bool:
+        return len(self.heads) == 0
