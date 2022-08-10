@@ -59,7 +59,7 @@ from helper_code import find_patient_files, get_locations
 USE_AUX_OUTCOME_MODEL = True  # True, False
 MURMUR_UNKNOWN_AS_POSITIVE = True  # for OutcomeClassifier_CINC2022
 
-TASK = "classification"  # "classification", "multi_task"
+TASK = "multi_task"  # "classification", "multi_task"
 
 # choices of the models
 TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
