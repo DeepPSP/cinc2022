@@ -191,7 +191,10 @@ class OutComeClassifier_CINC2022(object):
         BaseEstimator,
             model instance
         """
-        return self.model_map[model_name](**(params or {}))
+        model_cls = self.model_map[model_name]
+        if model_cls == GradientBoostingClassifier:
+            params.pop("n_jobs", None)
+        return model_cls(**(params or {}))
 
     # def load_model(self, model_path: Union[str, Path]) -> dict:
     #     """
