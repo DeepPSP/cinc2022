@@ -272,6 +272,7 @@ _CINC2022_INFO = DataBaseInfo(
     """,
     issues="""
     1. the segmentation file `50782_MV_1.tsv` (versions 1.0.2, 1.0.3) is broken.
+    2. the challenge website states that the `Age` variable takes values in `Neonate`, `Infant`, `Child`, `Adolescent`, and `Young adult`. However, from the statistics csv file (training_data.csv), there's no subject whose `Age` column has value `Young adult`. Instead, there are 74 subject with null `Age` value, which only indicates that their ages were not recorded and may or may not belong to the “Young adult” age group.
     """,
     references=[
         "https://moody-challenge.physionet.org/2022/",
