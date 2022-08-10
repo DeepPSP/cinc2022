@@ -4,6 +4,7 @@ Currently NOT used, NOT tested.
 
 import pickle
 import json
+import multiprocessing as mp
 from copy import deepcopy
 from pathlib import Path
 from random import shuffle
@@ -78,6 +79,8 @@ class OutComeClassifier_CINC2022(object):
         self.__cache = {}
         self.best_clf, self.best_params, self.best_score = None, None, None
         self._no = 1
+
+        self._num_workers = max(1, mp.cpu_count() - 2)
 
     @property
     def y_col(self) -> str:
@@ -352,6 +355,7 @@ class OutComeClassifier_CINC2022(object):
         self,
         model_name: str = "rf",
         cv: Optional[int] = None,
+        experiment_tag: Optional[str] = None,
     ) -> Tuple[BaseEstimator, dict, float]:
         """
         Performs a grid search on the model.
@@ -363,6 +367,9 @@ class OutComeClassifier_CINC2022(object):
         cv: int, optional,
             number of cross-validation folds,
             None for no cross-validation
+        experiment_tag: str, optional,
+            tag for the experiment,
+            used to create key for the experiment to save in cache
 
         Returns
         -------
@@ -375,7 +382,7 @@ class OutComeClassifier_CINC2022(object):
 
         """
         assert self.reader is not None, "No training data found."
-        cache_key = self._get_cache_key(model_name, cv)
+        cache_key = self._get_cache_key(model_name, cv, experiment_tag)
 
         if cv is None:
             msg = "Performing grid search with no cross validation."
@@ -473,6 +480,8 @@ class OutComeClassifier_CINC2022(object):
         best_params = None
         with tqdm(enumerate(param_grid)) as pbar:
             for idx, params in pbar:
+                updated_params = deepcopy(params)
+                updated_params["n_jobs"] = self._num_workers
                 try:
                     clf_gs = self.get_model(model_name, params)
                     clf_gs.fit(X_train, y_train)
@@ -565,6 +574,7 @@ class OutComeClassifier_CINC2022(object):
             estimator=self.get_model(model_name),
             param_grid=param_grid.param_grid,
             cv=cv,
+            n_jobs=self._num_workers,
             verbose=1,
         )
         gscv.fit(X_train, y_train)
