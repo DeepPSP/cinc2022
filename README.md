@@ -9,4 +9,4 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 [utils/HeartMurmur.md](/utils/HeartMurmur.md) contains knowledge about heart murmur collected from various sources.
 
 ## CinC2022 conference paper
-Folder [tex](/tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).
+~~Folder [tex](/tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~ Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
