@@ -192,7 +192,7 @@ class OutComeClassifier_CINC2022(object):
             model instance
         """
         model_cls = self.model_map[model_name]
-        if model_cls == GradientBoostingClassifier:
+        if model_cls in [GradientBoostingClassifier, SVC]:
             params.pop("n_jobs", None)
         return model_cls(**(params or {}))
 
