@@ -1,40 +1,4 @@
 ##############################################
-# tex ignore
-##############################################
-
-*.pdf
-*.aux
-*.glo
-*.idx
-*.log
-*.toc
-*.ist
-*.acn
-*.acr
-*.alg
-*.bbl
-*.blg
-*.dvi
-*.glg
-*.gls
-*.ilg
-*.ind
-*.lof
-*.lot
-*.maf
-.mtc
-*.out
-*.bak
-*.ps
-*.run.xml
-*blx.bib
-*.synctex.gz
-*.fdb_latexmk
-*.fls
-*.tmppart
-
-
-##############################################
 # python ignore
 ##############################################
 
