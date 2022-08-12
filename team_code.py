@@ -63,7 +63,9 @@ TASK = "classification"  # "classification", "multi_task"
 
 # choices of the models
 TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
-TrainCfg[TASK].cnn_name = "resnet_nature_comm"  # "tresnetF", "resnet_nature_comm_bottle_neck_se"
+TrainCfg[
+    TASK
+].cnn_name = "resnet_nature_comm"  # "tresnetF", "resnet_nature_comm_bottle_neck_se"
 # TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
 # TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 ################################################################################
