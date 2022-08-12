@@ -59,13 +59,14 @@ from helper_code import find_patient_files, get_locations
 USE_AUX_OUTCOME_MODEL = False  # True, False
 MURMUR_UNKNOWN_AS_POSITIVE = True  # for OutcomeClassifier_CINC2022
 
-TASK = "classification"  # "classification", "multi_task"
+TASK = "multi_task"  # "classification", "multi_task"
 
 # choices of the models
 TrainCfg[TASK].model_name = "crnn"  # "wav2vec", "crnn", "wav2vec2_hf"
-TrainCfg[
-    TASK
-].cnn_name = "resnet_nature_comm"  # "tresnetF", "resnet_nature_comm_bottle_neck_se"
+
+# "tresnetS"  # "resnet_nature_comm", "tresnetF", etc.
+TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
+
 # TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
 # TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 # TrainCfg[TASK].encoder_name = "wav2vec2_nano"
@@ -162,12 +163,12 @@ def train_challenge_model(
     if train_config.get("entry_test_flag", False):
         # to test in the file test_docker.py or in test_local.py
         train_config.n_epochs = 1
-        train_config.batch_size = 4  # 16G (Tesla T4)
+        train_config.batch_size = 4
         train_config.log_step = 4
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = 20
     else:
-        train_config.n_epochs = 100
+        train_config.n_epochs = 60
         train_config.freeze_backbone_at = 40
         train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.log_step = 50

@@ -85,7 +85,7 @@ TrainCfg.checkpoints.mkdir(exist_ok=True)
 TrainCfg.train_ratio = 0.8
 
 # configs of training epochs, batch, etc.
-TrainCfg.n_epochs = 100
+TrainCfg.n_epochs = 60
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 TrainCfg.batch_size = 24
@@ -226,12 +226,18 @@ TrainCfg.classification.attn_name = "se"  # "none", "se", "gc", "nl"
 
 # loss function choices
 TrainCfg.classification.loss = CFG(
-    murmur="AsymmetricLoss",  # "FocalLoss"
-    outcome="CrossEntropyLoss",  # valid only if outcomes is not None
+    # murmur="AsymmetricLoss",  # "FocalLoss"
+    # outcome="CrossEntropyLoss",  # valid only if outcomes is not None
+    murmur="BCEWithLogitsWithClassWeightLoss",
+    outcome="BCEWithLogitsWithClassWeightLoss",
 )
 TrainCfg.classification.loss_kw = CFG(
-    murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
-    outcome={},
+    # murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
+    # outcome={},
+    murmur=CFG(
+        class_weight=torch.tensor([[5.0, 3.0, 1.0]])
+    ),  # "Present", "Unknown", "Absent"
+    outcome=CFG(class_weight=torch.tensor([[5.0, 1.0]])),  # "Abnormal", "Normal"
 )
 
 # monitor choices
@@ -444,13 +450,19 @@ TrainCfg.multi_task.attn_name = "se"  # "none", "se", "gc", "nl"
 
 # loss function choices
 TrainCfg.multi_task.loss = CFG(
-    murmur="AsymmetricLoss",  # "FocalLoss"
-    outcome="CrossEntropyLoss",  # "FocalLoss", "AsymmetricLoss"
+    # murmur="AsymmetricLoss",  # "FocalLoss"
+    # outcome="CrossEntropyLoss",  # "FocalLoss", "AsymmetricLoss"
+    murmur="BCEWithLogitsWithClassWeightLoss",
+    outcome="BCEWithLogitsWithClassWeightLoss",
     segmentation="AsymmetricLoss",  # "FocalLoss", "CrossEntropyLoss"
 )
 TrainCfg.multi_task.loss_kw = CFG(
-    murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
-    outcome={},
+    # murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
+    # outcome={},
+    murmur=CFG(
+        class_weight=torch.tensor([[5.0, 3.0, 1.0]])
+    ),  # "Present", "Unknown", "Absent"
+    outcome=CFG(class_weight=torch.tensor([[5.0, 1.0]])),  # "Abnormal", "Normal"
     segmentation=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
 )
 
@@ -670,6 +682,7 @@ def remove_extra_heads(
             train_config.loss.pop("outcome", None)
             train_config.loss_kw.pop("outcome", None)
             train_config.head_weights = {"murmur": 1.0}
+            train_config.monitor = "murmur_weighted_accuracy"
             model_config.outcomes = None
             model_config.outcome_head = None
         if head.lower() in ["segmentation"]:
