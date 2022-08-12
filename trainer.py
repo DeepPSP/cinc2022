@@ -192,10 +192,11 @@ class CINC2022Trainer(BaseTrainer):
 
     def _setup_criterion(self) -> NoReturn:
         """ """
-        loss_kw = self.train_config.get("loss_kw", {}).get(self._criterion_key, {})
-        for k, v in loss_kw.items():
-            if isinstance(v, torch.Tensor):
-                loss_kw[k] = v.to(device=self.device, dtype=self.dtype)
+        loss_kw = (
+            self.train_config[self.train_config.task]
+            .get("loss_kw", {})
+            .get(self._criterion_key, {})
+        )
         if self.train_config.loss[self._criterion_key] == "BCEWithLogitsLoss":
             self.criterion = nn.BCEWithLogitsLoss(**loss_kw)
         elif (

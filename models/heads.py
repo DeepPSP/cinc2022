@@ -144,9 +144,6 @@ class MultiTaskHead(nn.Module, SizeMixin):
         """ """
         if loss_kw is None:
             loss_kw = {}
-        for k, v in loss_kw.items():
-            if isinstance(v, Tensor):
-                loss_kw[k] = v.to(device=self.device, dtype=self.dtype)
         if loss == "BCEWithLogitsLoss":
             criterion = nn.BCEWithLogitsLoss(**loss_kw)
         elif loss == "BCEWithLogitsWithClassWeightLoss":
