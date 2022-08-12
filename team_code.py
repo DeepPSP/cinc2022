@@ -68,6 +68,7 @@ TrainCfg[
 ].cnn_name = "resnet_nature_comm"  # "tresnetF", "resnet_nature_comm_bottle_neck_se"
 # TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
 # TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
+# TrainCfg[TASK].encoder_name = "wav2vec2_nano"
 ################################################################################
 
 
