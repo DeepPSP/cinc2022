@@ -183,6 +183,8 @@ _wav2vec_small = deepcopy(_wav2vec_base)
 _wav2vec_small.model_name = "small"
 _wav2vec_small.model_config_args.hidden_size = 3 * 2**7  # 384
 _wav2vec_small.model_config_args.intermediate_size = 3 * 2**9  # 1536
+_wav2vec_small.model_config_args.num_hidden_layers = 8
+_wav2vec_small.model_config_args.num_attention_heads = 8
 
 register_model("base", _wav2vec_base)
 register_model("small", _wav2vec_small)
