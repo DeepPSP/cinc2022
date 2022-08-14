@@ -1179,11 +1179,11 @@ class CINC2022Reader(PCGDataBase):
 
         # sns.set()
         sns.set_theme(style="white")  # darkgrid, whitegrid, dark, white, ticks
-        plt.rcParams["xtick.labelsize"] = 14
-        plt.rcParams["ytick.labelsize"] = 14
-        plt.rcParams["axes.labelsize"] = 18
-        plt.rcParams["legend.fontsize"] = 13
-        plt.rcParams["hatch.linewidth"] = 1.5
+        plt.rcParams["xtick.labelsize"] = 20
+        plt.rcParams["ytick.labelsize"] = 20
+        plt.rcParams["axes.labelsize"] = 24
+        plt.rcParams["legend.fontsize"] = 18
+        plt.rcParams["hatch.linewidth"] = 2.5
 
         colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         hatches = ["/", "\\", "|", ".", "x"]
@@ -1201,7 +1201,7 @@ class CINC2022Reader(PCGDataBase):
         df_stats = pd.concat((self.df_stats, df_dummies), axis=1)
         plot_kw = dict(
             kind="bar",
-            figsize=(6, 6),
+            figsize=(8, 8),
             ylabel="Number of Subjects (n.u.)",
             stacked=True,
             rot=0,
