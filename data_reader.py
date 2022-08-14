@@ -1173,15 +1173,20 @@ class CINC2022Reader(PCGDataBase):
         ax: mpl.axes.Axes
 
         """
-        import matplotlib as mpl
+        # import matplotlib as mpl
         import matplotlib.pyplot as plt
         import seaborn as sns
 
-        sns.set()
+        # sns.set()
+        sns.set_theme(style="white")  # darkgrid, whitegrid, dark, white, ticks
         plt.rcParams["xtick.labelsize"] = 14
         plt.rcParams["ytick.labelsize"] = 14
         plt.rcParams["axes.labelsize"] = 18
         plt.rcParams["legend.fontsize"] = 13
+        plt.rcParams["hatch.linewidth"] = 1.5
+
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        hatches = ["/", "\\", "|", ".", "x"]
 
         assert col in ["Murmur", "Age", "Sex", "Pregnancy status"]
         prefix_sep = " - "
@@ -1203,6 +1208,8 @@ class CINC2022Reader(PCGDataBase):
             ylim=(0, 620),
             yticks=np.arange(0, 700, 100),
             width=0.3,
+            fill=True,
+            # hatch=hatches[: len(columns)],
         )
         plot_kw.update(kwargs)
         ax = (
@@ -1210,10 +1217,13 @@ class CINC2022Reader(PCGDataBase):
             .agg("sum")[df_dummies.columns.tolist()]
             .plot(**plot_kw)
         )
+        for idx in range(len(columns)):
+            ax.patches[2 * idx].set_hatch(hatches[idx])
+            ax.patches[2 * idx + 1].set_hatch(hatches[idx])
         ax.legend(loc="upper left", ncol=int(np.ceil(len(columns) / 3)))
         plt.tight_layout()
 
-        mpl.rc_file_defaults()
+        # mpl.rc_file_defaults()
 
         return ax
 
