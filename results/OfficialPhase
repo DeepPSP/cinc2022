@@ -11,5 +11,4 @@ time,ID,task,tag,outcome,murmur
 8/11/2022 23:17:35 ET,Revenger_1341_1,multi_task,crnn-tresnetF,11233.388,0.626
 8/12/2022 14:37:45 ET,Revenger_1359_1,multi_task,crnn-resnet_nature_comm_bottle_neck_se-lstm-se-weighted_loss,10647.195,0.678
 8/13/2022 9:19:41 ET,Revenger_1374_1,classification,crnn-resnet_nature_comm_bottle_neck_se-lstm-se-weighted_loss,12484.507,0.689
-,,multi_task,crnn-resnet_nature_comm_bottle_neck_se-lstm-se-rf-weighted_loss,,
-
+8/14/2022 21:34:52 ET,Revenger_1401_1,multi_task,crnn-resnet_nature_comm_bottle_neck_se-lstm-se-rf-weighted_loss,10148.015,0.661
