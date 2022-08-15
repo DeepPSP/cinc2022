@@ -460,9 +460,9 @@ TrainCfg.multi_task.loss_kw = CFG(
     # murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
     # outcome={},
     murmur=CFG(
-        class_weight=torch.tensor([[5.0, 3.0, 1.0]])
+        class_weight=torch.tensor([[5.0/9.0, 3.0/9.0, 1.0/9.0]])
     ),  # "Present", "Unknown", "Absent"
-    outcome=CFG(class_weight=torch.tensor([[5.0, 1.0]])),  # "Abnormal", "Normal"
+    outcome=CFG(class_weight=torch.tensor([[5.0/6.0, 1.0/6.0]])),  # "Abnormal", "Normal"
     segmentation=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
 )
 
