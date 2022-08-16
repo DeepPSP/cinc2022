@@ -460,9 +460,11 @@ TrainCfg.multi_task.loss_kw = CFG(
     # murmur=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
     # outcome={},
     murmur=CFG(
-        class_weight=torch.tensor([[5.0/9.0, 3.0/9.0, 1.0/9.0]])
+        class_weight=torch.tensor([[5.0 / 9.0, 3.0 / 9.0, 1.0 / 9.0]])
     ),  # "Present", "Unknown", "Absent"
-    outcome=CFG(class_weight=torch.tensor([[5.0/6.0, 1.0/6.0]])),  # "Abnormal", "Normal"
+    outcome=CFG(
+        class_weight=torch.tensor([[5.0 / 6.0, 1.0 / 6.0]])
+    ),  # "Abnormal", "Normal"
     segmentation=CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp"),
 )
 
@@ -574,10 +576,15 @@ OutcomeCfg.ordinal_mappings = {
         "Child": 2,
         "Adolescent": 3,
         "NA": 4,
+        # the public database has no "Young adult"
+        "Young adult": 4,
+        "Young Adult": 4,
+        "default": 4,
     },
     "Sex": {
         "Female": 0,
         "Male": 1,
+        "default": 0,
     },
 }
 # OutcomeCfg.location_list = ["PV", "AV", "MV", "TV", "Phc"]

@@ -327,13 +327,18 @@ class OutComeClassifier_CINC2022(object):
                 features[k] = float(v)
             # elif k in self.config.x_cols_cate:
             elif k in self.config.feature_list:
-                if v == "nan":
+                if v.lower() == "nan":
                     v = CINC2022Reader.stats_fillna_val
                 if k in self.config.ordinal_mappings:
-                    features[k] = self.config.ordinal_mappings[k][v]
-                elif v.lower() == "true":
+                    default = self.config.ordinal_mappings[k]["default"]
+                    features[k] = self.config.ordinal_mappings[k].get(v, default)
+                elif v.lower() == "true":  # pregancy status
                     features[k] = 1
-                elif v.lower() == "false":
+                elif v.lower() == "false":  # pregancy status
+                    features[k] = 0
+                elif (
+                    v == CINC2022Reader.stats_fillna_val
+                ):  # pregancy status missing values
                     features[k] = 0
                 else:
                     raise ValueError(f"Unknown value {v} for {k}")
