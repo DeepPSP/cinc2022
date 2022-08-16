@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Union, Sequence, NoReturn
 
 import numpy as np
+from sklearn.model_selection import ParameterGrid
 import torch
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
@@ -595,57 +596,67 @@ OutcomeCfg.feature_list = ["Age", "Sex", "Height", "Weight", "Pregnancy status"]
     f"Location-{loc}" for loc in OutcomeCfg.location_list
 ]
 OutcomeCfg.grids = CFG()
-OutcomeCfg.grids.rf = {
-    "n_estimators": [10, 15, 20, 50, 100],
-    "criterion": ["gini", "entropy"],
-    "min_samples_split": [2, 3, 4],
-    "max_features": ["auto", "sqrt", "log2"],
-    "bootstrap": [True, False],
-    "oob_score": [True, False],
-    "warm_start": [True, False],
-    "class_weight": ["balanced", "balanced_subsample", None],
-}
-OutcomeCfg.grids.xgb = {
-    "n_estimators": [10, 15, 20, 50],
-    "learning_rate": [0.01, 0.05, 0.1],
-    "reg_alpha": [0.0, 0.1, 0.5, 1.0],
-    "reg_lambda": [0.0, 0.1, 0.5, 1.0],
-    "max_depth": [3, 5, 8],
-    "verbosity": [0],
-}
-OutcomeCfg.grids.gdbt = {
-    "n_estimators": [10, 15, 20, 50, 100],
-    "loss": ["deviance", "exponential"],
-    "learning_rate": [0.01, 0.05, 0.1],
-    "criterion": ["friedman_mse", "mse"],
-    "min_samples_split": [2, 3, 4],
-    "max_features": ["auto", "sqrt", "log2"],
-    "warm_start": [True, False],
-    "ccp_alpha": [0.0, 0.1, 0.5, 1.0],
-}
-OutcomeCfg.grids.svc = {
-    "C": [0.1, 0.5, 1, 10],
-    "kernel": ["linear", "poly", "rbf", "sigmoid"],
-    "degree": [2, 3, 5],  # for "poly" kernel
-    "gamma": [
-        "scale",
-        "auto",
-    ],  # Kernel coefficient for 'rbf', 'poly' and 'sigmoid'
-    "coef0": [0.0, 0.2, 0.5, 1.0],  # for 'poly' and 'sigmoid'
-    "class_weight": ["balanced", None],
-    "probability": [True],
-    "shrinking": [True, False],
-}
-OutcomeCfg.grids.bagging = {
-    "n_estimators": [10, 15, 20, 50, 100],
-    "max_features": [0.1, 0.2, 0.5, 0.9, 1.0],
-    "bootstrap": [True, False],
-    "bootstrap_features": [True, False],
-    "oob_score": [True, False],
-    "warm_start": [True, False],
-}
+OutcomeCfg.grids.rf = ParameterGrid(
+    {
+        "n_estimators": [10, 15, 20, 50, 100],
+        "criterion": ["gini", "entropy"],
+        "min_samples_split": [2, 3, 4],
+        "max_features": ["auto", "sqrt", "log2"],
+        "bootstrap": [True, False],
+        "oob_score": [True, False],
+        "warm_start": [True, False],
+        "class_weight": ["balanced", "balanced_subsample", {0: 5, 1: 1}, None],
+    }
+)
+OutcomeCfg.grids.xgb = ParameterGrid(
+    {
+        "n_estimators": [10, 15, 20, 50],
+        "learning_rate": [0.01, 0.05, 0.1],
+        "reg_alpha": [0.0, 0.1, 0.5, 1.0],
+        "reg_lambda": [0.0, 0.1, 0.5, 1.0],
+        "max_depth": [3, 5, 8],
+        "verbosity": [0],
+    }
+)
+OutcomeCfg.grids.gdbt = ParameterGrid(
+    {
+        "n_estimators": [10, 15, 20, 50, 100],
+        "loss": ["deviance", "exponential"],
+        "learning_rate": [0.01, 0.05, 0.1],
+        "criterion": ["friedman_mse", "mse"],
+        "min_samples_split": [2, 3, 4],
+        "max_features": ["auto", "sqrt", "log2"],
+        "warm_start": [True, False],
+        "ccp_alpha": [0.0, 0.1, 0.5, 1.0],
+    }
+)
+OutcomeCfg.grids.svc = ParameterGrid(
+    {
+        "C": [0.1, 0.5, 1, 10],
+        "kernel": ["linear", "poly", "rbf", "sigmoid"],
+        "degree": [2, 3, 5],  # for "poly" kernel
+        "gamma": [
+            "scale",
+            "auto",
+        ],  # Kernel coefficient for 'rbf', 'poly' and 'sigmoid'
+        "coef0": [0.0, 0.2, 0.5, 1.0],  # for 'poly' and 'sigmoid'
+        "class_weight": ["balanced", None],
+        "probability": [True],
+        "shrinking": [True, False],
+    }
+)
+OutcomeCfg.grids.bagging = ParameterGrid(
+    {
+        "n_estimators": [10, 15, 20, 50, 100],
+        "max_features": [0.1, 0.2, 0.5, 0.9, 1.0],
+        "bootstrap": [True, False],
+        "bootstrap_features": [True, False],
+        "oob_score": [True, False],
+        "warm_start": [True, False],
+    }
+)
 # OutcomeCfg.grids.sk_mlp =
-#     {
+#     ParameterGrid({
 #         "hidden_layer_sizes": [(50,), (100,), (50, 100), (50, 100, 50)],
 #         "activation": ["logistic", "tanh", "relu"],
 #         "solver": ["lbfgs", "sgd", "adam"],
@@ -656,7 +667,7 @@ OutcomeCfg.grids.bagging = {
 #             0.01,
 #         ],
 #         "warm_start": [True, False],
-#     }
+#     })
 OutcomeCfg.monitor = "outcome_cost"  # the lower the better
 
 

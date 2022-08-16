@@ -401,7 +401,7 @@ class OutComeClassifier_CINC2022(object):
                 self.best_score,
             ) = self._perform_grid_search_no_cv(
                 model_name,
-                ParameterGrid(self.config.grids[model_name]),
+                self.config.grids[model_name],
                 self.X_train,
                 self.y_train,
                 self.X_test,
@@ -427,7 +427,7 @@ class OutComeClassifier_CINC2022(object):
                 self.best_score,
             ) = self._perform_grid_search_cv(
                 model_name,
-                ParameterGrid(self.config.grids[model_name]),
+                self.config.grids[model_name],
                 self.X_train,
                 self.y_train,
                 self.X_test,
