@@ -190,17 +190,12 @@ class OutComeClassifier_CINC2022(object):
         -------
         BaseEstimator,
             model instance
+
         """
         model_cls = self.model_map[model_name]
         if model_cls in [GradientBoostingClassifier, SVC]:
             params.pop("n_jobs", None)
         return model_cls(**(params or {}))
-
-    # def load_model(self, model_path: Union[str, Path]) -> dict:
-    #     """
-    #     Loads a model from a file.
-    #     """
-    #     return pickle.loads(Path(model_path).read_bytes())
 
     def save_model(
         self,
@@ -225,6 +220,7 @@ class OutComeClassifier_CINC2022(object):
             configurations of the model
         model_path: str or Path,
             path to save the model
+
         """
         _config = deepcopy(config)
         _config.pop("db_dir", None)
