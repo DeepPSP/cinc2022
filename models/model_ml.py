@@ -328,13 +328,13 @@ class OutComeClassifier_CINC2022(object):
                 if k in self.config.ordinal_mappings:
                     default = self.config.ordinal_mappings[k]["default"]
                     features[k] = self.config.ordinal_mappings[k].get(v, default)
-                elif v.lower() == "true":  # pregancy status
+                elif v.lower() == "true":  # pregnancy status
                     features[k] = 1
-                elif v.lower() == "false":  # pregancy status
+                elif v.lower() == "false":  # pregnancy status
                     features[k] = 0
                 elif (
                     v == CINC2022Reader.stats_fillna_val
-                ):  # pregancy status missing values
+                ):  # pregnancy status missing values
                     features[k] = 0
                 else:
                     raise ValueError(f"Unknown value {v} for {k}")
