@@ -5,6 +5,7 @@
 # FROM pytorch/pytorch:1.8.0-cuda11.1-cudnn8-devel
 # FROM pytorch/pytorch:1.6.0-cuda10.1-cudnn7-devel
 FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime
+# NOTE: the base image has python version 3.7
 
 # NOTE: The GPU provided by the Challenge is GPU Tesla T4 with nvidiaDriverVersion: 470.82.01
 # by checking https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
