@@ -9,6 +9,12 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 
 [utils/HeartMurmur.md](/utils/HeartMurmur.md) contains knowledge about heart murmur collected from various sources.
 
+## The conference
+
+[Conference Website](https://events.tuni.fi/cinc2022/)
+
+[Conference Program](https://cinc.org/prelim_program_2022/)
+
 ## Top team papers
 
 **to add after conference....**
@@ -62,7 +68,9 @@ Inside [utils](/utils) there's also a copy of `pcg_springer_features`.
 
 ## CinC2022 conference paper
 
-~~Folder [tex](/tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~ Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
+~~Folder [tex](/tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~
+
+Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
 
 **to add URLs after conference....**
 
