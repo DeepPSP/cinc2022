@@ -24,6 +24,9 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 [Murmur](https://docs.google.com/spreadsheets/u/0/d/e/2PACX-1vRNBATogMRsfio3938bU4r6fcAad85jNzTbSRtRhQ74xHw9shuYoP4uxkK6uKV1zw8CKjPC3AMm33qn/pubhtml/sheet?headers=false&gid=0)
 [Outcome](https://docs.google.com/spreadsheets/u/0/d/e/2PACX-1vRNBATogMRsfio3938bU4r6fcAad85jNzTbSRtRhQ74xHw9shuYoP4uxkK6uKV1zw8CKjPC3AMm33qn/pubhtml/sheet?headers=false&gid=1883863848)
 
+<details>
+<summary>Click to expand!</summary>
+
 The leaderboards can be loaded via
 
 ```python
@@ -60,6 +63,8 @@ email_pattern = (
 # list(re.finditer(email_pattern, email_content))[0].groupdict()
 ```
 
+</details>
+
 ## Python re-implementation of Springer's PCG features extractor
 
 [`pcg_springer_features`](https://github.com/DeepPSP/pcg_springer_features) re-implements the feature extraction part of [David Springer's logistic regression-HSMM-based reart sound segmentation algorithm](https://physionet.org/content/hss/1.0/).
@@ -76,4 +81,11 @@ Moved to another repository as the size of the whole repository exceeds the limi
 
 ## Poster
 
-**to add....**
+Poster created with `baposter` using the [Overleaf template](https://www.overleaf.com/latex/examples/poster-for-conference-niweek-2014-example/pzbtqgpvdbfh#.V7xgS02LRaQ)
+
+<details>
+<summary>Click to view!</summary>
+
+<img src="/images/cinc2022_poster.svg" alt="poster" width="900"/>
+
+</details>
