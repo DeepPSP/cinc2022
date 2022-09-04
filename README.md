@@ -7,7 +7,7 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 
 ## Knowledge about heart murmur
 
-[utils/HeartMurmur.md](/utils/HeartMurmur.md) contains knowledge about heart murmur collected from various sources.
+[utils/HeartMurmur.md](utils/HeartMurmur.md) contains knowledge about heart murmur collected from various sources.
 
 ## The conference
 
@@ -65,15 +65,19 @@ email_pattern = (
 
 </details>
 
+## Test files
+
+The file [`test_docker.py`](test_docker.py) along with the [docker CI action](.github/workflows/docker-image.yml) can almost guarantee that the Challenge submissions won't raise errors, except for CUDA (GPU) errors. For possible CUDA errors, detect with [`test_local.py`](test_local.py).
+
 ## Python re-implementation of Springer's PCG features extractor
 
 [`pcg_springer_features`](https://github.com/DeepPSP/pcg_springer_features) re-implements the feature extraction part of [David Springer's logistic regression-HSMM-based reart sound segmentation algorithm](https://physionet.org/content/hss/1.0/).
 
-Inside [utils](/utils) there's also a copy of `pcg_springer_features`.
+Inside [utils](utils) there's also a copy of `pcg_springer_features`.
 
 ## CinC2022 conference paper
 
-~~Folder [tex](/tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~
+~~Folder [tex](tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~
 
 Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
 
