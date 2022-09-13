@@ -15,6 +15,18 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 
 [Conference Program](https://cinc.org/prelim_program_2022/)
 
+## Final scores
+
+Final scores are released in [https://physionetchallenges.org/2022/results/](https://physionetchallenges.org/2022/results/) in 5 `.tsv` files.
+These files were gathered in one [`.xlsx` file](results/final_scores.xlsx),
+which was uploaded into [Google Sheets](https://docs.google.com/spreadsheets/d/17RPPzMTV9WW0QHToIvFEfhHw47LYx3LgQZxJSeDElzg/edit?usp=sharing).
+
+One can load the 5 tables all at once via
+
+```python
+pd.read_excel("./results/final_scores.xlsx", engine="openpyxl", sheet_name=None)
+```
+
 ## Top team papers
 
 **to add after conference....**
