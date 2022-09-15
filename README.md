@@ -21,10 +21,20 @@ Final scores are released in [https://physionetchallenges.org/2022/results/](htt
 These files were gathered in one [`.xlsx` file](results/final_scores.xlsx),
 which was uploaded into [Google Sheets](https://docs.google.com/spreadsheets/d/17RPPzMTV9WW0QHToIvFEfhHw47LYx3LgQZxJSeDElzg/edit?usp=sharing).
 
+Final score files would keep on changing for some time as unofficial teams are having their rebuttals against the organizers.
+
 One can load the 5 tables all at once via
 
 ```python
 pd.read_excel("./results/final_scores.xlsx", engine="openpyxl", sheet_name=None)
+```
+
+One can get a digest of the scores and rankings of all metrics (Weighted Accuracy, Cost, etc.) for the murmur task and the outcome task via
+
+```python
+from utils._final_results import get_team_digest
+
+get_team_digest("Revenger", latest=True)
 ```
 
 ## Top team papers
