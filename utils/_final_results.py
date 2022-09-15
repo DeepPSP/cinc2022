@@ -73,7 +73,7 @@ def _http_get(url: str, fname: Union[str, Path]) -> NoReturn:
 def main() -> NoReturn:
     df = _fetch_final_results()
     updated = False
-    save_path = BaseCfg.log_dir.parent / "results" / "final_results.xlsx"
+    save_path = BaseCfg.log_dir.parent / "results" / "final_scores.xlsx"
     df_old = (
         pd.read_excel(save_path, sheet_name=None, engine="openpyxl")
         if save_path.exists()
