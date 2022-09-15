@@ -129,6 +129,9 @@ def _get_row(
         col = f"{metric} on {evaluated_set} Set"
     df_all = pd.read_excel(_FINAL_SCORES_FILE, sheet_name=None, engine="openpyxl")
     df = df_all[f"official_{task}_scores"]
+    df = df.sort_values(by=col, ascending=True if "Cost" in col else False).reset_index(
+        drop=True
+    )
     if team_name not in df.Team.to_list():
         unofficial_teams = df_all[f"unofficial_{task}_scores"].Team.to_list()
         newline = "\n"
@@ -157,7 +160,7 @@ def get_ranking(
     if row is None:
         ranking = "unofficial"
     else:
-        ranking = row["Rank"]
+        ranking = row.name + 1
         ranking = f"{ranking} / {len(df)}"
     return ranking
 
@@ -189,6 +192,33 @@ def get_score(
     else:
         score = str(row[col])
     return score
+
+
+def get_team_digest(team_name: str, latest: bool = False) -> pd.DataFrame:
+    """ """
+    metrics = [
+        "Weighted Accuracy",
+        "Cost",
+        "Accuracy",
+        "F-measure",
+        "AUROC",
+        "AUPRC",
+    ]
+    evaluated_sets = ["Test", "Validation", "Training"]
+    tasks = ["murmur", "outcome"]
+    rows = []
+    for task in tasks:
+        for metric in metrics:
+            for es in evaluated_sets:
+                rows.append(
+                    [
+                        get_score(team_name, task, metric, es, latest=latest),
+                        get_ranking(team_name, task, metric, es, latest=latest),
+                    ]
+                )
+    df = pd.DataFrame(rows, columns=["score", "ranking"])
+    df.index = pd.MultiIndex.from_product([tasks, metrics, evaluated_sets])
+    return df
 
 
 def main():
