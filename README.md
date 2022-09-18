@@ -21,7 +21,9 @@ Final scores are released in [https://physionetchallenges.org/2022/results/](htt
 These files were gathered in one [`.xlsx` file](results/final_scores.xlsx),
 which was uploaded into [Google Sheets](https://docs.google.com/spreadsheets/d/17RPPzMTV9WW0QHToIvFEfhHw47LYx3LgQZxJSeDElzg/edit?usp=sharing).
 
-Final score files would keep on changing for some time as unofficial teams are having their rebuttals against the organizers.
+~~Final score files would keep on changing for some time as unofficial teams are having their rebuttals against the organizers.~~
+
+Final score files were frozen from 2022/09/18.
 
 One can load the 5 tables all at once via
 
