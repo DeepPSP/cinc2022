@@ -1,6 +1,7 @@
 """
 """
 
+import re
 import os
 import sys
 from datetime import datetime
@@ -194,8 +195,15 @@ def get_score(
     return score
 
 
-def get_team_digest(team_name: str, latest: bool = False) -> pd.DataFrame:
+def get_team_digest(
+    team_name: str, fmt: str = "pd", latest: bool = False
+) -> Union[str, pd.DataFrame]:
     """ """
+    assert fmt.lower() in [
+        "pd",
+        "tex",
+        "latex",
+    ], f"`fmt` must be pd, tex or latex, but got {fmt}"
     metrics = [
         "Weighted Accuracy",
         "Cost",
@@ -207,18 +215,64 @@ def get_team_digest(team_name: str, latest: bool = False) -> pd.DataFrame:
     evaluated_sets = ["Test", "Validation", "Training"]
     tasks = ["murmur", "outcome"]
     rows = []
-    for task in tasks:
-        for metric in metrics:
-            for es in evaluated_sets:
-                rows.append(
-                    [
-                        get_score(team_name, task, metric, es, latest=latest),
-                        get_ranking(team_name, task, metric, es, latest=latest),
-                    ]
-                )
-    df = pd.DataFrame(rows, columns=["score", "ranking"])
-    df.index = pd.MultiIndex.from_product([tasks, metrics, evaluated_sets])
-    return df
+    for metric in metrics:
+        for es in evaluated_sets:
+            rows.append(
+                [
+                    get_score(team_name, "murmur", metric, es, latest=latest),
+                    get_ranking(team_name, "murmur", metric, es, latest=latest),
+                    get_score(team_name, "outcome", metric, es, latest=latest),
+                    get_ranking(team_name, "outcome", metric, es, latest=latest),
+                ]
+            )
+            if metric == "Cost":
+                try:
+                    rows[-1][0] = int(float(rows[-1][0]))
+                except ValueError:
+                    pass
+                try:
+                    rows[-1][2] = int(float(rows[-1][2]))
+                except ValueError:
+                    pass
+    df = pd.DataFrame(rows)
+    tasks = [item.capitalize() for item in tasks]
+    df.columns = pd.MultiIndex.from_product([tasks, ["Score", "Rank"]])
+    df.index = pd.MultiIndex.from_product([metrics, evaluated_sets])
+    if fmt.lower() == "pd":
+        return df
+    elif fmt.lower() in ["latex", "tex"]:
+        tex = re.sub("[ \t]+", " ", df.to_latex())
+        tex = tex.replace("Weighted Accuracy", "\\multirow{3}{*}{Wt. Acc.}")
+        tex = tex.replace("\\\\\nCost", "\\\\ \\hline\n\\multirow{3}{*}{Cost}")
+        tex = tex.replace("\\\\\nAccuracy", "\\\\ \\hline\n\\multirow{3}{*}{Accuracy}")
+        tex = tex.replace("\\\\\nCost", "\\\\ \\hline\n\\multirow{3}{*}{Cost}")
+        tex = tex.replace("\\\\\nAUROC", "\\\\ \\hline\n\\multirow{3}{*}{AUROC}")
+        tex = tex.replace("\\\\\nAUPRC", "\\\\ \\hline\n\\multirow{3}{*}{AUPRC}")
+        tex = tex.replace("bottomrule", "hlineB{3.5}")
+        tex = [
+            "% requires packages boldline,multirow",
+            "\\setlength\\tabcolsep{1pt}",
+            "\\begin{tabular}{@{\\extracolsep{4pt}}llllll@{}}",
+            "\\hlineB{3.5}",
+            " & & \\multicolumn{2}{c}{Murmur} & \\multicolumn{2}{c}{Outcome} \\\\ \\cline{3-4} \\cline{5-6}",
+            " & & Score & Ranking & Score & Ranking \\\\",
+            "\\hline",
+        ] + tex.splitlines()[5:]
+
+        # emphasize the ranking metrics
+        # Wt. Acc. of murmur on test set
+        row_7 = tex[7].split(" & ")
+        row_7[2] = f"\\textbf{{{row_7[2]}}}"
+        row_7[3] = f"\\textbf{{{row_7[3]}}}"
+        tex[7] = " & ".join(row_7)
+        # Cost of outcome on test set
+        row_10 = tex[10].rstrip(r" \\").split(" & ")
+        row_10[4] = f"\\textbf{{{row_10[4]}}}"
+        row_10[5] = f"\\textbf{{{row_10[5]}}}"
+        tex[10] = " & ".join(row_10) + r" \\"
+
+        tex = "\n".join(tex)
+        return tex
 
 
 def main():
