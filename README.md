@@ -36,7 +36,8 @@ One can get a digest of the scores and rankings of all metrics (Weighted Accurac
 ```python
 from utils._final_results import get_team_digest
 
-get_team_digest("Revenger", latest=True)
+get_team_digest("Revenger", fmt="pd", latest=True)  # pandas DataFrame format
+get_team_digest("Revenger", fmt="tex", latest=True)  # latex format (string)
 ```
 
 ## Top team papers
