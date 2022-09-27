@@ -250,7 +250,10 @@ def get_team_digest(
         tex = tex.replace("\\\\\nAUPRC", "\\\\ \\hline\n\\multirow{3}{*}{AUPRC}")
         tex = tex.replace("bottomrule", "hlineB{3.5}")
         tex = [
-            "% requires packages boldline,multirow",
+            r"% requires packages boldline, multirow",
+            r"% put the following in preamble",
+            r"% \usepackage{multirow}",
+            r"% \usepackage{boldline}",
             "\\setlength\\tabcolsep{1pt}",
             "\\begin{tabular}{@{\\extracolsep{4pt}}llllll@{}}",
             "\\hlineB{3.5}",
