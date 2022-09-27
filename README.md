@@ -23,7 +23,7 @@ which was uploaded into [Google Sheets](https://docs.google.com/spreadsheets/d/1
 
 ~~Final score files would keep on changing for some time as unofficial teams are having their rebuttals against the organizers.~~
 
-Final score files were frozen from 2022/09/18.
+Final score files were frozen from 2022/09/18 (Updated again....).
 
 One can load the 5 tables all at once via
 
