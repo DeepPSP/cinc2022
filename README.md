@@ -1,25 +1,66 @@
-# cinc2022
+# CinC2022
 
 ![docker-ci](https://github.com/wenh06/cinc2022/actions/workflows/docker-image.yml/badge.svg?branch=docker-ci)
 ![format-check](https://github.com/wenh06/cinc2022/actions/workflows/check-formatting.yml/badge.svg)
 
 Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody PhysioNet Challenge 2022
 
-## Knowledge about heart murmur
+<!-- toc -->
+
+- [Knowledge about Heart Murmur](#knowledge)
+- [The Conference](#the-conference)
+  - [Conference Paper](#conference-paper)
+  - [Conference Poster](#conference-poster)
+- [Final Scores](#final-scores)
+- [Top Team Papers](#top-team-papers)
+- [Official Phase Leaderboards](#official-phase-leaderboards)
+- [Miscellaneous](#miscellaneous)
+
+<!-- tocstop -->
+
+## <a name="knowledge"></a> Knowledge about Heart Murmur
 
 [utils/HeartMurmur.md](utils/HeartMurmur.md) contains knowledge about heart murmur collected from various sources.
 
-## The conference
+## The Conference
 
 [Conference Website](https://events.tuni.fi/cinc2022/)
 
 [Conference Program](https://cinc.org/prelim_program_2022/)
 
-## Final scores
+### Conference Paper
+
+<details>
+<summary>Click to view!</summary>
+
+~~Folder [tex](tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~
+
+Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
+
+</details>
+
+[Preprint](https://cinc.org/2022/Program/accepted/130_Preprint.pdf)
+
+### Conference Poster
+
+Poster created with `baposter` using the [Overleaf template](https://www.overleaf.com/latex/examples/poster-for-conference-niweek-2014-example/pzbtqgpvdbfh#.V7xgS02LRaQ)
+
+<details>
+<summary>Click to view!</summary>
+
+<img src="/images/cinc2022_poster.svg" alt="poster" width="900"/>
+
+</details>
+
+## Final Scores
 
 Final scores are released in [https://physionetchallenges.org/2022/results/](https://physionetchallenges.org/2022/results/) in 5 `.tsv` files.
+
 These files were gathered in one [`.xlsx` file](results/final_scores.xlsx),
 which was uploaded into [Google Sheets](https://docs.google.com/spreadsheets/d/17RPPzMTV9WW0QHToIvFEfhHw47LYx3LgQZxJSeDElzg/edit?usp=sharing).
+
+<details>
+<summary>Click to expand!</summary>
 
 ~~Final score files would keep on changing for some time as unofficial teams are having their rebuttals against the organizers.~~
 
@@ -40,13 +81,27 @@ get_team_digest("Revenger", fmt="pd", latest=True)  # pandas DataFrame format
 get_team_digest("Revenger", fmt="tex", latest=True)  # latex format (string)
 ```
 
-## Top team papers
+</details>
 
-**to add after conference....**
+## Top Team Papers
 
-## Official phase leaderboards
+<details>
+<summary>Click to view!</summary>
+
+* [CUED_Acoustics](https://cinc.org/2022/Program/accepted/20_Preprint.pdf)
+* [HearHeart](https://cinc.org/2022/Program/accepted/165_Preprint.pdf)
+* [HearTech](https://cinc.org/2022/Program/accepted/439_Preprint.pdf)
+* [prna](https://cinc.org/2022/Program/accepted/309_Preprint.pdf)
+* [CeZIS](https://cinc.org/2022/Program/accepted/67_Preprint.pdf)
+* [CAU_UMN](https://cinc.org/2022/Program/accepted/71_Preprint.pdf)
+* [Melbourne Kangas](https://cinc.org/2022/Program/accepted/310_Preprint.pdf)
+
+</details>
+
+## Official Phase Leaderboards
 
 [Murmur](https://docs.google.com/spreadsheets/u/0/d/e/2PACX-1vRNBATogMRsfio3938bU4r6fcAad85jNzTbSRtRhQ74xHw9shuYoP4uxkK6uKV1zw8CKjPC3AMm33qn/pubhtml/sheet?headers=false&gid=0)
+
 [Outcome](https://docs.google.com/spreadsheets/u/0/d/e/2PACX-1vRNBATogMRsfio3938bU4r6fcAad85jNzTbSRtRhQ74xHw9shuYoP4uxkK6uKV1zw8CKjPC3AMm33qn/pubhtml/sheet?headers=false&gid=1883863848)
 
 <details>
@@ -90,31 +145,19 @@ email_pattern = (
 
 </details>
 
-## Test files
-
-The file [`test_docker.py`](test_docker.py) along with the [docker CI action](.github/workflows/docker-image.yml) can almost guarantee that the Challenge submissions won't raise errors, except for CUDA (GPU) errors. For possible CUDA errors, detect with [`test_local.py`](test_local.py).
-
-## Python re-implementation of Springer's PCG features extractor
-
-[`pcg_springer_features`](https://github.com/DeepPSP/pcg_springer_features) re-implements the feature extraction part of [David Springer's logistic regression-HSMM-based reart sound segmentation algorithm](https://physionet.org/content/hss/1.0/).
-
-Inside [utils](utils) there's also a copy of `pcg_springer_features`.
-
-## CinC2022 conference paper
-
-~~Folder [tex](tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~
-
-Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
-
-**to add URLs after conference....**
-
-## Poster
-
-Poster created with `baposter` using the [Overleaf template](https://www.overleaf.com/latex/examples/poster-for-conference-niweek-2014-example/pzbtqgpvdbfh#.V7xgS02LRaQ)
+## Miscellaneous
 
 <details>
 <summary>Click to view!</summary>
 
-<img src="/images/cinc2022_poster.svg" alt="poster" width="900"/>
+### Test Files
+
+The file [`test_docker.py`](test_docker.py) along with the [docker CI action](.github/workflows/docker-image.yml) can almost guarantee that the Challenge submissions won't raise errors, except for CUDA (GPU) errors. For possible CUDA errors, detect with [`test_local.py`](test_local.py).
+
+### <a name="springer"></a> Python Re-Implementation of Springer's PCG Features Extractor
+
+[`pcg_springer_features`](https://github.com/DeepPSP/pcg_springer_features) re-implements the feature extraction part of [David Springer's logistic regression-HSMM-based reart sound segmentation algorithm](https://physionet.org/content/hss/1.0/).
+
+Inside [utils](utils) there's also a copy of `pcg_springer_features`.
 
 </details>
