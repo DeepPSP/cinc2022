@@ -1,6 +1,6 @@
 # CinC2022
 
-![docker-ci](https://github.com/wenh06/cinc2022/actions/workflows/docker-image.yml/badge.svg?branch=docker-ci)
+![docker-ci-and-test](https://github.com/wenh06/cinc2022/actions/workflows/docker-test.yml/badge.svg?branch=docker-test)
 ![format-check](https://github.com/wenh06/cinc2022/actions/workflows/check-formatting.yml/badge.svg)
 
 Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody PhysioNet Challenge 2022
@@ -159,5 +159,11 @@ The file [`test_docker.py`](test_docker.py) along with the [docker CI action](.g
 [`pcg_springer_features`](https://github.com/DeepPSP/pcg_springer_features) re-implements the feature extraction part of [David Springer's logistic regression-HSMM-based reart sound segmentation algorithm](https://physionet.org/content/hss/1.0/).
 
 Inside [utils](utils) there's also a copy of `pcg_springer_features`.
+
+### [Docker Image](https://hub.docker.com/repository/docker/wenh06/cinc2022)
+
+![docker-ci](https://github.com/wenh06/cinc2022/actions/workflows/docker-image.yml/badge.svg?branch=docker-ci)
+
+A Docker image was built and pushed to [Docker Hub](https://hub.docker.com/repository/docker/wenh06/cinc2022) using [GitHub Action](.github/workflows/docker-image.yml).
 
 </details>
