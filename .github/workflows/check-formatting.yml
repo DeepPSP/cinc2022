@@ -28,10 +28,6 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
         python -m pip install black==22.3.0 flake8 # Testing packages
-        python -m pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
-        python -m pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
-        python -m pip install torch-ecg
-        python -m pip install torch-audiomentations --no-deps
     - name: Check code format with black and flake8
       run: |
         black . --check -v --exclude="/build|dist|official_baseline_classifier|official_scoring_metric/|helper_code\.py|run_model\.py|train_model\.py|evaluate_model\.py"
