@@ -37,8 +37,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 # torch already installed in the base image
 # RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
-# RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install torchaudio==0.10.0 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
 
 ## Include the following line if you have a requirements.txt file.
 RUN pip install -r requirements-no-torch.txt
