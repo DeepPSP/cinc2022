@@ -2,8 +2,6 @@
 # https://hub.docker.com/r/nvidia/cuda/
 # FROM nvidia/cuda:11.1.1-devel
 # FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
-# FROM pytorch/pytorch:1.8.0-cuda11.1-cudnn8-devel
-# FROM pytorch/pytorch:1.6.0-cuda10.1-cudnn7-devel
 FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime
 # NOTE: the base image has python version 3.7
 
@@ -20,11 +18,6 @@ RUN mkdir /physionet
 COPY ./ /physionet
 WORKDIR /physionet
 
-# submodule
-# RUN apt-get update && \
-#     apt-get upgrade -y && \
-#     apt-get install -y git
-
 ## Install your dependencies here using apt install, etc.
 
 # latest version of biosppy uses opencv
@@ -33,27 +26,17 @@ RUN apt update
 RUN apt install build-essential -y
 RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 
-# RUN apt update && apt install -y --no-install-recommends \
-#         build-essential \
-#         curl \
-#         software-properties-common \
-#         unzip
-
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
-# RUN pip install --upgrade pip
 
 # http://mirrors.aliyun.com/pypi/simple/
 # http://pypi.douban.com/simple/
 # RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ## Include the following line if you have a requirements.txt file.
-RUN pip install -r requirements.txt
-# RUN pip install torch==1.8.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install -r requirements-no-torch.txt
+# torch already installed in the base image
+# RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
 RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
-# RUN pip install torch
-# RUN pip install git+https://github.com/DeepPSP/torch_ecg.git
-# RUN pip install git+https://github.com/asteroid-team/torch-audiomentations.git --no-deps
 RUN pip install torch-ecg
 RUN pip install torch-audiomentations --no-deps
 

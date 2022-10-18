@@ -152,7 +152,7 @@ email_pattern = (
 
 ### Test Files
 
-The file [`test_docker.py`](test_docker.py) along with the [docker CI action](.github/workflows/docker-image.yml) can almost guarantee that the Challenge submissions won't raise errors, except for CUDA (GPU) errors. For possible CUDA errors, detect with [`test_local.py`](test_local.py).
+The file [`test_docker.py`](test_docker.py) along with the [docker CI and Test action](.github/workflows/docker-test.yml) can almost guarantee that the Challenge submissions won't raise errors, except for CUDA (GPU) errors. For possible CUDA errors, detect with [`test_local.py`](test_local.py).
 
 ### <a name="springer"></a> Python Re-Implementation of Springer's PCG Features Extractor
 
