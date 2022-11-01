@@ -9,14 +9,8 @@ FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime
 # by checking https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
 # and https://download.pytorch.org/whl/torch_stable.html
 
-
 ## The MAINTAINER instruction sets the author field of the generated images.
 LABEL maintainer="wenh06@gmail.com"
-
-## DO NOT EDIT the 3 lines.
-RUN mkdir /physionet
-COPY ./ /physionet
-WORKDIR /physionet
 
 ## Install your dependencies here using apt install, etc.
 
@@ -39,11 +33,17 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 # compatible with torch
 RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
 
-## Include the following line if you have a requirements.txt file.
-RUN pip install -r requirements-no-torch.txt
-
 RUN pip install torch-ecg
 RUN pip install torch-audiomentations --no-deps
+
+## DO NOT EDIT the 3 lines.
+RUN mkdir /physionet
+COPY ./requirements-no-torch.txt /physionet
+WORKDIR /physionet
+
+RUN pip install -r requirements-no-torch.txt
+
+COPY ./ /physionet
 
 
 # NOTE: also run test_local.py to test locally
