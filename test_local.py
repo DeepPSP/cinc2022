@@ -19,7 +19,6 @@ set_entry_test_flag(True)
 
 
 from copy import deepcopy
-from typing import NoReturn
 
 import numpy as np
 import torch
@@ -68,7 +67,7 @@ else:
 TASK = "classification"  # "multi_task"
 
 
-def test_dataset() -> NoReturn:
+def test_dataset() -> None:
     """ """
     ds_config = deepcopy(TrainCfg)
     ds_config.db_dir = tmp_data_dir
@@ -82,7 +81,7 @@ def test_dataset() -> NoReturn:
     print("dataset test passed")
 
 
-def test_models() -> NoReturn:
+def test_models() -> None:
     """ """
     model = CRNN_CINC2022(ModelCfg[TASK])
     model.to(DEVICE)
@@ -99,16 +98,18 @@ def test_models() -> NoReturn:
         drop_last=False,
         collate_fn=collate_fn,
     )
-    for idx, (data, labels) in enumerate(dl):
-        data.to(DEVICE)
-        print(model.inference(data))
+    for idx, input_tensors in enumerate(dl):
+        waveforms = input_tensors.pop("waveforms").to(DEVICE)
+        # input_tensors = {k: v.to(DEVICE) for k, v in input_tensors.items()}
+        # out_tensors = model(waveforms, input_tensors)
+        print(model.inference(waveforms))
         if idx > 10:
             break
 
     print("models test passed")
 
 
-def test_challenge_metrics() -> NoReturn:
+def test_challenge_metrics() -> None:
     """ """
     outputs = [
         CINC2022Outputs(
@@ -158,7 +159,7 @@ def test_challenge_metrics() -> NoReturn:
     print("challenge metrics test passed")
 
 
-def test_trainer() -> NoReturn:
+def test_trainer() -> None:
     """ """
     train_config = deepcopy(TrainCfg)
     train_config.db_dir = tmp_data_dir
@@ -212,7 +213,7 @@ from train_model import train_challenge_model
 from run_model import run_model
 
 
-def test_entry() -> NoReturn:
+def test_entry() -> None:
     """ """
 
     data_folder = str(tmp_data_dir / "training_data")

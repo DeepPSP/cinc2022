@@ -8,7 +8,7 @@ import multiprocessing as mp
 from copy import deepcopy
 from pathlib import Path
 from random import shuffle
-from typing import Any, NoReturn, Dict, Optional, List, Union, Tuple
+from typing import Any, Dict, Optional, List, Union, Tuple
 
 import pandas as pd
 import numpy as np
@@ -56,7 +56,7 @@ class OutComeClassifier_CINC2022(object):
         self,
         config: Optional[CFG] = None,
         **kwargs: Any,
-    ) -> NoReturn:
+    ) -> None:
         """
 
         Parameters:
@@ -90,9 +90,7 @@ class OutComeClassifier_CINC2022(object):
     def feature_list(self) -> List[str]:
         return deepcopy(self.config.feature_list)
 
-    def _prepare_training_data(
-        self, db_dir: Optional[Union[str, Path]] = None
-    ) -> NoReturn:
+    def _prepare_training_data(self, db_dir: Optional[Union[str, Path]] = None) -> None:
         """
         Prepares training data.
 
@@ -204,7 +202,7 @@ class OutComeClassifier_CINC2022(object):
         scaler: BaseEstimator,
         config: CFG,
         model_path: Union[str, Path],
-    ) -> NoReturn:
+    ) -> None:
         """
         Saves a model to a file.
 
@@ -235,7 +233,7 @@ class OutComeClassifier_CINC2022(object):
             )
         )
 
-    def save_best_model(self, model_name: Optional[str] = None) -> NoReturn:
+    def save_best_model(self, model_name: Optional[str] = None) -> None:
         """
         Saves the best model to a file.
 

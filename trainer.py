@@ -6,7 +6,7 @@ import sys
 import argparse
 import textwrap
 from copy import deepcopy
-from typing import Any, Optional, Tuple, NoReturn, Dict, List, Sequence, Union
+from typing import Any, Optional, Tuple, Dict, List, Sequence, Union
 
 import numpy as np
 import torch
@@ -68,7 +68,7 @@ class CINC2022Trainer(BaseTrainer):
         device: Optional[torch.device] = None,
         lazy: bool = True,
         **kwargs: Any,
-    ) -> NoReturn:
+    ) -> None:
         """
 
         Parameters
@@ -114,7 +114,7 @@ class CINC2022Trainer(BaseTrainer):
         self,
         train_dataset: Optional[Dataset] = None,
         val_dataset: Optional[Dataset] = None,
-    ) -> NoReturn:
+    ) -> None:
         """
         setup the dataloaders for training and validation
 
@@ -184,13 +184,13 @@ class CINC2022Trainer(BaseTrainer):
             collate_fn=collate_fn,
         )
 
-    def _setup_augmenter_manager(self) -> NoReturn:
+    def _setup_augmenter_manager(self) -> None:
         """ """
         self.augmenter_manager = AugmenterManager.from_config(
             config=self.train_config[self.train_config.task]
         )
 
-    def _setup_criterion(self) -> NoReturn:
+    def _setup_criterion(self) -> None:
         """ """
         loss_kw = (
             self.train_config[self.train_config.task]
@@ -225,7 +225,7 @@ class CINC2022Trainer(BaseTrainer):
             )
         self.criterion.to(device=self.device, dtype=self.dtype)
 
-    def train_one_epoch(self, pbar: tqdm) -> NoReturn:
+    def train_one_epoch(self, pbar: tqdm) -> None:
         """
         train one epoch, and update the progress bar
 
@@ -379,21 +379,22 @@ class CINC2022Trainer(BaseTrainer):
         if self.val_train_loader is not None and self.train_config.task not in [
             "segmentation"
         ]:
-            head_num = 5
-            head_scalar_preds = all_outputs[0].murmur_output.prob[:head_num]
-            head_bin_preds = all_outputs[0].murmur_output.bin_pred[:head_num]
+            log_head_num = 5
+            head_scalar_preds = all_outputs[0].murmur_output.prob[:log_head_num]
+            head_bin_preds = all_outputs[0].murmur_output.bin_pred[:log_head_num]
             head_preds_classes = [
                 np.array(all_outputs[0].murmur_output.classes)[np.where(row)[0]]
                 for row in head_bin_preds
             ]
-            head_labels = all_labels[0]["murmur"][:head_num]
+            head_labels = all_labels[0]["murmur"][:log_head_num]
             head_labels_classes = [
                 np.array(all_outputs[0].murmur_output.classes)[np.where(row)]
                 if head_labels.ndim == 2
                 else np.array(all_outputs[0].murmur_output.classes)[row]
                 for row in head_labels
             ]
-            for n in range(head_num):
+            log_head_num = min(log_head_num, len(head_scalar_preds))
+            for n in range(log_head_num):
                 msg = textwrap.dedent(
                     f"""
                 ----------------------------------------------
@@ -407,20 +408,21 @@ class CINC2022Trainer(BaseTrainer):
                 )
                 self.log_manager.log_message(msg)
             if "outcome" in input_tensors:
-                head_scalar_preds = all_outputs[0].outcome_output.prob[:head_num]
-                head_bin_preds = all_outputs[0].outcome_output.bin_pred[:head_num]
+                head_scalar_preds = all_outputs[0].outcome_output.prob[:log_head_num]
+                head_bin_preds = all_outputs[0].outcome_output.bin_pred[:log_head_num]
                 head_preds_classes = [
                     np.array(all_outputs[0].outcome_output.classes)[np.where(row)[0]]
                     for row in head_bin_preds
                 ]
-                head_labels = all_labels[0]["outcome"][:head_num]
+                head_labels = all_labels[0]["outcome"][:log_head_num]
                 head_labels_classes = [
                     np.array(all_outputs[0].outcome_output.classes)[np.where(row)[0]]
                     if head_labels.ndim == 2
                     else np.array(all_outputs[0].outcome_output.classes)[row]
                     for row in head_labels
                 ]
-                for n in range(head_num):
+                log_head_num = min(log_head_num, len(head_scalar_preds))
+                for n in range(log_head_num):
                     msg = textwrap.dedent(
                         f"""
                     ----------------------------------------------
@@ -602,7 +604,7 @@ _MODEL_MAP = {
 }
 
 
-def _set_task(task: str, config: CFG) -> NoReturn:
+def _set_task(task: str, config: CFG) -> None:
     """"""
     assert task in config.tasks
     config.task = task
