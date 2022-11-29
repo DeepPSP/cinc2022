@@ -11,6 +11,7 @@ from typing import Sequence
 
 import torch_audiomentations as TA
 from torch_audiomentations.core.transforms_interface import BaseWaveformTransform
+from torch_ecg.utils.misc import get_kwargs
 
 
 __all__ = ["AugmenterManager"]
@@ -26,12 +27,20 @@ class AugmenterManager(TA.SomeOf):
         p_mode="per_batch",
     ) -> None:
         """ """
-        super().__init__((1, None), transforms, p=p, p_mode=p_mode)
+        kwargs = dict(p=p, p_mode=p_mode)
+        if "output_type" in get_kwargs(TA.SomeOf.__init__):
+            # newer versions of `torch_audiomentations`
+            kwargs["output_type"] = "tensor"
+        super().__init__((1, None), transforms, **kwargs)
 
     @classmethod
     def from_config(cls, config: dict) -> "AugmenterManager":
         """ """
-        transforms = [TA.from_dict(item) for item in config["augmentations"]]
+        aug_config = deepcopy(config["augmentations"])
+        if "output_type" in get_kwargs(TA.SomeOf.__init__):
+            for item in aug_config:
+                item["output_type"] = "tensor"
+        transforms = [TA.from_dict(item) for item in aug_config]
         return cls(transforms, **config["augmentations_kw"])
 
     def __len__(self) -> int:
