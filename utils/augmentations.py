@@ -7,6 +7,7 @@ If labels contains segmentation masks, the forward function will not be able to 
 which is needed for example for `Shift`, `TimeInversion`, etc.
 """
 
+from copy import deepcopy
 from typing import Sequence
 
 import torch_audiomentations as TA
