@@ -2,15 +2,11 @@ numpy>=1.21.0
 scipy>=1.6.1
 joblib==1.2.0
 # Cython==0.29.10
-pandas==1.2.2
-scikit-learn==0.24.1
+pandas>=1.2.2
+scikit-learn>=0.24.1
 wfdb==3.2.0
 opencv-python
 easydict
-torch==1.13.1
-torchaudio==0.13.1
-torch-audiomentations
-torch-ecg
 torchsummary
 tensorboardX
 tqdm

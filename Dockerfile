@@ -42,10 +42,10 @@ RUN pip install torch-audiomentations --no-deps
 
 ## DO NOT EDIT the 3 lines.
 RUN mkdir /physionet
-COPY ./requirements-no-torch.txt /physionet
+COPY ./requirements-docker.txt /physionet
 WORKDIR /physionet
 
-RUN pip install -r requirements-no-torch.txt
+RUN pip install -r requirements-docker.txt
 
 COPY ./ /physionet
 
