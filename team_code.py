@@ -315,7 +315,6 @@ def run_challenge_model(
     verbose: int,
 ) -> Tuple[List[str], np.ndarray, np.ndarray]:
     """
-
     Parameters
     ----------
     model: Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]],
@@ -406,9 +405,10 @@ def run_challenge_model(
 
     for loc, rec, fs in zip(locations, recordings, frequencies):
         rec = _to_dtype(rec, DTYPE)
+        rec = np.expand_dims(rec, axis=0)
         rec, _ = ppm(rec, fs)
         for _ in range(3 - rec.ndim):
-            rec = rec[np.newaxis, :]
+            rec = np.expand_dims(rec, axis=0)
         model_output = main_model.inference(rec.copy().astype(DTYPE))
         murmur_probabilities.append(model_output.murmur_output.prob)
         murmur_labels.append(model_output.murmur_output.bin_pred)

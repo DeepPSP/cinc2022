@@ -2,7 +2,7 @@
 # https://hub.docker.com/r/nvidia/cuda/
 # FROM nvidia/cuda:11.1.1-devel
 # FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
-FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime
+FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # NOTE: the base image has python version 3.7
 
 # NOTE: The GPU provided by the Challenge is GPU Tesla T4 with nvidiaDriverVersion: 470.82.01
@@ -29,9 +29,9 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 
 # NOTE that torch and torchaudio should be installed first
 # torch already installed in the base image
-# RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+# RUN pip install torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
-RUN pip install torchaudio==0.10.0+cu113 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install torchaudio==0.13.1+cu116 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
 
 RUN pip install torch-ecg
 RUN pip install torch-audiomentations --no-deps
