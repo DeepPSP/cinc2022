@@ -3,7 +3,9 @@
 # FROM nvidia/cuda:11.1.1-devel
 # FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
 FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
-# NOTE: the base image has python version 3.7
+# NOTE:
+# pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
+# pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
 
 # NOTE: The GPU provided by the Challenge is GPU Tesla T4 with nvidiaDriverVersion: 470.82.01
 # by checking https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
@@ -26,6 +28,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 # http://mirrors.aliyun.com/pypi/simple/
 # http://pypi.douban.com/simple/
 # RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+RUN python -m pip install --upgrade pip setuptools wheel
 
 # NOTE that torch and torchaudio should be installed first
 # torch already installed in the base image
