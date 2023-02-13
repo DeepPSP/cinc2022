@@ -24,7 +24,7 @@ try:
     import torchaudio
 except Exception:
     torchaudio = None
-import scipy.signal as ss  # noqa: F401
+import scipy.signal as SS  # noqa: F401
 import scipy.io as sio
 
 try:
@@ -622,22 +622,22 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
-        fs : int, optional,
+        fs: int, optional,
             the sampling frequency of the record, defaults to `self.fs`,
             -1 for the sampling frequency from the audio file
-        data_format : str, optional,
+        data_format: str, optional,
             the format of the returned data, defaults to `channel_first`
             can be `channel_last`, `channel_first`, `flat`,
             case insensitive
-        data_type : str, default "np",
+        data_type: str, default "np",
             the type of the returned data, can be one of "pt", "np",
             case insensitive
 
         Returns
         -------
-        data : np.ndarray,
+        data: np.ndarray,
             the data of the record
 
         """
@@ -680,15 +680,15 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec_or_sid : str or int,
+        rec_or_sid: str or int,
             the record name or the index of the record in `self.all_records`
             or the subject id
-        class_map : dict, optional,
+        class_map: dict, optional,
             the mapping of the annotation classes
 
         Returns
         -------
-        ann : str or int,
+        ann: str or int,
             the class of the record,
             or the number of the class if `class_map` is provided
 
@@ -734,16 +734,16 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
-        seg_format : str, default `df`,
+        seg_format: str, default `df`,
             the format of the returned segmentation,
             can be `df`, `dict`, `mask`, `binary`,
             case insensitive
-        ensure_same_len : bool, default True,
+        ensure_same_len: bool, default True,
             if True, the length of the segmentation will be
             the same as the length of the audio data
-        fs : int, optional,
+        fs: int, optional,
             the sampling frequency, defaults to `self.fs`,
             -1 for the sampling frequency from the audio file
 
@@ -809,7 +809,7 @@ class CINC2022Reader(PCGDataBase):
             # mask = np.zeros(df_seg.end.values[-1], dtype=int)
             mask = np.full(df_seg.end.values[-1], BaseCfg.ignore_index, dtype=int)
             for _, row in df_seg.iterrows():
-                mask[row["start"] : row["end"]] = int(row["label"])
+                mask[row["start"]: row["end"]] = int(row["label"])
             return mask
         elif seg_format.lower() in [
             "binary",
@@ -820,7 +820,7 @@ class CINC2022Reader(PCGDataBase):
             for _, row in df_seg.iterrows():
                 if row["wave"] in self.segmentation_states:
                     bin_mask[
-                        row["start"] : row["end"],
+                        row["start"]: row["end"],
                         self.segmentation_states.index(row["wave"]),
                     ] = 1
             return bin_mask
@@ -837,15 +837,15 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        subject : str,
+        subject: str,
             the subject id
-        keys : str or sequence of str, optional,
+        keys: str or sequence of str, optional,
             the keys of the meta data to be returned,
             if None, return all meta data
 
         Returns
         -------
-        meta_data : dict or str or float or int,
+        meta_data: dict or str or float or int,
             the meta data of the subject
 
         """
@@ -867,13 +867,13 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec_or_subject : str or int,
+        rec_or_subject: str or int,
             the record name or the index of the record in `self.all_records`,
             or the subject id (Patient ID)
 
         Returns
         -------
-        outcome : str,
+        outcome: str,
             the outcome of the record
 
         """
@@ -895,7 +895,7 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        subject : str,
+        subject: str,
             the subject id
 
         Returns
@@ -928,24 +928,24 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
-        fs : int, optional,
+        fs: int, optional,
             the sampling frequency of the returned data
-        data_format : str, default `channel_first`,
+        data_format: str, default `channel_first`,
             the format of the returned data,
             can be `channel_first`, `channel_last` or `flat`,
             case insensitive
-        passband : sequence of int, default `BaseCfg.passband`,
+        passband: sequence of int, default `BaseCfg.passband`,
             the passband of the bandpass filter
-        order : int, default `BaseCfg.filter_order`,
+        order: int, default `BaseCfg.filter_order`,
             the order of the bandpass filter
-        spike_removal : bool, default True,
+        spike_removal: bool, default True,
             whether to remove spikes using the Schmmidt algorithm
 
         Returns
         -------
-        data : np.ndarray,
+        data: np.ndarray,
             the preprocessed data of the record
 
         """
@@ -972,7 +972,7 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
 
         Returns
@@ -989,7 +989,7 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
 
         Returns
@@ -1041,9 +1041,9 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
-        kwargs : dict,
+        kwargs: dict,
             optional keyword arguments including `data`, `fs`,
             if specified, the data will be played instead of the record
 
@@ -1066,9 +1066,9 @@ class CINC2022Reader(PCGDataBase):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
-        kwargs : dict,
+        kwargs: dict,
             not used currently
 
         Returns
@@ -1406,7 +1406,7 @@ class CINC2016Reader(PCGDataBase):
         )
         ecg = wfdb_rec.p_signal.T
         if fs is not None and fs != wfdb_rec.fs:
-            # ecg = ss.resample_poly(ecg, fs, wfdb_rec.fs, axis=-1)
+            # ecg = SS.resample_poly(ecg, fs, wfdb_rec.fs, axis=-1)
             ecg = librosa.resample(ecg, wfdb_rec.fs, fs, res_type="kaiser_best")
         if data_format.lower() == "channel_last":
             ecg = ecg.T
@@ -1831,21 +1831,21 @@ class CompositeReader(ReprMixin):
 
         Parameters
         ----------
-        rec : str or int,
+        rec: str or int,
             the record name or the index of the record in `self.all_records`
-        fs : int, optional,
+        fs: int, optional,
             the sampling frequency of the record, defaults to `self.fs`
-        data_format : str, optional,
+        data_format: str, optional,
             the format of the returned data, defaults to `channel_first`
             can be `channel_last`, `channel_first`, `flat`,
             case insensitive
-        data_type : str, default "np",
+        data_type: str, default "np",
             the type of the returned data, can be one of "pt", "np",
             case insensitive
 
         Returns
         -------
-        data : np.ndarray,
+        data: np.ndarray,
             the data of the record
 
         """
