@@ -2,14 +2,14 @@
 """
 
 import json
-from random import shuffle, sample
 from copy import deepcopy
+from pathlib import Path
 from typing import Optional, List, Sequence, Dict
 
 import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
-from torch_ecg.cfg import CFG
+from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.utils.misc import ReprMixin, list_sum
 from torch_ecg.utils.utils_data import ensure_siglen, stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
@@ -42,14 +42,40 @@ class CinC2022Dataset(Dataset, ReprMixin):
     __name__ = "CinC2022Dataset"
 
     def __init__(
-        self, config: CFG, task: str, training: bool = True, lazy: bool = True
+        self,
+        config: CFG,
+        task: str,
+        training: bool = True,
+        lazy: bool = True,
+        **reader_kwargs,
     ) -> None:
-        """ """
+        """
+        Parameters
+        ----------
+        config: CFG
+            configuration for the dataset
+        task: str
+            task to be performed using the dataset
+        training: bool, default True
+            whether the dataset is for training or validation
+        lazy: bool, default True
+            whether to load all data into memory at initialization
+        reader_kwargs: dict,
+            keyword arguments for the data reader class
+
+        """
         super().__init__()
         self.config = CFG(deepcopy(config))
         # self.task = task.lower()  # task will be set in self.__set_task
         self.training = training
         self.lazy = lazy
+
+        if self.config.get("db_dir", None) is None:
+            self.config.db_dir = reader_kwargs.pop("db_dir", None)
+            assert self.config.db_dir is not None, "db_dir must be specified"
+        else:
+            reader_kwargs.pop("db_dir", None)
+        self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
 
         self.reader = CINC2022Reader(
             self.config.db_dir,
@@ -64,9 +90,11 @@ class CinC2022Dataset(Dataset, ReprMixin):
             [self.reader.subject_records[row["Patient ID"]] for _, row in df.iterrows()]
         )
         if self.config.get("entry_test_flag", False):
-            self.records = sample(self.records, int(len(self.records) * 0.2))
+            self.records = DEFAULTS.RNG.choice(
+                self.records, size=int(len(self.records) * 0.2), replace=False
+            )
         if self.training:
-            shuffle(self.records)
+            DEFAULTS.RNG.shuffle(self.records)
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -130,14 +158,14 @@ class CinC2022Dataset(Dataset, ReprMixin):
             return
 
         tmp_cache = []
-        with tqdm(range(len(self.fdr)), desc="Loading data", unit="records") as pbar:
+        with tqdm(range(len(self.fdr)), desc="Loading data", unit="record") as pbar:
             for idx in pbar:
                 tmp_cache.append(self.fdr[idx])
         keys = tmp_cache[0].keys()
         self.__cache = {k: np.concatenate([v[k] for v in tmp_cache]) for k in keys}
         for k in keys:
             if self.__cache[k].ndim == 1:
-                self.__cache[k] = self.__cache[k]
+                self.__cache[k] = self.__cache[k]  # TODO: check this
 
     def _load_all_data(self) -> None:
         """ """
@@ -190,8 +218,8 @@ class CinC2022Dataset(Dataset, ReprMixin):
         test_file.write_text(json.dumps(test_set, ensure_ascii=False))
         aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
-        shuffle(train_set)
-        shuffle(test_set)
+        DEFAULTS.RNG.shuffle(train_set)
+        DEFAULTS.RNG.shuffle(test_set)
 
         if self.training:
             return train_set

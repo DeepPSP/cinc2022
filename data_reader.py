@@ -33,10 +33,7 @@ except Exception:
     sio_wav = None
 import IPython
 
-try:
-    from tqdm.auto import tqdm
-except ModuleNotFoundError:
-    from tqdm import tqdm
+from tqdm.auto import tqdm
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
 from torch_ecg.utils.utils_signal import butter_bandpass_filter
 from torch_ecg.utils.misc import (
@@ -809,7 +806,7 @@ class CINC2022Reader(PCGDataBase):
             # mask = np.zeros(df_seg.end.values[-1], dtype=int)
             mask = np.full(df_seg.end.values[-1], BaseCfg.ignore_index, dtype=int)
             for _, row in df_seg.iterrows():
-                mask[row["start"]: row["end"]] = int(row["label"])
+                mask[row["start"] : row["end"]] = int(row["label"])
             return mask
         elif seg_format.lower() in [
             "binary",
@@ -820,7 +817,7 @@ class CINC2022Reader(PCGDataBase):
             for _, row in df_seg.iterrows():
                 if row["wave"] in self.segmentation_states:
                     bin_mask[
-                        row["start"]: row["end"],
+                        row["start"] : row["end"],
                         self.segmentation_states.index(row["wave"]),
                     ] = 1
             return bin_mask
