@@ -327,6 +327,7 @@ class CINC2022Reader(PCGDataBase):
             verbose=verbose,
             **kwargs,
         )
+        self._version = "1.0.3"
         if "training_data" in os.listdir(self.db_dir):
             self.data_dir = self.db_dir / "training_data"
         else:
@@ -1281,6 +1282,7 @@ class CINC2016Reader(PCGDataBase):
             verbose=verbose,
             **kwargs,
         )
+        self._version = "1.0.0"
         self.data_ext = "wav"
         self.ecg_ext = "dat"
         self.ann_ext = "hea"
@@ -1529,6 +1531,7 @@ class EPHNOGRAMReader(PCGDataBase):
             verbose=verbose,
             **kwargs,
         )
+        self._version = "1.0.0"
         self.data_ext = "mat"
         self.aux_ext = "dat"
 
