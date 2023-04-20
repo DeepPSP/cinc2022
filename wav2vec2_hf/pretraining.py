@@ -5,12 +5,8 @@ https://github.com/huggingface/transformers/blob/main/examples/pytorch/speech-pr
 """
 
 import re
+from tqdm.auto import tqdm
 from typing import Dict, List, Optional, Any
-
-try:
-    from tqdm.auto import tqdm
-except ModuleNotFoundError:
-    from tqdm import tqdm
 
 import torch
 from torch import nn
