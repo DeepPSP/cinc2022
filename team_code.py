@@ -160,7 +160,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
 
     if train_config.get("entry_test_flag", False):
         # to test in the file test_docker.py or in test_local.py
-        train_config.n_epochs = 1
+        train_config.n_epochs = 2
         train_config.batch_size = 4
         train_config.log_step = 4
         # train_config.max_lr = 1.5e-3

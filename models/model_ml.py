@@ -485,7 +485,11 @@ class OutComeClassifier_CINC2022(object):
                 try:
                     clf_gs = self.get_model(model_name, params)
                     clf_gs.fit(X_train, y_train)
-                except Exception:
+                except Exception as e:
+                    import traceback
+
+                    print(traceback.format_exc())
+                    print(e)
                     continue
 
                 y_prob = clf_gs.predict_proba(X_val)
