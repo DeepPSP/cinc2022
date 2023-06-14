@@ -242,13 +242,15 @@ class OutComeClassifier_CINC2022(object):
         """
         if model_name is None:
             model_name = f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
+        model_path = Path(self.config.get("model_dir", ".")) / model_name
         self.save_model(
             self.best_clf,
             self.__imputer,
             self.__scaler,
             self.config,
-            Path(self.config.get("model_dir", ".")) / model_name,
+            model_path,
         )
+        print(f"Best OutComeClassifier saved to {model_path}")
 
     @classmethod
     def from_file(cls, path: Union[str, Path]) -> "OutComeClassifier_CINC2022":
@@ -521,7 +523,9 @@ class OutComeClassifier_CINC2022(object):
                     part="val",
                 )
 
-                if val_metrics[self.config.monitor] < best_score:
+                if val_metrics[self.config.monitor] < best_score or idx == 0:
+                    # the lower the better
+                    # and ensures not None
                     best_score = val_metrics[self.config.monitor]
                     best_clf = clf_gs
                     best_params = params
