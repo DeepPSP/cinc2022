@@ -68,8 +68,8 @@ class OutComeClassifier_CINC2022(object):
         self.logger_manager = None
         self.reader = None
         self.__df_features = None
-        self.x_train, self.y_train = None, None
-        self.x_test, self.y_test = None, None
+        self.X_train, self.y_train = None, None
+        self.X_test, self.y_test = None, None
         self._prepare_training_data()
 
         self.__cache = {}

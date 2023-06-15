@@ -135,7 +135,7 @@ class PCGDataBase(PhysioNetDataBase):
     def __init__(
         self,
         db_name: str,
-        db_dir: str,
+        db_dir: Optional[str] = None,
         fs: int = 1000,
         audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
@@ -292,7 +292,7 @@ class CINC2022Reader(PCGDataBase):
 
     def __init__(
         self,
-        db_dir: str,
+        db_dir: Optional[str] = None,
         fs: int = 4000,
         audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
@@ -302,20 +302,21 @@ class CINC2022Reader(PCGDataBase):
         """
         Parameters
         ----------
-        db_dir: str,
+        db_dir : str, optional
             storage path of the database
-        fs: int, default 4000,
+        fs : int, default 4000
             (re-)sampling frequency of the audio
-        audio_backend: str, default "torchaudio",
+        audio_backend : str, default "torchaudio"
             audio backend to use, can be one of
             "librosa", "torchaudio", "scipy",  "wfdb",
             case insensitive.
             "librosa" or "torchaudio" is recommended.
-        working_dir: str, optional,
+        working_dir : str, optional
             working directory, to store intermediate files and log file
-        verbose: int, default 2,
+        verbose : int, default 2
             log verbosity
-        kwargs: auxilliary key word arguments
+        kwargs : dict, optional
+            auxilliary key word arguments
 
         """
         super().__init__(
@@ -513,7 +514,7 @@ class CINC2022Reader(PCGDataBase):
                 lambda s: s.split("+")
             )
         self._df_stats["Murmur locations"] = self._df_stats["Murmur locations"].apply(
-            lambda s: s.split("+")
+            lambda s: s.split("+") if s != self.stats_fillna_val else []
         )
         self._df_stats["Patient ID"] = self._df_stats["Patient ID"].astype(str)
         self._df_stats = self._df_stats[self._stats_cols]
@@ -704,10 +705,13 @@ class CINC2022Reader(PCGDataBase):
             row = self.df_stats[self.df_stats["Patient ID"] == sid].iloc[0]
             if row["Murmur"] == "Unknown":
                 ann = "Unknown"
-            if loc in row["Murmur locations"]:
-                ann = "Present"
             else:
-                ann = "Absent"
+                ann = None
+            if ann is None:
+                if loc in row["Murmur locations"]:
+                    ann = "Present"
+                else:
+                    ann = "Absent"
         else:
             raise ValueError(f"{rec_or_sid} is not a valid record or patient ID")
         ann = _class_map.get(ann, ann)
@@ -1271,7 +1275,7 @@ class CINC2016Reader(PCGDataBase):
 
     def __init__(
         self,
-        db_dir: str,
+        db_dir: Optional[str] = None,
         fs: int = 2000,
         audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
@@ -1520,7 +1524,7 @@ class EPHNOGRAMReader(PCGDataBase):
 
     def __init__(
         self,
-        db_dir: str,
+        db_dir: Optional[str] = None,
         fs: int = 8000,
         audio_backend: str = "torchaudio",
         working_dir: Optional[str] = None,
