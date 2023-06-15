@@ -32,7 +32,7 @@ from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg.utils.utils_metrics import _cls_to_bin
 from tqdm.auto import tqdm
 
-from cfg import BaseCfg
+from cfg import BaseCfg, OutcomeCfg
 from data_reader import CINC2022Reader
 from outputs import CINC2022Outputs
 from utils.scoring_metrics import compute_challenge_metrics
@@ -61,7 +61,7 @@ class OutComeClassifier_CINC2022(object):
             configurations, ref. `cfg.OutcomeCfg`
 
         """
-        self.config = deepcopy(config)
+        self.config = deepcopy(config or OutcomeCfg)
         self.__imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
         self.__scaler = StandardScaler()
 
@@ -99,9 +99,11 @@ class OutComeClassifier_CINC2022(object):
         """
         if db_dir is not None:
             self.config.db_dir = db_dir
-        self.config.db_dir = self.config.get("db_dir", None)
-        if self.config.db_dir is None:
-            return
+        self.reader = CINC2022Reader(self.config.db_dir)
+        if len(self.reader) == 0:
+            self.reader.download()
+
+        self.config.db_dir = self.reader.db_dir
 
         if self.config.cont_scaler.lower() == "minmax":
             self.__scaler = MinMaxScaler()
@@ -117,13 +119,13 @@ class OutComeClassifier_CINC2022(object):
             )
             self.logger_manager = LoggerManager.from_config(logger_config)
 
-        self.config.db_dir = Path(self.config.db_dir).resolve().absolute()
-        self.reader = CINC2022Reader(self.config.db_dir)
-
         self.__df_features = self.reader.df_stats[
             [self.config.split_col, self.config.y_col] + self.config.x_cols
         ]
         # to ordinal
+        self.__df_features.loc[:, self.config.y_col] = self.__df_features[
+            self.config.y_col
+        ].apply(lambda x: x.capitalize())
         self.__df_features.loc[:, self.config.y_col] = self.__df_features[
             self.config.y_col
         ].map(self.config.class_map)
@@ -478,7 +480,7 @@ class OutComeClassifier_CINC2022(object):
         best_score = np.inf
         best_clf = None
         best_params = None
-        with tqdm(enumerate(param_grid)) as pbar:
+        with tqdm(enumerate(param_grid), total=len(param_grid), mininterval=1) as pbar:
             for idx, params in pbar:
                 updated_params = deepcopy(params)
                 updated_params["n_jobs"] = self._num_workers
