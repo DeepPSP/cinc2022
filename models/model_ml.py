@@ -44,24 +44,28 @@ __all__ = [
 
 
 class OutComeClassifier_CINC2022(object):
-    """ """
+    """Outcome classifier for CINC2022 using ML models.
+
+    Parameters:
+    -----------
+    config: CFG, optional,
+        configurations, ref. `cfg.OutcomeCfg`
+    training: bool, default True,
+        whether to train the model,
+        or load the trained model.
+
+    """
 
     __name__ = "OutComeClassifier_CINC2022"
 
     def __init__(
         self,
         config: Optional[CFG] = None,
+        training: bool = True,
         **kwargs: Any,
     ) -> None:
-        """
-
-        Parameters:
-        -----------
-        config: CFG, optional,
-            configurations, ref. `cfg.OutcomeCfg`
-
-        """
         self.config = deepcopy(config or OutcomeCfg)
+        self.training = training
         self.__imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
         self.__scaler = StandardScaler()
 
@@ -70,7 +74,10 @@ class OutComeClassifier_CINC2022(object):
         self.__df_features = None
         self.X_train, self.y_train = None, None
         self.X_test, self.y_test = None, None
-        self._prepare_training_data()
+
+        if self.training:
+            # prepare training data only when training
+            self._prepare_training_data()
 
         self.__cache = {}
         self.best_clf, self.best_params, self.best_score = None, None, None
@@ -99,6 +106,8 @@ class OutComeClassifier_CINC2022(object):
         """
         if db_dir is not None:
             self.config.db_dir = db_dir
+        elif not hasattr(self.config, "db_dir"):
+            self.config.db_dir = None
         self.reader = CINC2022Reader(self.config.db_dir)
         if len(self.reader) == 0:
             self.reader.download()
@@ -123,9 +132,6 @@ class OutComeClassifier_CINC2022(object):
             [self.config.split_col, self.config.y_col] + self.config.x_cols
         ]
         # to ordinal
-        self.__df_features.loc[:, self.config.y_col] = self.__df_features[
-            self.config.y_col
-        ].apply(lambda x: x.capitalize())
         self.__df_features.loc[:, self.config.y_col] = self.__df_features[
             self.config.y_col
         ].map(self.config.class_map)
@@ -164,10 +170,10 @@ class OutComeClassifier_CINC2022(object):
         train_set, test_set = self._train_test_split()
         df_train = self.__df_features.loc[train_set]
         df_test = self.__df_features.loc[test_set]
-        self.X_train = df_train[self.config.feature_list].values
-        self.y_train = df_train[self.config.y_col].values
-        self.X_test = df_test[self.config.feature_list].values
-        self.y_test = df_test[self.config.y_col].values
+        self.X_train = df_train[self.config.feature_list].values.astype(np.float64)
+        self.y_train = df_train[self.config.y_col].values.astype(np.int64)
+        self.X_test = df_test[self.config.feature_list].values.astype(np.float64)
+        self.y_test = df_test[self.config.y_col].values.astype(np.int64)
 
     def get_model(
         self, model_name: str, params: Optional[dict] = None
@@ -272,7 +278,7 @@ class OutComeClassifier_CINC2022(object):
         """
         loaded = pickle.loads(Path(path).read_bytes())
         config = loaded["config"]
-        clf = cls(config)
+        clf = cls(config, training=False)
         clf.__imputer = loaded["imputer"]
         clf.__scaler = loaded["scaler"]
         clf.best_clf = loaded["outcome_classifier"]
@@ -781,3 +787,13 @@ class OutComeClassifier_CINC2022(object):
         shuffle(test_set)
 
         return train_set, test_set
+
+    def train(self, mode: bool = True) -> None:
+        """Sets the model to training mode."""
+        self.training = mode
+        if self.training and self.X_train is None:
+            self._prepare_training_data()
+
+    def eval(self) -> None:
+        """Sets the model to evaluation mode."""
+        self.train(False)

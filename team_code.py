@@ -239,7 +239,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
         # NOTE: train an auxilliary outcome model
         OutcomeCfg.db_dir = Path(data_folder).resolve().absolute()
         OutcomeCfg.model_dir = Path(model_folder).resolve().absolute()
-        outcome_clf = OutComeClassifier_CINC2022(OutcomeCfg)
+        outcome_clf = OutComeClassifier_CINC2022(OutcomeCfg, training=True)
         outcome_clf.search(model_name="rf", cv=None)
         outcome_clf.save_best_model(model_name=_ModelFilename_outcome)
 
