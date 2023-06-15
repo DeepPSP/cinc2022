@@ -18,7 +18,6 @@ except ModuleNotFoundError:
 import torch
 from torch.utils.data import Dataset
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Config, BatchFeature
-from transformers.pytorch_utils import torch_int_div
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _compute_mask_indices,
     _sample_negative_indices,
@@ -37,6 +36,18 @@ __all__ = [
     "get_pretraining_datacollator",
     "Wav2Vec2PretrainingDataset",
 ]
+
+
+def torch_int_div(tensor1: torch.Tensor, tensor2: torch.Tensor) -> torch.Tensor:
+    """
+    A function that performs integer division across different versions of PyTorch.
+
+    Removed in transformers >= 4.28
+    """
+    if torch.__version__ < "1.8":
+        return tensor1 // tensor2
+    else:
+        return torch.div(tensor1, tensor2, rounding_mode="floor")
 
 
 @dataclass

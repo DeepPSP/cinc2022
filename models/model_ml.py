@@ -32,7 +32,7 @@ from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg.utils.utils_metrics import _cls_to_bin
 from tqdm.auto import tqdm
 
-from cfg import BaseCfg
+from cfg import BaseCfg, OutcomeCfg
 from data_reader import CINC2022Reader
 from outputs import CINC2022Outputs
 from utils.scoring_metrics import compute_challenge_metrics
@@ -44,33 +44,40 @@ __all__ = [
 
 
 class OutComeClassifier_CINC2022(object):
-    """ """
+    """Outcome classifier for CINC2022 using ML models.
+
+    Parameters:
+    -----------
+    config: CFG, optional,
+        configurations, ref. `cfg.OutcomeCfg`
+    training: bool, default True,
+        whether to train the model,
+        or load the trained model.
+
+    """
 
     __name__ = "OutComeClassifier_CINC2022"
 
     def __init__(
         self,
         config: Optional[CFG] = None,
+        training: bool = True,
         **kwargs: Any,
     ) -> None:
-        """
-
-        Parameters:
-        -----------
-        config: CFG, optional,
-            configurations, ref. `cfg.OutcomeCfg`
-
-        """
-        self.config = deepcopy(config)
+        self.config = deepcopy(config or OutcomeCfg)
+        self.training = training
         self.__imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
         self.__scaler = StandardScaler()
 
         self.logger_manager = None
         self.reader = None
         self.__df_features = None
-        self.x_train, self.y_train = None, None
-        self.x_test, self.y_test = None, None
-        self._prepare_training_data()
+        self.X_train, self.y_train = None, None
+        self.X_test, self.y_test = None, None
+
+        if self.training:
+            # prepare training data only when training
+            self._prepare_training_data()
 
         self.__cache = {}
         self.best_clf, self.best_params, self.best_score = None, None, None
@@ -99,9 +106,13 @@ class OutComeClassifier_CINC2022(object):
         """
         if db_dir is not None:
             self.config.db_dir = db_dir
-        self.config.db_dir = self.config.get("db_dir", None)
-        if self.config.db_dir is None:
-            return
+        elif not hasattr(self.config, "db_dir"):
+            self.config.db_dir = None
+        self.reader = CINC2022Reader(self.config.db_dir)
+        if len(self.reader) == 0:
+            self.reader.download()
+
+        self.config.db_dir = self.reader.db_dir
 
         if self.config.cont_scaler.lower() == "minmax":
             self.__scaler = MinMaxScaler()
@@ -116,9 +127,6 @@ class OutComeClassifier_CINC2022(object):
                 tensorboardx_logger=False,
             )
             self.logger_manager = LoggerManager.from_config(logger_config)
-
-        self.config.db_dir = Path(self.config.db_dir).resolve().absolute()
-        self.reader = CINC2022Reader(self.config.db_dir)
 
         self.__df_features = self.reader.df_stats[
             [self.config.split_col, self.config.y_col] + self.config.x_cols
@@ -162,10 +170,10 @@ class OutComeClassifier_CINC2022(object):
         train_set, test_set = self._train_test_split()
         df_train = self.__df_features.loc[train_set]
         df_test = self.__df_features.loc[test_set]
-        self.X_train = df_train[self.config.feature_list].values
-        self.y_train = df_train[self.config.y_col].values
-        self.X_test = df_test[self.config.feature_list].values
-        self.y_test = df_test[self.config.y_col].values
+        self.X_train = df_train[self.config.feature_list].values.astype(np.float64)
+        self.y_train = df_train[self.config.y_col].values.astype(np.int64)
+        self.X_test = df_test[self.config.feature_list].values.astype(np.float64)
+        self.y_test = df_test[self.config.y_col].values.astype(np.int64)
 
     def get_model(
         self, model_name: str, params: Optional[dict] = None
@@ -242,13 +250,15 @@ class OutComeClassifier_CINC2022(object):
         """
         if model_name is None:
             model_name = f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
+        model_path = Path(self.config.get("model_dir", ".")) / model_name
         self.save_model(
             self.best_clf,
             self.__imputer,
             self.__scaler,
             self.config,
-            Path(self.config.get("model_dir", ".")) / model_name,
+            model_path,
         )
+        print(f"Best OutComeClassifier saved to {model_path}")
 
     @classmethod
     def from_file(cls, path: Union[str, Path]) -> "OutComeClassifier_CINC2022":
@@ -268,7 +278,7 @@ class OutComeClassifier_CINC2022(object):
         """
         loaded = pickle.loads(Path(path).read_bytes())
         config = loaded["config"]
-        clf = cls(config)
+        clf = cls(config, training=False)
         clf.__imputer = loaded["imputer"]
         clf.__scaler = loaded["scaler"]
         clf.best_clf = loaded["outcome_classifier"]
@@ -476,14 +486,18 @@ class OutComeClassifier_CINC2022(object):
         best_score = np.inf
         best_clf = None
         best_params = None
-        with tqdm(enumerate(param_grid)) as pbar:
+        with tqdm(enumerate(param_grid), total=len(param_grid), mininterval=1) as pbar:
             for idx, params in pbar:
                 updated_params = deepcopy(params)
                 updated_params["n_jobs"] = self._num_workers
                 try:
                     clf_gs = self.get_model(model_name, params)
                     clf_gs.fit(X_train, y_train)
-                except Exception:
+                except Exception as e:
+                    import traceback
+
+                    print(traceback.format_exc())
+                    print(e)
                     continue
 
                 y_prob = clf_gs.predict_proba(X_val)
@@ -521,7 +535,9 @@ class OutComeClassifier_CINC2022(object):
                     part="val",
                 )
 
-                if val_metrics[self.config.monitor] < best_score:
+                if val_metrics[self.config.monitor] < best_score or idx == 0:
+                    # the lower the better
+                    # and ensures not None
                     best_score = val_metrics[self.config.monitor]
                     best_clf = clf_gs
                     best_params = params
@@ -771,3 +787,13 @@ class OutComeClassifier_CINC2022(object):
         shuffle(test_set)
 
         return train_set, test_set
+
+    def train(self, mode: bool = True) -> None:
+        """Sets the model to training mode."""
+        self.training = mode
+        if self.training and self.X_train is None:
+            self._prepare_training_data()
+
+    def eval(self) -> None:
+        """Sets the model to evaluation mode."""
+        self.train(False)
