@@ -6,6 +6,7 @@ on:
 
 jobs:
   docker:
+    if: contains(fromJson('["wenh06", "DeepPSP"]'), github.repository_owner)
     runs-on: ubuntu-20.04
     steps:
       -
