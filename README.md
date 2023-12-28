@@ -30,14 +30,11 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 
 ### Conference Paper
 
-<details>
-<summary>Click to view!</summary>
+[GitHub](https://github.com/wenh06/cinc2022_paper)
 
-~~Folder [tex](tex) contains latex source code for the CinC2022 conference paper, written using [Overleaf](https://www.overleaf.com/).~~
+[IEEE Xplore](https://ieeexplore.ieee.org/document/10081717/)
 
-Moved to another repository as the size of the whole repository exceeds the limit of [Overleaf](https://www.overleaf.com/).
-
-</details>
+[CinC Papers On-line](https://cinc.org/archives/2022/pdf/CinC2022-130.pdf)
 
 [Preprint](https://cinc.org/2022/Program/accepted/130_Preprint.pdf)
 
