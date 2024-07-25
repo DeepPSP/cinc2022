@@ -7,7 +7,7 @@ scikit-learn==1.0.1
 wfdb==3.2.0
 opencv-python
 easydict
-torch==1.13.1
+torch==2.2.0
 torchaudio==0.13.1
 torch-audiomentations
 torch-ecg
