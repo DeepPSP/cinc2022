@@ -29,7 +29,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.components.outputs import ClassificationOutput
 from torch_ecg.components.loggers import LoggerManager
 from torch_ecg.utils.utils_data import stratified_train_test_split
-from torch_ecg.utils.utils_metrics import _cls_to_bin
+from torch_ecg.utils.utils_metrics import _one_hot_pair
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg, OutcomeCfg
@@ -352,7 +352,7 @@ class OutComeClassifier_CINC2022(object):
         X = df_features.values
         y_prob = self.best_clf.predict_proba(X)
         y_pred = self.best_clf.predict(X)
-        bin_pred = _cls_to_bin(
+        bin_pred = _one_hot_pair(
             self.best_clf.predict(X), shape=(1, len(self.config.class_map))
         )
         return ClassificationOutput(
@@ -502,7 +502,7 @@ class OutComeClassifier_CINC2022(object):
 
                 y_prob = clf_gs.predict_proba(X_val)
                 y_pred = clf_gs.predict(X_val)
-                bin_pred = _cls_to_bin(
+                bin_pred = _one_hot_pair(
                     y_pred, shape=(y_pred.shape[0], len(self.config.classes))
                 )
                 outputs = CINC2022Outputs(
@@ -597,7 +597,7 @@ class OutComeClassifier_CINC2022(object):
         # best_score = gscv.best_score_
         y_prob = best_clf.predict_proba(X_val)
         y_pred = best_clf.predict(X_val)
-        bin_pred = _cls_to_bin(
+        bin_pred = _one_hot_pair(
             y_pred, shape=(y_pred.shape[0], len(self.config.classes))
         )
         outputs = CINC2022Outputs(

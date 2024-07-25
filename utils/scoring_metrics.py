@@ -6,7 +6,7 @@ from typing import Tuple, Sequence, Dict, List, Union
 
 import numpy as np
 from deprecated import deprecated
-from torch_ecg.utils.utils_metrics import _cls_to_bin
+from torch_ecg.utils.utils_metrics import _one_hot_pair
 
 from cfg import BaseCfg
 from outputs import CINC2022Outputs
@@ -128,7 +128,7 @@ def compute_challenge_metrics(
         )
         murmur_classes = outputs[0].murmur_output.classes
         if murmur_labels.ndim == 1:
-            murmur_labels = _cls_to_bin(
+            murmur_labels = _one_hot_pair(
                 murmur_labels, shape=(len(murmur_labels), len(murmur_classes))
             )
         metrics.update(
@@ -152,7 +152,7 @@ def compute_challenge_metrics(
         )
         outcome_classes = outputs[0].outcome_output.classes
         if outcome_labels.ndim == 1:
-            outcome_labels = _cls_to_bin(
+            outcome_labels = _one_hot_pair(
                 outcome_labels, shape=(len(outcome_labels), len(outcome_classes))
             )
         metrics.update(
