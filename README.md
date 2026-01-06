@@ -15,6 +15,7 @@ Heart Murmur Detection from Phonocardiogram Recordings: The George B. Moody Phys
 - [Top Team Papers](#top-team-papers)
 - [Official Phase Leaderboards](#official-phase-leaderboards)
 - [Miscellaneous](#miscellaneous)
+- [Citation](#citation)
 
 <!-- tocstop -->
 
@@ -155,7 +156,7 @@ The file [`test_docker.py`](test_docker.py) along with the [docker CI and Test a
 
 [`pcg_springer_features`](https://github.com/DeepPSP/pcg_springer_features) re-implements the feature extraction part of [David Springer's logistic regression-HSMM-based reart sound segmentation algorithm](https://physionet.org/content/hss/1.0/).
 
-Inside [utils](utils) there's also a copy of `pcg_springer_features`.
+Inside [utils](utils), there's also a copy of `pcg_springer_features`.
 
 ### [Docker Image](https://hub.docker.com/repository/docker/wenh06/cinc2022)
 
@@ -165,4 +166,25 @@ A Docker image was built and pushed to [Docker Hub](https://hub.docker.com/repos
 
 </details>
 
-[CinC2020](https://github.com/DeepPSP/cinc2020) | [CinC2021](https://github.com/DeepPSP/cinc2021) | [CinC2023](https://github.com/DeepPSP/cinc2023)
+## Citation
+
+If you find this repository useful for your research, please consider citing the following paper:
+
+```biblatex
+@inproceedings{wen_cinc2022,
+       title = {{Searching for Effective Neural Network Architectures for Heart Murmur Detection from Phonocardiogram}},
+      author = {WEN, Hao and Kang, Jingsu},
+   booktitle = {{2022 Computing in Cardiology Conference (CinC)}},
+      series = {{CinC2022}},
+        issn = {2325-887X},
+         doi = {10.22489/cinc.2022.130},
+   publisher = {{Computing in Cardiology}},
+        year = {2022},
+       month = {12},
+  collection = {{CinC2022}},
+    location = {Tampere, Finland},
+       pages = {1-4}
+}
+```
+
+[CinC2020](https://github.com/DeepPSP/cinc2020) | [CinC2021](https://github.com/DeepPSP/cinc2021) | [CinC2023](https://github.com/DeepPSP/cinc2023) | [CinC2024](https://github.com/wenh06/cinc2024) | [CinC2025](https://github.com/wenh06/cinc2025)
