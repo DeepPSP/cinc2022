@@ -2,7 +2,8 @@
 # https://hub.docker.com/r/nvidia/cuda/
 # FROM nvidia/cuda:11.1.1-devel
 # FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
-FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
+# FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime (py3.10, EOL deps)
+FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
 # pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
@@ -35,7 +36,7 @@ RUN python -m pip install --upgrade pip setuptools wheel
 # torch already installed in the base image
 # RUN pip install torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
-RUN pip install torchaudio==0.13.1+cu116 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install torchaudio==2.5.1 --no-deps
 
 RUN pip install torch-ecg
 RUN pip install torch-audiomentations --no-deps
