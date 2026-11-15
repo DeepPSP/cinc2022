@@ -38,7 +38,14 @@ RUN python -m pip install --upgrade pip setuptools wheel
 # compatible with torch
 RUN pip install torchaudio==2.5.1 --no-deps
 
-RUN pip install torch-ecg
+# constraints for the early installs: keep torch-ecg's deps (pandas<2,
+# wfdb<4, joblib pin) aligned with requirements-docker.txt so that nothing
+# gets downgraded in place afterwards -- the in-place downgrade used to mix
+# numpy-ABI-incompatible pandas wheels into site-packages and
+# `import pandas` died with "numpy.dtype size changed ... Expected 96 ...
+# got 88"
+COPY ./requirements-docker.txt /tmp/requirements-docker.txt
+RUN pip install torch-ecg -c /tmp/requirements-docker.txt
 RUN pip install torch-audiomentations --no-deps
 
 ## DO NOT EDIT the 3 lines.
