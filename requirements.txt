@@ -24,6 +24,7 @@ pyarrow<26
 torchsummary
 tensorboardX
 tqdm
+peakutils
 biosppy
 deprecated
 torch-optimizer
