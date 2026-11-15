@@ -32,3 +32,8 @@ accelerate
 # which is installed with --no-deps
 julius>=0.2.3,<0.3
 torch-pitch-shift>=1.2.2
+
+# pyarrow 26 hard-requires numpy>=2 at runtime (undeclared in metadata,
+# so pip cannot detect the conflict) -- 25.x imports fine on numpy 1.x
+# (pulled in by torch-ecg / datasets)
+pyarrow<26

@@ -11,6 +11,10 @@ torch==2.13.0
 torchaudio==2.11.1
 torch-audiomentations
 torch-ecg
+
+# pyarrow 26 hard-requires numpy>=2 at runtime (undeclared in metadata,
+# so pip cannot detect the conflict) -- 25.x imports fine on numpy 1.x
+pyarrow<26
 torchsummary
 tensorboardX
 tqdm
