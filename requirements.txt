@@ -10,7 +10,13 @@ easydict
 torch==2.13.0
 torchaudio==2.11.1
 torch-audiomentations
-torch-ecg
+# torch_ecg 0.0.32/0.0.33 call pd.set_option("future.no_silent_downcasting")
+# at import time (databases/aux_data/aha.py) WITHOUT the try/except guard
+# that 0.0.31 has -- the option only exists in pandas>=2.1, so with our
+# pandas 1.5.3 line any `import torch_ecg` dies. Pin 0.0.31 (last
+# pandas-1-compatible release) until we move to pandas 2 or upstream
+# restores the guard.
+torch-ecg==0.0.31
 
 # pyarrow 26 hard-requires numpy>=2 at runtime (undeclared in metadata,
 # so pip cannot detect the conflict) -- 25.x imports fine on numpy 1.x
