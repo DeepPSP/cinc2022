@@ -596,6 +596,28 @@ OutcomeCfg.feature_list = ["Age", "Sex", "Height", "Weight", "Pregnancy status"]
     f"Location-{loc}" for loc in OutcomeCfg.location_list
 ]
 OutcomeCfg.grids = CFG()
+
+def _filter_invalid_oob_combos(grid: ParameterGrid) -> ParameterGrid:
+    """Filter out the bootstrap=False & oob_score=True grid combinations.
+
+    sklearn>=1.0 raises ValueError("Out of bag estimation only available
+    if bootstrap=True") for those combos, while older sklearn silently
+    ignored oob_score when bootstrap=False (i.e. behaved as
+    oob_score=False), so filtering keeps the effective search space
+    unchanged.
+    """
+    return ParameterGrid(
+        [
+            {
+                k: (v if isinstance(v, list) else [v])
+                for k, v in params.items()
+            }
+            for params in grid
+            if params["bootstrap"] or not params["oob_score"]
+        ]
+    )
+
+
 OutcomeCfg.grids.rf = ParameterGrid(
     {
         "n_estimators": [10, 15, 20, 50, 100],
@@ -608,6 +630,7 @@ OutcomeCfg.grids.rf = ParameterGrid(
         "class_weight": ["balanced", "balanced_subsample", {0: 5, 1: 1}, None],
     }
 )
+OutcomeCfg.grids.rf = _filter_invalid_oob_combos(OutcomeCfg.grids.rf)
 OutcomeCfg.grids.xgb = ParameterGrid(
     {
         "n_estimators": [10, 15, 20, 50],
@@ -655,6 +678,7 @@ OutcomeCfg.grids.bagging = ParameterGrid(
         "warm_start": [True, False],
     }
 )
+OutcomeCfg.grids.bagging = _filter_invalid_oob_combos(OutcomeCfg.grids.bagging)
 # OutcomeCfg.grids.sk_mlp =
 #     ParameterGrid({
 #         "hidden_layer_sizes": [(50,), (100,), (50, 100), (50, 100, 50)],
