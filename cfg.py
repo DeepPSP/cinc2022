@@ -597,6 +597,7 @@ OutcomeCfg.feature_list = ["Age", "Sex", "Height", "Weight", "Pregnancy status"]
 ]
 OutcomeCfg.grids = CFG()
 
+
 def _filter_invalid_oob_combos(grid: ParameterGrid) -> ParameterGrid:
     """Filter out the bootstrap=False & oob_score=True grid combinations.
 
@@ -608,10 +609,7 @@ def _filter_invalid_oob_combos(grid: ParameterGrid) -> ParameterGrid:
     """
     return ParameterGrid(
         [
-            {
-                k: (v if isinstance(v, list) else [v])
-                for k, v in params.items()
-            }
+            {k: (v if isinstance(v, list) else [v]) for k, v in params.items()}
             for params in grid
             if params["bootstrap"] or not params["oob_score"]
         ]
