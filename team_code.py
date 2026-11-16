@@ -285,9 +285,13 @@ def load_challenge_model(
     print(msg)
     # murmur model
     model_cls = _MODEL_MAP[TrainCfg[TASK].model_name]
+    # weights_only=False: the challenge checkpoint carries the train cfg
+    # (plain-python objects), which torch>=2.6's weights_only=True default
+    # (inherited by torch_ecg's "auto") refuses to unpickle
     main_model, train_cfg = model_cls.from_checkpoint(
         path=Path(model_folder) / _ModelFilename,
         device=DEVICE,
+        weights_only=False,
     )
     main_model.eval()
     if USE_AUX_OUTCOME_MODEL:
