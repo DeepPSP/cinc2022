@@ -20,8 +20,8 @@ LABEL maintainer="wenh06@gmail.com"
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
 RUN apt update
-RUN apt install build-essential -y
-RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 awscli -y
+RUN DEBIAN_FRONTEND=noninteractive apt install build-essential -y
+RUN DEBIAN_FRONTEND=noninteractive apt install git ffmpeg libsm6 libxext6 vim libsndfile1 awscli -y
 
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 

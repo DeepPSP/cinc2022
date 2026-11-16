@@ -2,7 +2,11 @@
 # https://hub.docker.com/r/nvidia/cuda/
 # FROM nvidia/cuda:11.1.1-devel
 # FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
-FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
+# FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime (py3.10, EOL deps)
+# same as Dockerfile but WITHOUT running the test script
+# (this file exists since the pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime era
+#  when torch-audiomentations needed the -f torch_stable index)
+FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
 # pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
@@ -19,8 +23,8 @@ LABEL maintainer="wenh06@gmail.com"
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
 RUN apt update
-RUN apt install build-essential -y
-RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
+RUN DEBIAN_FRONTEND=noninteractive apt install build-essential -y
+RUN DEBIAN_FRONTEND=noninteractive apt install git ffmpeg libsm6 libxext6 vim libsndfile1 awscli -y
 
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 
@@ -35,9 +39,16 @@ RUN python -m pip install --upgrade pip setuptools wheel
 # torch already installed in the base image
 # RUN pip install torch==1.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 # compatible with torch
-RUN pip install torchaudio==0.13.1+cu116 --no-deps -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install torchaudio==2.5.1 --no-deps
 
-RUN pip install torch-ecg
+# constraints for the early installs: keep torch-ecg's deps (pandas<2,
+# wfdb<4, joblib pin) aligned with requirements-docker.txt so that nothing
+# gets downgraded in place afterwards -- the in-place downgrade used to mix
+# numpy-ABI-incompatible pandas wheels into site-packages and
+# `import pandas` died with "numpy.dtype size changed ... Expected 96 ...
+# got 88"
+COPY ./requirements-docker.txt /tmp/requirements-docker.txt
+RUN pip install torch-ecg -c /tmp/requirements-docker.txt
 RUN pip install torch-audiomentations --no-deps
 
 ## DO NOT EDIT the 3 lines.
@@ -48,7 +59,6 @@ WORKDIR /physionet
 RUN pip install -r requirements-docker.txt
 
 COPY ./ /physionet
-
 
 # NOTE: also run test_local.py to test locally
 # since GitHub Actions does not have GPU,
