@@ -34,6 +34,17 @@ accelerate
 julius>=0.2.3,<0.3
 torch-pitch-shift>=1.2.2
 
+# pin the torch family to the base image versions (FROM
+# pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime = torch 2.5.1 /
+# torchaudio 2.5.1 / torchvision 0.20.1): unpinned deps (torch-pitch-shift
+# wants torchaudio>=0.7.0, torch-ecg wants a bare torch) must not be
+# allowed to upgrade them -- a torchaudio upgrade cascades into torch
+# 2.15 and breaks the base torchvision ("operator torchvision::nms does
+# not exist"). Keep in lockstep with the FROM image.
+torch<=2.5.1
+torchaudio<=2.5.1
+torchvision<=0.20.1
+
 # pyarrow 26 hard-requires numpy>=2 at runtime (undeclared in metadata,
 # so pip cannot detect the conflict) -- 25.x imports fine on numpy 1.x
 # (pulled in by torch-ecg / datasets)
